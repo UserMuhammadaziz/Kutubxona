@@ -13,6 +13,10 @@ app.conf.beat_schedule = {
         "task": "jarima.tasks.jarimalarni_hisobla",
         "schedule": crontab(hour=0, minute=30),
     },
+    "jarima-eslatmalar-har-3-soatda": {
+        "task": "jarima.tasks.jarima_eslatma_yubor",
+        "schedule": crontab(minute=0, hour="*/3"),
+    },
     "takliflarni-har-10-daqiqada-tekshir": {
         "task": "navbat.tasks.takliflarni_tekshir",
         "schedule": crontab(minute="*/10"),

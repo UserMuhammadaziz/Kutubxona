@@ -42,18 +42,29 @@ class NavbatSerializer(serializers.ModelSerializer):
 
 class NavbatYaratishSerializer(serializers.Serializer):
     """POST /api/reservations/ — kitob navbatiga turish.
-    Javobida nechanchi o'rin ekani orin maydonida qaytariladi."""
+    Javobida nechanchi o'rin ekani orin maydonida qaytariladi.
+    O'quvchi bot orqali qo'shilsa telegram_id, kutubxonachi veb-orginal
+    orqali qo'shilsa oquvchi (PK) kiritiladi — ikkalasi ham qo'llab-quvvatlanadi.
+    """
 
     kitob = serializers.PrimaryKeyRelatedField(queryset=Kitob.objects.all())
-    telegram_id = serializers.IntegerField()
+    oquvchi = serializers.PrimaryKeyRelatedField(queryset=Oquvchi.objects.all(), required=False)
+    telegram_id = serializers.IntegerField(required=False)
 
     def validate(self, attrs):
-        try:
-            oquvchi = Oquvchi.objects.get(telegram_id=attrs["telegram_id"])
-        except Oquvchi.DoesNotExist:
+        if "oquvchi" not in attrs and "telegram_id" not in attrs:
             raise serializers.ValidationError(
-                {"error": "oquvchi_topilmadi", "detail": "O'quvchi bog'lanmagan"}
+                {"error": "oquvchi_kerak", "detail": "oquvchi yoki telegram_id kiritilishi shart"}
             )
+        oquvchi = attrs.get("oquvchi")
+        if oquvchi is None and "telegram_id" in attrs:
+            try:
+                oquvchi = Oquvchi.objects.get(telegram_id=attrs["telegram_id"])
+            except Oquvchi.DoesNotExist:
+                raise serializers.ValidationError(
+                    {"error": "oquvchi_topilmadi", "detail": "O'quvchi bog'lanmagan"}
+                )
+            attrs["oquvchi"] = oquvchi
         if not oquvchi.faol:
             raise serializers.ValidationError(
                 {"error": "oquvchi_bloklangan", "detail": "O'quvchi bloklangan"}
@@ -66,7 +77,6 @@ class NavbatYaratishSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {"error": "allaqachon_navbatda", "detail": "Siz bu kitobga allaqachon navbatdasiz"}
             )
-        attrs["oquvchi"] = oquvchi
         return attrs
 
 

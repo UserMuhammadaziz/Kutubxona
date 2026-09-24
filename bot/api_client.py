@@ -109,6 +109,10 @@ class ApiClient:
                 if isinstance(data, dict):
                     kod = data.get("error", "xato")
                     detail = data.get("detail", str(data))
+                    if isinstance(kod, list):
+                        kod = kod[0] if kod else "xato"
+                    if isinstance(detail, list):
+                        detail = detail[0] if detail else str(detail)
                 else:
                     kod, detail = "xato", str(data)
                 raise ApiXato(kod, detail, r.status)
@@ -128,12 +132,52 @@ class ApiClient:
             },
         )
 
+    # ---------- A'zolik arizasi ----------
+    async def ariza_holati(self, telegram_id: int):
+        return await self._so_rov(
+            "GET",
+            "/applications/status/",
+            auth=False,
+            params={"telegram_id": telegram_id},
+        )
+
+    async def ariza_yubor(
+        self,
+        telegram_id: int,
+        fish: str,
+        telefon: str,
+        *,
+        tugilgan_sana: str | None = None,
+        manzil: str = "",
+    ):
+        return await self._so_rov(
+            "POST",
+            "/applications/",
+            auth=False,
+            json_data={
+                "telegram_id": telegram_id,
+                "fish": fish,
+                "telefon": telefon,
+                "tugilgan_sana": tugilgan_sana,
+                "manzil": manzil,
+            },
+        )
+
     # ---------- Kitob qidiruv ----------
     async def kitob_qidir(self, q: str):
         return await self._so_rov("GET", "/books/search/", params={"q": q})
 
     async def kitob_detail(self, kitob_id: int):
         return await self._so_rov("GET", f"/books/{kitob_id}/")
+
+    async def kitob_janrlar(self):
+        return await self._so_rov("GET", "/books/genres/")
+
+    async def kitoblar_janr_boicha(self, janr: str, page: int = 1):
+        """Berilgan janrdagi kitoblar ro'yxati (sahifa bo'yicha varaqlanadi).
+        Sahifa o'lchami serverda PAGE_SIZE (20) — botda bitta ekranga to'g'ri keladi."""
+        data = await self._so_rov("GET", "/books/", params={"janr": janr, "page": page})
+        return data.get("results", []), data.get("count", 0)
 
     # ---------- Navbat ----------
     async def navbatga_tur(self, kitob_id: int, telegram_id: int):
@@ -173,9 +217,11 @@ class ApiClient:
 
     # ---------- Kutubxonachi: qaytarib olish (ixtiyoriy) ----------
     async def nusxa_qidir(self, inventar_raqami: str):
-        return await self._so_rov(
+        """/copies/ pagination qilar edi — botga kerakli results (list) qaytariladi."""
+        data = await self._so_rov(
             "GET", "/copies/", params={"inventar_raqami": inventar_raqami}
         )
+        return data.get("results", []) if isinstance(data, dict) else data
 
     async def nusxa_detail(self, nusxa_id: int):
         return await self._so_rov("GET", f"/copies/{nusxa_id}/")

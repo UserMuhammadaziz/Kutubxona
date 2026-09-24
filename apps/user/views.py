@@ -1,4 +1,6 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, permissions
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
 
 from .models import User
 from .permissions import IsAdmin
@@ -14,7 +16,7 @@ class UserViewSet(viewsets.ModelViewSet):
     Xodim hech qachon DELETE bilan o'chirilmaydi — faqat is_active=False.
     """
 
-    queryset = User.objects.all()
+    queryset = User.objects.all().order_by("-id")
     permission_classes = [IsAdmin]
     http_method_names = ["get", "post", "patch"]
 
@@ -22,3 +24,10 @@ class UserViewSet(viewsets.ModelViewSet):
         if self.action == "create":
             return UserCreateSerializer
         return UserSerializer
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def me(request):
+    """GET /api/auth/me/ — joriy foydalanuvchi ma'lumoti (topbar uchun)."""
+    return Response(UserSerializer(request.user).data)

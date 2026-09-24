@@ -18,6 +18,12 @@ def xato_handler(exc, context):
 
     # Servis funksiyalaridan kelgan {"error": ..., "detail": ...} formatini o'zgartirmaymiz
     if isinstance(data, dict) and "error" in data and "detail" in data:
+        # Serializer ichidagi dict-form ValidationError'da qiymatlar ro'yxat bo'lib kelishi
+        # mumkin (DRF uni field->xato deb talqin qiladi) — ularni bitta qatorga keltiramiz.
+        for kalit in ("error", "detail"):
+            qiymat = data[kalit]
+            if isinstance(qiymat, list):
+                data[kalit] = qiymat[0] if qiymat else str(qiymat)
         return response
 
     # DRF standart formatlarini ({"detail": "..."} yoki {"field": [...]})  bitta formatga keltiramiz

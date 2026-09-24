@@ -3,7 +3,7 @@ from datetime import date
 
 from rest_framework import serializers
 
-from .models import Oquvchi
+from .models import Ariza, Oquvchi
 
 
 def _yangi_karta_raqami():
@@ -97,3 +97,61 @@ class OquvchiBindSerializer(serializers.Serializer):
         oquvchi.telegram_id = self.validated_data["telegram_id"]
         oquvchi.save(update_fields=["telegram_id"])
         return oquvchi
+
+
+class ArizaSerializer(serializers.ModelSerializer):
+    """Arizalar ro'yxati / tasdiqlash uchun (kutubxonachi)."""
+
+    class Meta:
+        model = Ariza
+        fields = [
+            "id",
+            "telegram_id",
+            "fish",
+            "telefon",
+            "tugilgan_sana",
+            "manzil",
+            "holati",
+            "ariza_sanasi",
+            "tasdiqlangan_sana",
+            "izoh",
+        ]
+        read_only_fields = ["id", "ariza_sanasi", "tasdiqlangan_sana", "holati", "izoh"]
+
+
+class ArizaYaratishSerializer(serializers.ModelSerializer):
+    """POST /api/applications/ — bot orqali yangi a'zolik arizasi."""
+
+    telegram_id = serializers.IntegerField(validators=[])
+
+    class Meta:
+        model = Ariza
+        fields = ["telegram_id", "fish", "telefon", "tugilgan_sana", "manzil"]
+
+    def validate_tugilgan_sana(self, value):
+        if value and value > date.today():
+            raise serializers.ValidationError(
+                "Tug'ilgan sana kelajakda bo'lishi mumkin emas."
+            )
+        return value
+
+    def validate(self, attrs):
+        telegram_id = attrs["telegram_id"]
+        if Oquvchi.objects.filter(telegram_id=telegram_id).exists():
+            raise serializers.ValidationError(
+                {"error": "allaqachon_azo", "detail": "Bu telegram akkaunt allaqachon ro'yxatdan o'tgan"}
+            )
+        if Ariza.objects.filter(telegram_id=telegram_id, holati="kutmoqda").exists():
+            raise serializers.ValidationError(
+                {"error": "ariza_kutmoqda", "detail": "Arizangiz hali ko'rib chiqilmoqda"}
+            )
+        # Eski (bekor/tasdiqlangan) ariza qolsa yangi ariza ochish uchun tozalanadi
+        Ariza.objects.filter(telegram_id=telegram_id).exclude(holati="kutmoqda").delete()
+        return attrs
+
+
+class ArizaStatusSerializer(serializers.Serializer):
+    """GET /api/applications/status/?telegram_id= — bot uchun ariza holati."""
+
+    holati = serializers.CharField()
+    izoh = serializers.CharField(required=False, allow_blank=True)

@@ -35,25 +35,86 @@ Django REST Framework + PostgreSQL + Celery/Redis + aiogram 3 (Telegram bot).
 
 ## Ishga tushirish
 
-Loyiha to'liq ishlashi uchun **4 ta jarayon** parallel ishlashi kerak (har biri alohida terminalda):
+**Redis (Memurai) Windows xizmati sifatida o'rnatilgan bo'lishi kerak** — u
+tizim yuklanganda avtomatik ishlay boshlaydi (port 6379).
+
+Qolgan hammasi (Celery worker, Celery beat, Telegram bot, Django server)
+**bitta buyruq bilan avtomatik** ishga tushadi:
 
 ```bash
-# 1) Django server
-python manage.py runserver
+# Windows — bir marta bosish (yaoki ikkimarta bosish):
+start_all.bat
 
-# 2) Redis (agar mahalliy o'rnatilmagan bo'lsa, Docker orqali)
-redis-server
-# yoki: docker run -p 6379:6379 redis
+# yoki terminaldan:
+powershell -ExecutionPolicy Bypass -File .\start_all.ps1
 
-# 3) Celery worker — jarima hisoblash va navbat vazifalarini bajaradi
-celery -A config worker -l info
-
-# 4) Celery beat — vazifalarni jadval bo'yicha ishga tushiradi
-celery -A config beat -l info
-
-# 5) Telegram bot
-python bot/main.py
+# Django va boptisiz faqat Celery+Redis kerak bo'lsa:
+powershell -ExecutionPolicy Bypass -File .\start_all.ps1 -SkipBot -SkipDjango
 ```
+
+Ishlashni to'xtatish:
+
+```bash
+powershell -ExecutionPolicy Bypass -File .\stop_all.ps1
+```
+
+Qo'shimcha ma'lumot:
+
+- Jurnal fayllari: `logs/celery_worker.out.log`, `logs/celery_beat.out.log`,
+  `logs/bot.out.log`, `logs/django.out.log`
+- `--pool=solo` ishlatiladi (Windows uchun tavsiya etiladi)
+- Redis/Memurai xizmati o'zi alohida ishlaydi, uni to'xtatish shart emas
+
+Agar qo'lda alohida terminalda ishga tushirish kerak bo'lsa:
+
+```bash
+redis-server                                          # Redis
+celery -A config worker -l info --pool=solo           # Celery worker
+celery -A config beat -l info                         # Celery beat
+python manage.py runserver                            # Django
+python bot/main.py                                    # Telegram bot
+```
+
+## Frontend (React admin paneli)
+
+Admin paneli `frontend/` papkasida React + TypeScript + Vite + Tailwind CSS
+bilan qurilgan (avvalgi vanilla-JS `web/static/web/js` panelining o'rnini
+bosadi). JWT autentifikatsiya, kitoblar/nusxalar/o'quvchilar/berish-
+qaytarish/navbat/jarima/xodimlar bo'yicha to'liq CRUD interfeysini o'z
+ichiga oladi.
+
+**Ishlab chiqish rejimi** (Django serverini alohida, `python manage.py
+runserver` bilan ishga tushirgan holda):
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Bu `http://localhost:5173` da ochiladi va `/api` so'rovlarini Vite dev
+serveri orqali `http://127.0.0.1:8000` ga proksi qiladi (CORS sozlash shart
+emas).
+
+**Production build** — Django shu build'ni to'g'ridan-to'g'ri xizmat
+ko'rsatadi (alohida frontend server kerak emas):
+
+```bash
+cd frontend
+npm run build
+```
+
+Bu buyruq: TypeScript'ni tekshiradi → `web/static/web/dist/` ga build
+qiladi → chiqarilgan `index.html`'ni `web/templates/web/index.html` ga
+ko'chiradi (Django'ning `IndexView` shu shablonni beradi). Shundan so'ng
+`python manage.py runserver` orqali `http://127.0.0.1:8000/` da to'liq
+ishlaydigan panelni ko'rasiz — React Router client-side routing uchun
+`web/urls.py` `admin/` va `api/` dan boshqa barcha yo'llarni shu SPA
+shell'ga yo'naltiradi.
+
+Build natijalari (`web/static/web/dist/`, `web/templates/web/index.html`)
+`.gitignore`'da — reponi klon qilganidan keyin frontend'ni ishlatish uchun
+kamida bir marta `npm run build` bajarish kerak.
 
 ## Muhim: jarima hisoblash idempotent
 

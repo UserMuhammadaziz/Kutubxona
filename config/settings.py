@@ -56,7 +56,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'django_filters',
-    'silk',
     'user',
     'rest_framework_simplejwt',
     'nusxa',
@@ -66,6 +65,7 @@ INSTALLED_APPS = [
     'jarima',
     'oquvchi',
     'stats',
+    'web',
 ] 
 
 
@@ -73,7 +73,6 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'silk.middleware.SilkyMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -203,7 +202,6 @@ CELERY_TIMEZONE = TIME_ZONE
 # --- Telegram bot (API dan foydalanish uchun) ---
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 BOT_API_BASE_URL = os.environ.get("BOT_API_BASE_URL", "http://127.0.0.1:8000/api")
-BOT_SERVICE_TOKEN = os.environ.get("BOT_SERVICE_TOKEN", "")
 
 CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
 CELERY_RESULT_BACKEND = "redis://127.0.0.1:6379/0"

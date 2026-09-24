@@ -11,7 +11,7 @@ from berish.serializers import BerishSerializer, BerishYaratishSerializer, Beris
 
 class BerishViewSet(viewsets.ModelViewSet):
     permission_classes = [IsLibrarian]
-    queryset = Berish.objects.select_related("nusxa__kitob", "oquvchi")
+    queryset = Berish.objects.select_related("nusxa__kitob", "oquvchi").order_by("-id")
     serializer_class = BerishSerializer
     filterset_fields = ["holati", "oquvchi"]
     http_method_names = ["get", "post"]

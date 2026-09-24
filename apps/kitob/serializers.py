@@ -13,6 +13,10 @@ class KitobSerializer(serializers.ModelSerializer):
             "muallif",
             "isbn",
             "janr",
+            "til",
+            "narh",
+            "buyurtma_soni",
+            "holati",
             "nashr_yili",
             "nashriyot",
             "tavsif",
@@ -21,6 +25,11 @@ class KitobSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "qoshilgan_sana"]
 
     def validate_isbn(self, value):
+        if value is None:
+            return None
+        value = value.strip()
+        if not value:
+            return None
         # unique=True modelda bor, lekin aniq xabar uchun qo'shimcha tekshiruv
         qs = Kitob.objects.filter(isbn=value)
         if self.instance:
@@ -60,6 +69,7 @@ class KitobQidiruvSerializer(serializers.ModelSerializer):
 
     mavjud_nusxalar = serializers.IntegerField(read_only=True)
     jami_nusxalar = serializers.IntegerField(read_only=True)
+    faol_navbatlar = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Kitob
@@ -69,7 +79,15 @@ class KitobQidiruvSerializer(serializers.ModelSerializer):
             "muallif",
             "isbn",
             "janr",
+            "til",
+            "narh",
+            "buyurtma_soni",
+            "holati",
             "nashr_yili",
+            "nashriyot",
+            "tavsif",
+            "qoshilgan_sana",
             "mavjud_nusxalar",
             "jami_nusxalar",
+            "faol_navbatlar",
         ]

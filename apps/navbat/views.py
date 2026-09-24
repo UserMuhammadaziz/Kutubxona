@@ -23,11 +23,13 @@ class NavbatViewSet(viewsets.ModelViewSet):
     GET    /api/reservations/                -> ro'yxat (kutubxonachi hisoboti)
     GET    /api/reservations/my/            -> o'quvchining navbatlari va o'rni
     POST   /api/reservations/{id}/respond/  -> {"javob": "olaman" | "kerak_emas"}
+    POST   /api/reservations/{id}/confirm/  -> kutubxonachi: kitob berildi, navbat yakunlandi
     DELETE /api/reservations/{id}/          -> navbatdan chiqish
     """
 
     queryset = Navbat.objects.select_related("kitob", "oquvchi")
     serializer_class = NavbatSerializer
+    filterset_fields = ["holati", "kitob", "oquvchi"]
     http_method_names = ["get", "post", "delete"]
 
     def get_permissions(self):
@@ -78,6 +80,19 @@ class NavbatViewSet(viewsets.ModelViewSet):
             if serializer.validated_data["javob"] == "kerak_emas":
                 services.taklifni_bekor_qil_va_keyingisiga_ut(navbat, "oquvchi_rad")
 
+        return Response(NavbatSerializer(navbat).data)
+
+    @action(detail=True, methods=["post"], url_path="confirm")
+    def confirm(self, request, pk=None):
+        """Kutubxonachi kitobni o'quvchiga berdi — navbat 'yakunlandi' deb belgilanadi."""
+        navbat = self.get_object()
+        if navbat.holati not in ("kutmoqda", "taklif_qilindi"):
+            raise ValidationError(
+                {"error": "holat_notogri", "detail": "Faqat faol navbat tasdiqlanadi"}
+            )
+        navbat.holati = "yakunlandi"
+        navbat.javob_vaqti = now()
+        navbat.save(update_fields=["holati", "javob_vaqti"])
         return Response(NavbatSerializer(navbat).data)
 
     def destroy(self, request, *args, **kwargs):

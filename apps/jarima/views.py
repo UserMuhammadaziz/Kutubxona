@@ -3,6 +3,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from config.telegram import telegram_xabar_yubor
 from oquvchi.models import Oquvchi
 from user.permissions import IsLibrarian
 from .models import Jarima
@@ -16,7 +17,7 @@ class JarimaViewSet(viewsets.ModelViewSet):
     POST /api/fines/{id}/pay/ -> jarimani to'langan deb belgilash
     """
 
-    queryset = Jarima.objects.select_related("berish__oquvchi", "berish__nusxa__kitob")
+    queryset = Jarima.objects.select_related("berish__oquvchi", "berish__nusxa__kitob").order_by("-id")
     serializer_class = JarimaSerializer
     filterset_fields = ["tolandimi", "berish__oquvchi"]
     http_method_names = ["get", "post"]
@@ -54,4 +55,16 @@ class JarimaViewSet(viewsets.ModelViewSet):
         jarima.tolangan_sana = now()
         jarima.qabul_qilgan = request.user
         jarima.save(update_fields=["tolandimi", "tolangan_sana", "qabul_qilgan"])
+
+        oquvchi = jarima.berish.oquvchi
+        if oquvchi.telegram_id:
+            matn = (
+                "✅ <b>Jarima to'landi!</b>\n\n"
+                f"📖 Kitob: {jarima.berish.nusxa.kitob.nomi}\n"
+                f"💰 Summa: {jarima.summa} so'm\n\n"
+                "Siz jarimangizni to'ladingiz. "
+                "Keyingi safar kitobni vaqtida topshiring!"
+            )
+            telegram_xabar_yubor(oquvchi.telegram_id, matn)
+
         return Response(JarimaSerializer(jarima).data)

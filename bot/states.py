@@ -8,6 +8,15 @@ class BogClash(StatesGroup):
     telefon = State()
 
 
+class Ariza(StatesGroup):
+    """A'zolik arizasi: ism -> telefon -> tug'ilgan sana -> manzil."""
+
+    fish = State()
+    telefon = State()
+    tugilgan_sana = State()
+    manzil = State()
+
+
 class Qidiruv(StatesGroup):
     """Kitob qidirish matnini kutish."""
 

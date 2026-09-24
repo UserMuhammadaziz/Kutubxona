@@ -9,6 +9,9 @@ from user.permissions import IsLibrarian
 from .models import Kitob
 from .serializers import KitobSerializer, KitobDetailSerializer, KitobQidiruvSerializer
 
+# Faol (bekor qilinmagan / yakunlanmagan) navbat holatlari.
+NAVBAT_FAQOL = ("kutmoqda", "taklif_qilindi")
+
 
 class KitobViewSet(viewsets.ModelViewSet):
     queryset = Kitob.objects.all().order_by("nomi")
@@ -18,6 +21,9 @@ class KitobViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == "retrieve":
             return KitobDetailSerializer
+        if self.action == "list":
+            # ro'yxatda mavjud/jami nusxalar sonini ko'rsatish uchun annotate qilingan serializer
+            return KitobQidiruvSerializer
         return KitobSerializer
 
     def get_permissions(self):
@@ -26,8 +32,18 @@ class KitobViewSet(viewsets.ModelViewSet):
         return [permissions.IsAuthenticated()]
 
     def get_queryset(self):
-        if self.action == "retrieve":
+        if self.action in ("retrieve",):
             return Kitob.objects.prefetch_related("nusxalar")
+        if self.action == "list":
+            return (
+                Kitob.objects.all()
+                .order_by("nomi")
+                .annotate(
+                    mavjud_nusxalar=Count("nusxalar", filter=Q(nusxalar__holati="mavjud")),
+                    jami_nusxalar=Count("nusxalar"),
+                    faol_navbatlar=Count("navbat", filter=Q(navbat__holati__in=NAVBAT_FAQOL)),
+                )
+            )
         return super().get_queryset()
 
     def perform_destroy(self, instance):
@@ -45,9 +61,25 @@ class KitobViewSet(viewsets.ModelViewSet):
         ).annotate(
             mavjud_nusxalar=Count("nusxalar", filter=Q(nusxalar__holati="mavjud")),
             jami_nusxalar=Count("nusxalar"),
+            faol_navbatlar=Count("navbat", filter=Q(navbat__holati__in=NAVBAT_FAQOL)),
         )
         serializer = KitobQidiruvSerializer(qs, many=True)
         return Response(serializer.data)
+
+    @action(detail=False, methods=["get"], url_path="genres")
+    def genres(self, request):
+        """Bot uchun: mavjud kitoblari bor janrlar ro'yxati."""
+        labels = dict(Kitob.JANR_CHOICES)
+        qs = (
+            Kitob.objects.values("janr")
+            .annotate(soni=Count("id"))
+            .order_by("janr")
+        )
+        data = [
+            {"key": r["janr"], "label": labels.get(r["janr"], r["janr"]), "soni": r["soni"]}
+            for r in qs
+        ]
+        return Response(data)
 
     @action(detail=True, methods=["get"], url_path="queue", permission_classes=[IsLibrarian])
     def queue(self, request, pk=None):

@@ -5,8 +5,10 @@ from django.db import transaction
 from django.utils.timezone import now
 from rest_framework.exceptions import ValidationError
 
+from config.telegram import telegram_xabar_yubor
 from jarima.models import Jarima
 from jarima.services import jarimani_hisobla
+from navbat.models import Navbat
 from navbat.services import keyingi_navbatga_taklif_yubor
 from nusxa.models import Nusxa
 from .models import Berish
@@ -44,7 +46,36 @@ def kitob_ber(nusxa, oquvchi, xodim):
         qaytarish_muddati=now().date() + timedelta(days=settings.MUDDAT_KUN),
         holati="faol",
     )
+
+    # Foydalanuvchi tayinlagan navbat (band) endi berilganligi tasdiqlanadi.
+    Navbat.objects.filter(
+        kitob=nusxa.kitob_id,
+        oquvchi=oquvchi,
+        holati__in=["kutmoqda", "taklif_qilindi"],
+    ).update(holati="yakunlandi", javob_vaqti=now())
+
+    # Kitob olgan kundan boshlab qaytarish muddati (14 kun) boshlanadi.
+    transaction.on_commit(lambda: _kitob_berildi_xabarini_yubor(berish))
+
     return berish
+
+
+def _kitob_berildi_xabarini_yubor(berish):
+    """Berish tranzaksiyasi commit bo'lgach, o'quvchiga Telegram xabar yuboradi:
+    «Kitob berildi» + qaytarish muddati + olgan kundan hisoblanadigan muddat."""
+    oquvchi = berish.oquvchi
+    if not oquvchi.telegram_id:
+        return
+    matn = (
+        "📖 <b>Kitob berildi!</b>\n\n"
+        f"Qabul qilgan kitobingiz: <b>{berish.nusxa.kitob.nomi}</b>\n"
+        f"Inventar raqami: {berish.nusxa.inventar_raqami}\n"
+        f"Berilgan sana: {berish.berilgan_sana}\n"
+        f"Qaytarish muddati: <b>{berish.qaytarish_muddati}</b>\n\n"
+        f"Sizda kitobni olgan kundan boshlab {settings.MUDDAT_KUN} kun muddat bor. "
+        "Iltimos, vaqtida topshiring!"
+    )
+    telegram_xabar_yubor(oquvchi.telegram_id, matn)
 
 
 @transaction.atomic
