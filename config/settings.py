@@ -227,3 +227,14 @@ CELERY_TIMEZONE = TIME_ZONE
 # --- Telegram bot (API dan foydalanish uchun) ---
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 BOT_API_BASE_URL = os.environ.get("BOT_API_BASE_URL", "http://127.0.0.1:8000/api")
+
+# --- Production xavfsizligi (manage.py check --deploy) ---
+# Nginx TLS va HTTP -> HTTPS redirect'ini o'zi boshqaradi (Strict-Transport-Security
+# header'i ham nginx'da qo'yilgan). Quyidagilar Django tomonda qo'shimcha himoya.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_SSL_REDIRECT = not DEBUG
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+X_FRAME_OPTIONS = "DENY"
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
