@@ -232,9 +232,16 @@ BOT_API_BASE_URL = os.environ.get("BOT_API_BASE_URL", "http://127.0.0.1:8000/api
 # Nginx TLS va HTTP -> HTTPS redirect'ini o'zi boshqaradi (Strict-Transport-Security
 # header'i ham nginx'da qo'yilgan). Quyidagilar Django tomonda qo'shimcha himoya.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-SECURE_SSL_REDIRECT = not DEBUG
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
 X_FRAME_OPTIONS = "DENY"
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+# SECURE_SSL_REDIRECT ni yoqmay qoldiramiz: redirect'ni nginx allaqachon qiladi
+# (80 -> 443), va Django darajasida yoqish bot'ning lokal yo'lini
+# (BOT_API_BASE_URL=http://127.0.0.1:8000/api) buzadi.
+SECURE_SSL_REDIRECT = os.environ.get(
+    "SECURE_SSL_REDIRECT", "False"
+).lower() in ("true", "1", "yes")
+# security.W008 ni jimga olish: redirect mas'uliyati nginx'da.
+SILENCED_SYSTEM_CHECKS = ["security.W008"]
