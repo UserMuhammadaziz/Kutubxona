@@ -21,5 +21,6 @@ aiogram==3.31.0
 python-dotenv==1.2.3
 
 # Ishlab chiqarish (production) WSGI server — Windows'da ishlamaydi,
-# shuning uchun lokal venvga qo'shilmagan.
-gunicorn==23.0.0
+# shuning uchun lokal venvga qo'shilmagan. Aniq versiya serverga bog'liq
+# (>= qo'yiladi — mavzuning pasaytirilishiga yo'l qo'ymaydi).
+gunicorn>=23.0.0
