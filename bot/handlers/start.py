@@ -4,7 +4,13 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 from api_client import ApiXato, api
-from keyboards import asosiy_menyu, telefon_sorash
+from keyboards import (
+    asosiy_menyu,
+    klaviatura_olib_tashla,
+    matndan_telefon_keltirish,
+    telefon_keltirish,
+    telefon_sorash,
+)
 from states import Ariza
 
 router = Router(name="start")
@@ -91,34 +97,54 @@ async def ariza_fish(message: Message, state: FSMContext):
 
 @router.message(Ariza.telefon, F.contact)
 async def ariza_telefon(message: Message, state: FSMContext):
-    telefon = message.contact.phone_number
-    if not telefon.startswith("+"):
-        telefon = f"+{telefon}"
+    contact = message.contact
 
-    # Telegram ba'zan "+998 90 123 45 67" shaklida beradi — bo'sh joylarni olib
-    # tashlab, oldindagi "00" yozuvini "+998" ga almashtiramiz.
-    telefon = telefon.replace(" ", "").replace("-", "")
-    if telefon.startswith("00998"):
-        telefon = "+998" + telefon[5:]
-    if not telefon.startswith("+998") or len(telefon) != 12:
+    # Telegram Contact boshqa akkauntga tegishli bo'lishi mumkin (kontakt
+    # sifatida tanlangan). O'z raqamini tasdiqlashi uchun user_id mos bo'lishi
+    # kerak.
+    if contact.user_id and contact.user_id != message.from_user.id:
         await message.answer(
-            "Telefon raqam +998901234567 formatida bo'lishi kerak. "
-            "Tugma orqali qayta yuboring:"
+            "⚠️ Bu kontakt sizning akkauntingizga tegishli emas. "
+            "O'z telefon raqamingizni Telegram kontaktlaridan yuboring "
+            "(yoki raqamni qo'lda yozib bo'lishingiz mumkin):"
         )
         return
 
-    await state.update_data(telefon=telefon)
-    await state.set_state(Ariza.sinf)
-    await message.answer(
-        f"3️⃣ Telefon: {telefon}\n\n"
-        f"Endi sinfingizni yozing (masalan: {SINF_MASALALARI}):"
-    )
+    telefon = telefon_keltirish(contact.phone_number)
+    if not telefon:
+        await message.answer(
+            "❌ Telefon raqam +998901234567 formatida bo'lishi kerak.\n\n"
+            "Quyidagilar to'g'ri keladi: +998901234567, +998 90 123 45 67.\n"
+            "📱 Pastdagi tugma orqali qayta yuboring:"
+        )
+        return
+
+    await _telefon_qabul(message, state, telefon)
 
 
 @router.message(Ariza.telefon)
-async def ariza_telefon_notogri(message: Message, state: FSMContext):
+async def ariza_telefon_matn(message: Message, state: FSMContext):
+    """Tugmani bosmasdan, raqamni oddiy matn ko'rinishida yuborish."""
+    telefon = matndan_telefon_keltirish(message.text or "")
+    if not telefon:
+        await message.answer(
+            "Iltimos, pastdagi tugma orqali telefon raqamingizni yuboring.\n"
+            "Yoki raqamni qo'lda yozib bo'lishingiz mumkin "
+            "(masalan: +998901234567)"
+        )
+        return
+
+    await _telefon_qabul(message, state, telefon)
+
+
+async def _telefon_qabul(message: Message, state: FSMContext, telefon: str):
+    """Raqamni saqlaydi, telefon klaviaturasini olib tashlaydi va keyingi bosqichga o'tadi."""
+    await state.update_data(telefon=telefon)
+    await state.set_state(Ariza.sinf)
     await message.answer(
-        "Iltimos, pastdagi tugma orqali telefon raqamingizni yuboring."
+        f"✅ Telefon raqamingiz muvaffaqiyatli tasdiqlandi: {telefon}\n\n"
+        f"3️⃣ Endi sinfingizni yozing (masalan: {SINF_MASALALARI}):",
+        reply_markup=klaviatura_olib_tashla(),
     )
 
 
