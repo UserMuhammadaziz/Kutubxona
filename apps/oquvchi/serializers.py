@@ -4,25 +4,7 @@ from datetime import date
 from rest_framework import serializers
 
 from .models import Ariza, Oquvchi
-
-
-def _yangi_karta_raqami():
-    """LIB-{yil}-{4 xonali tartib raqam} formatida keyingi bo'sh raqamni topadi."""
-    yil = date.today().year
-    prefiks = f"LIB-{yil}-"
-    oxirgi = (
-        Oquvchi.objects.filter(karta_raqami__startswith=prefiks)
-        .order_by("-karta_raqami")
-        .first()
-    )
-    if oxirgi:
-        try:
-            tartib = int(oxirgi.karta_raqami.split("-")[-1]) + 1
-        except ValueError:
-            tartib = 1
-    else:
-        tartib = 1
-    return f"{prefiks}{tartib:04d}"
+from .services import oquvchi_yarat
 
 
 class OquvchiSerializer(serializers.ModelSerializer):
@@ -36,6 +18,7 @@ class OquvchiSerializer(serializers.ModelSerializer):
             "telefon",
             "telegram_id",
             "karta_raqami",
+            "sinf",
             "tugilgan_sana",
             "manzil",
             "royxat_sanasi",
@@ -49,7 +32,7 @@ class OquvchiYaratishSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Oquvchi
-        fields = ["id", "fish", "telefon", "tugilgan_sana", "manzil", "karta_raqami"]
+        fields = ["id", "fish", "telefon", "sinf", "tugilgan_sana", "manzil", "karta_raqami"]
         read_only_fields = ["id", "karta_raqami"]
 
     def validate_telefon(self, value):
@@ -60,8 +43,7 @@ class OquvchiYaratishSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        validated_data["karta_raqami"] = _yangi_karta_raqami()
-        return super().create(validated_data)
+        return oquvchi_yarat(**validated_data)
 
 
 class OquvchiBindSerializer(serializers.Serializer):
@@ -109,6 +91,7 @@ class ArizaSerializer(serializers.ModelSerializer):
             "telegram_id",
             "fish",
             "telefon",
+            "sinf",
             "tugilgan_sana",
             "manzil",
             "holati",
@@ -120,13 +103,18 @@ class ArizaSerializer(serializers.ModelSerializer):
 
 
 class ArizaYaratishSerializer(serializers.ModelSerializer):
-    """POST /api/applications/ — bot orqali yangi a'zolik arizasi."""
+    """POST /api/applications/ — bot orqali yangi a'zolik arizasi.
+
+    Bot faqat ism-familiya, telefon raqam va sinfni so'raydi. tugilgan_sana
+    va manzil qoldirilgan ma'lumot uchun ixtiyoriy qoldirilgan (eski arizalar
+    bilan moslik uchun) — yangi bot ularni so'ramaydi.
+    """
 
     telegram_id = serializers.IntegerField(validators=[])
 
     class Meta:
         model = Ariza
-        fields = ["telegram_id", "fish", "telefon", "tugilgan_sana", "manzil"]
+        fields = ["telegram_id", "fish", "telefon", "sinf", "tugilgan_sana", "manzil"]
 
     def validate_tugilgan_sana(self, value):
         if value and value > date.today():
@@ -134,6 +122,14 @@ class ArizaYaratishSerializer(serializers.ModelSerializer):
                 "Tug'ilgan sana kelajakda bo'lishi mumkin emas."
             )
         return value
+
+    def validate_sinf(self, value):
+        sinf = (value or "").strip()
+        if not sinf:
+            raise serializers.ValidationError("Sinfni ko'rsating (masalan: 7-A).")
+        if len(sinf) > 30:
+            raise serializers.ValidationError("Sinf nomi juda uzun (maksimum 30 belgi).")
+        return sinf
 
     def validate(self, attrs):
         telegram_id = attrs["telegram_id"]

@@ -1,5 +1,4 @@
 from django.db import transaction
-from django.utils.timezone import now
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -9,6 +8,7 @@ from berish.serializers import BerishMeniSerializer
 from jarima.models import Jarima
 from jarima.serializers import JarimaMeniSerializer
 from user.permissions import IsLibrarian
+from . import services
 from .models import Ariza, Oquvchi
 from .serializers import (
     ArizaSerializer,
@@ -17,7 +17,6 @@ from .serializers import (
     OquvchiSerializer,
     OquvchiYaratishSerializer,
     OquvchiBindSerializer,
-    _yangi_karta_raqami,
 )
 
 
@@ -76,7 +75,8 @@ class ArizaViewSet(viewsets.ModelViewSet):
 
     queryset = Ariza.objects.all()
     serializer_class = ArizaSerializer
-    filterset_fields = ["holati"]
+    filterset_fields = ["holati", "sinf"]
+    search_fields = ["fish", "telefon", "telegram_id"]
     http_method_names = ["get", "post"]
 
     def get_permissions(self):
@@ -98,6 +98,10 @@ class ArizaViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"], url_path="status")
     def holat(self, request):
         telegram_id = request.query_params.get("telegram_id")
+        if not telegram_id:
+            raise ValidationError(
+                {"error": "telegram_id_kerak", "detail": "telegram_id parametri kiritilishi shart"}
+            )
         ariza = Ariza.objects.filter(telegram_id=telegram_id).first()
         if ariza:
             data = {
@@ -121,32 +125,14 @@ class ArizaViewSet(viewsets.ModelViewSet):
                 {"error": "telegram_band", "detail": "Bu telegram akkaunt allaqachon o'quvchiga bog'langan"}
             )
 
-        with transaction.atomic():
-            oquvchi = Oquvchi.objects.filter(telefon=ariza.telefon).first()
-            if oquvchi:
-                oquvchi.telegram_id = ariza.telegram_id
-                oquvchi.fish = ariza.fish
-                oquvchi.faol = True
-                yangilash = ["telegram_id", "fish", "faol"]
-                if ariza.tugilgan_sana:
-                    oquvchi.tugilgan_sana = ariza.tugilgan_sana
-                    yangilash.append("tugilgan_sana")
-                if ariza.manzil:
-                    oquvchi.manzil = ariza.manzil
-                    yangilash.append("manzil")
-                oquvchi.save(update_fields=yangilash)
-            else:
-                oquvchi = Oquvchi.objects.create(
-                    fish=ariza.fish,
-                    telefon=ariza.telefon,
-                    telegram_id=ariza.telegram_id,
-                    karta_raqami=_yangi_karta_raqami(),
-                    tugilgan_sana=ariza.tugilgan_sana,
-                    manzil=ariza.manzil,
+        try:
+            with transaction.atomic():
+                ariza, oquvchi, yangi_karta = services.arizani_tasdiqla(ariza)
+                services.ariza_holatini_yubor(
+                    ariza, services.tasdiqlash_xabari(ariza, oquvchi, yangi_karta)
                 )
-            ariza.holati = "tasdiqlandi"
-            ariza.tasdiqlangan_sana = now()
-            ariza.save(update_fields=["holati", "tasdiqlangan_sana"])
+        except services.ArizaTelegramBandi as xato:
+            raise ValidationError({"error": "telefon_band", "detail": str(xato)})
 
         return Response(ArizaSerializer(ariza).data)
 
@@ -157,7 +143,9 @@ class ArizaViewSet(viewsets.ModelViewSet):
             raise ValidationError(
                 {"error": "holat_notogri", "detail": "Faqat 'kutmoqda' holatidagi ariza rad etiladi"}
             )
-        ariza.holati = "bekor"
-        ariza.izoh = request.data.get("izoh", "")[:255]
-        ariza.save(update_fields=["holati", "izoh"])
+
+        with transaction.atomic():
+            services.arizani_rad_et(ariza, request.data.get("izoh", ""))
+            services.ariza_holatini_yubor(ariza, services.rad_etilgan_xabari(ariza, ariza.izoh))
+
         return Response(ArizaSerializer(ariza).data)

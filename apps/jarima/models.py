@@ -10,4 +10,10 @@ class Jarima(models.Model):
     tolandimi = models.BooleanField(default = False)
     tolangan_sana = models.DateTimeField(null = True, blank = True)
     qabul_qilgan = models.ForeignKey(User, null=True, blank=True, on_delete=models.PROTECT)
+    eslatma_yuborilgan_sana = models.DateTimeField(null=True, blank=True)
     yangilangan = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["tolandimi", "eslatma_yuborilgan_sana"], name="jarima_eslatma_idx"),
+        ]

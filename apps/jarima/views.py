@@ -3,7 +3,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from config.telegram import telegram_xabar_yubor
+from config.telegram import telegram_escape, telegram_xabar_yubor
 from oquvchi.models import Oquvchi
 from user.permissions import IsLibrarian
 from .models import Jarima
@@ -60,7 +60,7 @@ class JarimaViewSet(viewsets.ModelViewSet):
         if oquvchi.telegram_id:
             matn = (
                 "✅ <b>Jarima to'landi!</b>\n\n"
-                f"📖 Kitob: {jarima.berish.nusxa.kitob.nomi}\n"
+                f"📖 Kitob: {telegram_escape(jarima.berish.nusxa.kitob.nomi)}\n"
                 f"💰 Summa: {jarima.summa} so'm\n\n"
                 "Siz jarimangizni to'ladingiz. "
                 "Keyingi safar kitobni vaqtida topshiring!"

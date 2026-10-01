@@ -22,6 +22,9 @@ class Kitob(models.Model):
 
     HOLAT_CHOICES = [
     ("mavjud", "Mavjud"),
+    # `berilgan` nusxa holatidan avtomatik hisoblanadi
+    # (kitob/services.py::kitob_holatini_yenila) — qo'lda o'zgartirilmaydi.
+    ("berilgan", "Berilgan"),
     ("yoqolgan", "Yo'qolgan"),
 ]
 

@@ -1,26 +1,50 @@
 """Ixtiyoriy (qo'shimcha ball) qism: kutubxonachi botga inventar raqamini
 yuborib, kitobni qaytarib olishi mumkin. /qaytar buyrug'i bilan boshlanadi.
+
+Muhim: bu buyruq kitobni qaytarib olishni amalga oshiradi, ya'ni kutubxonachi
+huquqiga ega. Bot esa o'z xizmat akkaunti orqali `IsLibrarian` endpoint'iga
+uradi — shuning uchun faqat `BOT_ADMIN_CHAT_IDS` ro'yxatidagi chat_id lar uchun
+ishlaydi (bo'lmasa buyruq butunlay o'chiriladi).
 """
 from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
+import config
 from api_client import ApiXato, api
 from keyboards import qaytarish_tasdiq_tugmasi
 from states import KutubxonachiQaytarish
 
 router = Router(name="kutubxonachi")
 
+RUXSAT_YUQ = (
+    "🔒 Bu buyruq faqat kutubxonachilar uchun.\n\n"
+    "Agar siz xodim bo'lsangiz, .env faylidagi BOT_ADMIN_CHAT_IDS ga o'z "
+    "Telegram ID ni qo'shib, botni qayta ishga tushiring."
+)
+
+
+def _ruxsat_berilganmi(message: Message) -> bool:
+    if config.bot_adminmi(message.from_user.id):
+        return True
+    message.answer(RUXSAT_YUQ)
+    return False
+
 
 @router.message(Command("qaytar"))
 async def qaytarish_boshla(message: Message, state: FSMContext):
+    if not _ruxsat_berilganmi(message):
+        return
     await state.set_state(KutubxonachiQaytarish.inventar)
     await message.answer("Inventar raqamini yuboring (masalan: INV-000412):")
 
 
 @router.message(KutubxonachiQaytarish.inventar)
 async def inventar_qabul(message: Message, state: FSMContext):
+    if not _ruxsat_berilganmi(message):
+        await state.clear()
+        return
     await state.clear()
     inv = (message.text or "").strip().upper()
 
@@ -57,6 +81,10 @@ async def inventar_qabul(message: Message, state: FSMContext):
 
 @router.callback_query(F.data.startswith("qaytar:"))
 async def qaytarish_tasdiq(callback: CallbackQuery):
+    if not config.bot_adminmi(callback.from_user.id):
+        await callback.answer("🔒 Ruxsat yo'q.", show_alert=True)
+        return
+
     berish_id = int(callback.data.split(":")[1])
 
     try:

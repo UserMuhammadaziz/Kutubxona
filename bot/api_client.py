@@ -146,10 +146,11 @@ class ApiClient:
         telegram_id: int,
         fish: str,
         telefon: str,
-        *,
-        tugilgan_sana: str | None = None,
-        manzil: str = "",
+        sinf: str,
     ):
+        """POST /applications/ — a'zolik arizasi.
+
+        Backend faqat ism-familiya, telefon va sinfni talab qiladi."""
         return await self._so_rov(
             "POST",
             "/applications/",
@@ -158,8 +159,7 @@ class ApiClient:
                 "telegram_id": telegram_id,
                 "fish": fish,
                 "telefon": telefon,
-                "tugilgan_sana": tugilgan_sana,
-                "manzil": manzil,
+                "sinf": sinf,
             },
         )
 

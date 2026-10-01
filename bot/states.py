@@ -9,12 +9,13 @@ class BogClash(StatesGroup):
 
 
 class Ariza(StatesGroup):
-    """A'zolik arizasi: ism -> telefon -> tug'ilgan sana -> manzil."""
+    """A'zolik arizasi: ism-familiya -> telefon -> sinf.
+
+    Atigi uch maydon so'raladi (backend ham shuncha talab qiladi)."""
 
     fish = State()
     telefon = State()
-    tugilgan_sana = State()
-    manzil = State()
+    sinf = State()
 
 
 class Qidiruv(StatesGroup):

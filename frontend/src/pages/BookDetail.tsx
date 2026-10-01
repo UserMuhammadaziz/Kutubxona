@@ -42,7 +42,9 @@ export function BookDetail() {
             <div>
               <dt className="text-slate-500 dark:text-slate-400">Holati</dt>
               <dd>
-                <Badge tone={book.holati === 'mavjud' ? 'green' : 'red'}>{HOLAT_LABELS[book.holati] ?? book.holati}</Badge>
+                <Badge tone={book.holati === 'mavjud' ? 'green' : book.holati === 'berilgan' ? 'blue' : 'red'}>
+                  {HOLAT_LABELS[book.holati] ?? book.holati}
+                </Badge>
               </dd>
             </div>
             <div>

@@ -31,12 +31,6 @@ def telefon_sorash() -> ReplyKeyboardMarkup:
     )
 
 
-def otkazib_yuborish_tugmasi() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text="⏭ O'tkazib yuborish", callback_data="ariza_skip")]]
-    )
-
-
 def kitob_batafsil_tugmasi(kitob_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[

@@ -6,9 +6,22 @@ yuboriladi. To'g'ridan-to'g'ri Telegram Bot API ga boradi — alohida bot
 jarayoni ishlamasa ham ishlaydi.
 """
 import json
+from html import escape
 from urllib import error, request
 
 from django.conf import settings
+
+
+def telegram_escape(matn) -> str:
+    """Matnni Telegram HTML parse_mode uchun xavfsizlashtiradi.
+
+    O'quvchi ismi, izohi yoki kitob nomi kabi ma'lumotlar foydalanuvchi
+    tomondan keladi. Ularni escape qilinmasdan `<b>`/`<` kabi teglar ichida
+    qo'yilsa, Telegram 400 qaytaradi (yuborilgan xabar butunlay
+    yo'qoladi). Shuning uchun dinamik qiymatlar shu funksiya orqali
+    o'raladi; xabarning o'zidagi teglar esa qo'lda yoziladi.
+    """
+    return escape("" if matn is None else str(matn), quote=False)
 
 
 def telegram_xabar_yubor(chat_id, matn, parse_mode="HTML"):

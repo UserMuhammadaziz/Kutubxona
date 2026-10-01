@@ -105,10 +105,11 @@ export const TIL_LABELS: Record<string, string> = {
   boshqa: 'Boshqa',
 }
 
-export type KitobHolati = 'mavjud' | 'yoqolgan'
+export type KitobHolati = 'mavjud' | 'berilgan' | 'yoqolgan'
 
 export const HOLAT_LABELS: Record<KitobHolati, string> = {
   mavjud: 'Mavjud',
+  berilgan: 'Berilgan',
   yoqolgan: "Yo'qolgan",
 }
 
@@ -162,6 +163,7 @@ export interface Oquvchi {
   telefon: string
   telegram_id: number | null
   karta_raqami: string
+  sinf: string
   tugilgan_sana: string | null
   manzil: string | null
   royxat_sanasi: string
@@ -176,6 +178,7 @@ export interface OquvchiDetail extends Oquvchi {
 export interface OquvchiCreatePayload {
   fish: string
   telefon: string
+  sinf?: string
   tugilgan_sana?: string
   manzil?: string
 }
@@ -195,6 +198,7 @@ export interface Ariza {
   telegram_id: number
   fish: string
   telefon: string
+  sinf: string | null
   tugilgan_sana: string | null
   manzil: string
   holati: ArizaHolati
@@ -262,6 +266,7 @@ export interface Jarima {
   tolandimi: boolean
   tolangan_sana: string | null
   qabul_qilgan: number | null
+  eslatma_yuborilgan_sana: string | null
   yangilangan: string
 }
 
@@ -284,6 +289,13 @@ export const NAVBAT_HOLATI_LABELS: Record<NavbatHolati, string> = {
   bekor: 'Bekor qilindi',
 }
 
+export type NavbatJavob = 'olaman' | 'kerak_emas'
+
+export const NAVBAT_JAVOB_LABELS: Record<NavbatJavob, string> = {
+  olaman: 'Olaman',
+  kerak_emas: 'Kerak emas',
+}
+
 export interface Navbat {
   id: number
   kitob: number
@@ -296,6 +308,7 @@ export interface Navbat {
   taklif_vaqti: string | null
   taklif_muddati: string | null
   javob_vaqti: string | null
+  javob: NavbatJavob | ''
   bekor_sababi: string | null
 }
 
@@ -303,7 +316,9 @@ export interface NavbatMeni {
   id: number
   kitob_nomi: string
   holati: NavbatHolati
+  javob: NavbatJavob | ''
   navbat_sanasi: string
+  taklif_muddati: string | null
   orin: number | null
 }
 

@@ -15,6 +15,7 @@ class Oquvchi(models.Model):
 )
     telegram_id = models.BigIntegerField(unique=True, null=True, blank=True)
     karta_raqami = models.CharField(max_length=20, unique=True)
+    sinf = models.CharField(max_length=30, blank=True)
     tugilgan_sana = models.DateField(null=True, blank=True)
     manzil = models.CharField(max_length=255, blank=True)
     royxat_sanasi = models.DateField(auto_now_add=True)
@@ -42,6 +43,10 @@ class Ariza(models.Model):
             )
         ]
     )
+    # null=True: eski arizalarda sinf yo'q (migratsiyadan oldin yuborilganlar).
+    # Yangi arizalar uchun sinf majburiy — buni ArizaYaratishSerializer
+    # validate_sinf() va blank=False orqali kafolatlaymiz.
+    sinf = models.CharField(max_length=30, null=True)
     tugilgan_sana = models.DateField(null=True, blank=True)
     manzil = models.CharField(max_length=255, blank=True)
     holati = models.CharField(max_length=20, choices=HOLAT_CHOICES, default="kutmoqda")
@@ -51,3 +56,4 @@ class Ariza(models.Model):
 
     class Meta:
         ordering = ["-ariza_sanasi"]
+        indexes = [models.Index(fields=["holati", "-ariza_sanasi"], name="ariza_holati_sana_idx")]

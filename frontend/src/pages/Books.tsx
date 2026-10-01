@@ -3,25 +3,37 @@ import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { booksApi, reservationsApi } from '../api/resources'
 import { errorMessage } from '../api/client'
+import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { formatDate } from '../lib/format'
 import { JANR_LABELS, TIL_LABELS, HOLAT_LABELS, NAVBAT_HOLATI_LABELS, type Janr, type Kitob, type KitobHolati, type KitobPayload, type Navbat } from '../types'
 import {
   Badge,
   Button,
   Card,
+  ConfirmDialog,
   EmptyState,
   ErrorBanner,
+  ErrorState,
   Field,
   Input,
   Label,
   Modal,
   PageHeader,
   Pagination,
+  ResponsiveList,
   Select,
   Spinner,
   Table,
+  TableSkeleton,
 } from '../components/ui'
+import { useToast } from '../components/Toast'
 import { useAuthStore } from '../store/auth'
+
+const KITOB_HOLATI_TONE: Record<KitobHolati, 'slate' | 'green' | 'red' | 'amber' | 'blue'> = {
+  mavjud: 'green',
+  berilgan: 'blue',
+  yoqolgan: 'red',
+}
 
 const emptyForm: KitobPayload = {
   nomi: '',
@@ -39,17 +51,21 @@ const emptyForm: KitobPayload = {
 
 export function Books() {
   const qc = useQueryClient()
+  const toast = useToast()
   const user = useAuthStore((s) => s.user)
   const canEdit = user?.rol === 'kutubxonachi' || user?.rol === 'administrator'
   const [page, setPage] = useState(1)
   const [janr, setJanr] = useState('')
   const [search, setSearch] = useState('')
+  const kechikkanSearch = useDebouncedValue(search)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Kitob | null>(null)
   const [form, setForm] = useState<KitobPayload>(emptyForm)
   const [error, setError] = useState<string | null>(null)
+  const [ochiriladigan, setOchiriladigan] = useState<Kitob | null>(null)
+  const [navbatBekorQilinadigan, setNavbatBekorQilinadigan] = useState<Navbat | null>(null)
 
-  const searching = search.trim().length > 0
+  const searching = kechikkanSearch.trim().length > 0
 
   const listQuery = useQuery({
     queryKey: ['books', page, janr],
@@ -58,8 +74,8 @@ export function Books() {
   })
 
   const searchQuery = useQuery({
-    queryKey: ['books', 'search', search],
-    queryFn: () => booksApi.search(search.trim()),
+    queryKey: ['books', 'search', kechikkanSearch],
+    queryFn: () => booksApi.search(kechikkanSearch.trim()),
     enabled: searching,
   })
 
@@ -68,6 +84,7 @@ export function Books() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['books'] })
       closeModal()
+      toast.success('Kitob qo‘shildi.')
     },
     onError: (err) => setError(errorMessage(err)),
   })
@@ -77,14 +94,19 @@ export function Books() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['books'] })
       closeModal()
+      toast.success('Kitob ma’lumotlari yangilandi.')
     },
     onError: (err) => setError(errorMessage(err)),
   })
 
   const removeMut = useMutation({
     mutationFn: (id: number) => booksApi.remove(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['books'] }),
-    onError: (err) => alert(errorMessage(err)),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['books'] })
+      setOchiriladigan(null)
+      toast.success('Kitob o‘chirildi.')
+    },
+    onError: (err) => toast.error(errorMessage(err)),
   })
 
   const [queueBook, setQueueBook] = useState<Kitob | null>(null)
@@ -99,11 +121,13 @@ export function Books() {
   const cancelNavbatMut = useMutation({
     mutationFn: (id: number) => reservationsApi.remove(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['book-queue', queueBook?.id] })
+      qc.invalidateQueries({ queryKey: ['book-queue'] })
       qc.invalidateQueries({ queryKey: ['books'] })
       qc.invalidateQueries({ queryKey: ['reservations'] })
+      setNavbatBekorQilinadigan(null)
+      toast.success('Navbat bekor qilindi va keyingisiga navbat yuborildi.')
     },
-    onError: (err) => alert(errorMessage(err)),
+    onError: (err) => toast.error(errorMessage(err)),
   })
 
   function openCreate() {
@@ -152,6 +176,10 @@ export function Books() {
 
   const rows = searching ? searchQuery.data : listQuery.data?.results
   const loading = searching ? searchQuery.isLoading : listQuery.isLoading
+  const listError = searching ? searchQuery.error : listQuery.error
+  const isError = searching ? searchQuery.isError : listQuery.isError
+  const isFetching = searching ? searchQuery.isFetching : listQuery.isFetching
+  const filtrBor = searching || janr !== ''
 
   return (
     <div>
@@ -177,11 +205,100 @@ export function Books() {
         </div>
       </Card>
 
-      {loading && <Spinner />}
-      {!loading && !rows?.length && <EmptyState text="Kitoblar topilmadi" />}
+      {loading && <TableSkeleton rows={8} cols={6} />}
 
-      {!loading && !!rows?.length && (
-        <Table>
+      {isError && !loading && (
+        <ErrorState
+          title="Kitoblarni yuklab bo‘lmadi"
+          message={errorMessage(listError)}
+          onRetry={() => {
+            if (searching) void searchQuery.refetch()
+            else void listQuery.refetch()
+          }}
+          retrying={isFetching}
+        />
+      )}
+
+      {!loading && !isError && !rows?.length && (
+        <EmptyState
+          icon="📚"
+          title={filtrBor ? 'Kitob topilmadi' : 'Hali kitob yo‘q'}
+          description={
+            filtrBor
+              ? 'Qidiruv shartini yoki janr filtrini o‘zgartirib ko‘ring.'
+              : canEdit
+                ? 'Birinchi kitobni qo‘shish uchun «+ Yangi kitob» tugmasidan foydalaning.'
+                : 'Katalog hali to‘ldirilmagan.'
+          }
+          action={
+            filtrBor ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setSearch('')
+                  setJanr('')
+                  setPage(1)
+                }}
+              >
+                Filtrni tozalash
+              </Button>
+            ) : canEdit ? (
+              <Button size="sm" onClick={openCreate}>
+                + Yangi kitob
+              </Button>
+            ) : undefined
+          }
+        />
+      )}
+
+      {!loading && !isError && !!rows?.length && (
+        <ResponsiveList<Kitob>
+          items={rows}
+          render={(b) => (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-start justify-between gap-2">
+                <Link
+                  to={`/books/${b.id}`}
+                  className="font-medium text-brand-700 hover:underline dark:text-brand-400"
+                >
+                  {b.nomi}
+                </Link>
+<Badge tone={KITOB_HOLATI_TONE[b.holati as KitobHolati] ?? 'slate'}>
+                  {HOLAT_LABELS[b.holati as KitobHolati] ?? b.holati}
+                </Badge>
+              </div>
+              <div className="text-sm text-slate-600 dark:text-slate-300">{b.muallif}</div>
+              <div className="flex flex-wrap gap-1.5">
+                <Badge>{JANR_LABELS[b.janr as Janr] ?? b.janr}</Badge>
+                <Badge tone={b.mavjud_nusxalar > 0 ? 'green' : 'red'}>
+                  {b.mavjud_nusxalar} / {b.jami_nusxalar} nusxa
+                </Badge>
+                {b.faol_navbatlar > 0 && <Badge tone="amber">{b.faol_navbatlar} ta navbat</Badge>}
+              </div>
+              <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                <span>{b.nashr_yili} · {b.nashriyot || '—'}</span>
+                {b.narh && <span className="font-semibold">{Number(b.narh).toLocaleString('ru-RU')} so‘m</span>}
+              </div>
+              {canEdit && (
+                <div className="mt-1 flex gap-2">
+                  {b.faol_navbatlar > 0 && (
+                    <Button size="sm" variant="secondary" className="flex-1" onClick={() => setQueueBook(b)}>
+                      Navbat
+                    </Button>
+                  )}
+                  <Button size="sm" variant="secondary" className="flex-1" onClick={() => openEdit(b)}>
+                    Tahrirlash
+                  </Button>
+                  <Button size="sm" variant="danger" onClick={() => setOchiriladigan(b)}>
+                    O‘chirish
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        >
+          <Table>
           <thead className="border-b border-slate-200 bg-canvas text-xs uppercase text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
             <tr>
               <th className="px-4 py-3">Nomi</th>
@@ -219,7 +336,7 @@ export function Books() {
                 </td>
                 <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{b.buyurtma_soni ?? '—'}</td>
                 <td className="px-4 py-3">
-                  <Badge tone={b.holati === 'mavjud' ? 'green' : 'red'}>{HOLAT_LABELS[b.holati as KitobHolati] ?? b.holati}</Badge>
+                  <Badge tone={KITOB_HOLATI_TONE[b.holati as KitobHolati] ?? 'slate'}>{HOLAT_LABELS[b.holati as KitobHolati] ?? b.holati}</Badge>
                 </td>
                 <td className="px-4 py-3">
                   <Badge tone={b.mavjud_nusxalar > 0 ? 'green' : 'red'}>
@@ -245,9 +362,7 @@ export function Books() {
                       <Button
                         size="sm"
                         variant="danger"
-                        onClick={() => {
-                          if (confirm(`"${b.nomi}" kitobini o'chirmoqchimisiz?`)) removeMut.mutate(b.id)
-                        }}
+                        onClick={() => setOchiriladigan(b)}
                       >
                         O'chirish
                       </Button>
@@ -258,6 +373,7 @@ export function Books() {
             ))}
           </tbody>
         </Table>
+        </ResponsiveList>
       )}
 
       {!searching && listQuery.data && (
@@ -279,7 +395,7 @@ export function Books() {
             <Label>ISBN (ixtiyoriy)</Label>
             <Input value={form.isbn} placeholder="Mavjud bo'lmasa bo'sh qoldiring" onChange={(e) => setForm({ ...form, isbn: e.target.value })} />
           </Field>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Field>
               <Label>Janr</Label>
               <Select value={form.janr} onChange={(e) => setForm({ ...form, janr: e.target.value as Janr })}>
@@ -300,7 +416,7 @@ export function Books() {
               />
             </Field>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Field>
               <Label>Til</Label>
               <Select value={form.til} onChange={(e) => setForm({ ...form, til: e.target.value })}>
@@ -324,15 +440,17 @@ export function Books() {
               />
             </Field>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Field>
               <Label>Holati</Label>
-              <Select value={form.holati} onChange={(e) => setForm({ ...form, holati: e.target.value as KitobHolati })}>
-                {Object.entries(HOLAT_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
+<Select value={form.holati} onChange={(e) => setForm({ ...form, holati: e.target.value as KitobHolati })}>
+                {Object.entries(HOLAT_LABELS)
+                  .filter(([value]) => value !== 'berilgan')
+                  .map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
               </Select>
             </Field>
             <Field>
@@ -359,7 +477,7 @@ export function Books() {
               onChange={(e) => setForm({ ...form, tavsif: e.target.value })}
             />
           </Field>
-          <div className="mt-6 flex justify-end gap-2">
+          <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button type="button" variant="secondary" onClick={closeModal}>
               Bekor qilish
             </Button>
@@ -375,50 +493,134 @@ export function Books() {
         onClose={() => setQueueBook(null)}
         title={queueBook ? `Navbat — ${queueBook.nomi}` : 'Navbat'}
       >
-        {queueQuery.isLoading && <Spinner />}
-        {!queueQuery.isLoading && !queueQuery.data?.length && (
-          <EmptyState text="Bu kitobga hozircha navbat yo'q" />
+        {queueQuery.isLoading && <Spinner label="Navbatlar yuklanmoqda..." />}
+        {queueQuery.isError && (
+          <ErrorState
+            title="Navbatlarni yuklab bo‘lmadi"
+            message={errorMessage(queueQuery.error)}
+            onRetry={() => void queueQuery.refetch()}
+            retrying={queueQuery.isFetching}
+          />
         )}
-        {!queueQuery.isLoading && !!queueQuery.data?.length && (
-          <Table>
-            <thead className="border-b border-slate-200 bg-canvas text-xs uppercase text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
-              <tr>
-                <th className="px-4 py-3">O'quvchi</th>
-                <th className="px-4 py-3">Navbat sanasi</th>
-                <th className="px-4 py-3">Holati</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-              {queueQuery.data.map((r: Navbat) => (
-                <tr key={r.id} className="hover:bg-canvas dark:hover:bg-slate-800/50">
-                  <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{r.oquvchi_fish}</td>
-                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{formatDate(r.navbat_sanasi)}</td>
-                  <td className="px-4 py-3">
-                    <Badge tone={r.holati === 'kutmoqda' ? 'amber' : 'blue'}>
-                      {NAVBAT_HOLATI_LABELS[r.holati]}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      disabled={cancelNavbatMut.isPending}
-                      onClick={() => {
-                        if (confirm(`${r.oquvchi_fish} navbatini bekor qilmoqchimisiz?`)) {
-                          cancelNavbatMut.mutate(r.id)
-                        }
-                      }}
-                    >
-                      Bekor qilish
-                    </Button>
-                  </td>
+        {!queueQuery.isLoading && !queueQuery.isError && !queueQuery.data?.length && (
+          <EmptyState
+            icon="📋"
+            title="Bu kitobga hozircha navbat yo'q"
+            description="Kitob qaytarilganda navbatdagi o‘quvchiga avtomatik taklif yuboriladi."
+          />
+        )}
+        {!queueQuery.isLoading && !queueQuery.isError && !!queueQuery.data?.length && (
+          <ResponsiveList<Navbat>
+            items={queueQuery.data}
+            render={(r) => (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="font-medium text-slate-900 dark:text-slate-100">
+                    {r.oquvchi_fish}
+                  </div>
+                  <Badge tone={r.holati === 'kutmoqda' ? 'amber' : 'blue'}>
+                    {NAVBAT_HOLATI_LABELS[r.holati]}
+                  </Badge>
+                </div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">
+                  Navbat sanasi: {formatDate(r.navbat_sanasi)}
+                </div>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  className="w-full"
+                  onClick={() => setNavbatBekorQilinadigan(r)}
+                >
+                  Bekor qilish
+                </Button>
+              </div>
+            )}
+          >
+            <Table>
+              <thead className="border-b border-slate-200 bg-canvas text-xs uppercase text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
+                <tr>
+                  <th className="px-4 py-3">O'quvchi</th>
+                  <th className="px-4 py-3">Navbat sanasi</th>
+                  <th className="px-4 py-3">Holati</th>
+                  <th className="px-4 py-3"></th>
                 </tr>
-              ))}
-            </tbody>
-          </Table>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                {queueQuery.data.map((r: Navbat) => (
+                  <tr key={r.id} className="hover:bg-canvas dark:hover:bg-slate-800/50">
+                    <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">
+                      {r.oquvchi_fish}
+                    </td>
+                    <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
+                      {formatDate(r.navbat_sanasi)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge tone={r.holati === 'kutmoqda' ? 'amber' : 'blue'}>
+                        {NAVBAT_HOLATI_LABELS[r.holati]}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        disabled={cancelNavbatMut.isPending}
+                        onClick={() => setNavbatBekorQilinadigan(r)}
+                      >
+                        Bekor qilish
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </ResponsiveList>
         )}
       </Modal>
+
+      <ConfirmDialog
+        open={!!ochiriladigan}
+        title="Kitobni o‘chirish"
+        variant="danger"
+        confirmLabel="O‘chirish"
+        loading={removeMut.isPending}
+        message={
+          ochiriladigan && (
+            <>
+              <b>{ochiriladigan.nomi}</b> kitobini ro‘yxatdan o‘chiramoqchimisiz?
+              {ochiriladigan.faol_navbatlar > 0 && (
+                <>
+                  <br />
+                  <br />
+                  Bu kitobga <b>{ochiriladigan.faol_navbatlar} ta faol navbat</b> bor — ular ham
+                  bekor qilinadi.
+                </>
+              )}
+            </>
+          )
+        }
+        onConfirm={() => ochiriladigan && removeMut.mutate(ochiriladigan.id)}
+        onCancel={() => setOchiriladigan(null)}
+      />
+
+      <ConfirmDialog
+        open={!!navbatBekorQilinadigan}
+        title="Navbatni bekor qilish"
+        variant="danger"
+        confirmLabel="Bekor qilish"
+        loading={cancelNavbatMut.isPending}
+        message={
+          navbatBekorQilinadigan && (
+            <>
+              <b>{navbatBekorQilinadigan.oquvchi_fish}</b> navbatini bekor qilmoqchimisiz? Keyingi
+              navbatdagi o‘quvchiga taklif yuboriladi.
+            </>
+          )
+        }
+        onConfirm={() =>
+          navbatBekorQilinadigan && cancelNavbatMut.mutate(navbatBekorQilinadigan.id)
+        }
+        onCancel={() => setNavbatBekorQilinadigan(null)}
+      />
     </div>
   )
 }

@@ -40,9 +40,19 @@ SECRET_KEY = os.environ.get(
 )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get("DEBUG", "True") == "True"
+DEBUG = os.environ.get("DEBUG", "True").lower() in ("true", "1", "yes")
 
-ALLOWED_HOSTS = ["*"] if DEBUG else []
+# Production'da (DEBUG=False) ALLOWED_HOSTS bo'sh qolsa Django har bir so'rovga
+# "Invalid HTTP_HOST" (400) qaytaradi, shuning uchun uni .env orqali beramiz.
+ALLOWED_HOSTS = ["*"] if DEBUG else [
+    h.strip() for h in os.environ.get("ALLOWED_HOSTS", "").split(",") if h.strip()
+]
+
+# HTTPS orqali POST so'rovlarida CSRF tekshiruvi uchun domenni o'zimiz o'zimiz
+# tasdiqlaymiz (development'da bu kerak emas).
+CSRF_TRUSTED_ORIGINS = [
+    o.strip() for o in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()
+]
 
 
 # Application definition
@@ -149,23 +159,34 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = 'static/'
+# `collectstatic` yig'gan fayllar shu papkaga tushadi; nginx shu manzildan
+# /static/ ni to'g'ridan-to'g'ri beradi (DEBUG=False da Django statik
+# fayllarni o'zi bermaydi).
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 AUTH_USER_MODEL = 'user.User'
 
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
+# Diqqat: Django sozlamasi `MAILERS` emas, `EMAIL_BACKEND` bo'lishi kerak —
+# `MAILERS` yozilsa Django standart SMTP backend'ini ishlatadi va
+# development'da xatolar chiqadi.
 
-MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
-    },
-}
+EMAIL_BACKEND = os.environ.get(
+    "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
+)
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@kutubxona.local")
 
 # --- Loyiha sozlamalari (spec bo'yicha bitta joyda) ---
 MUDDAT_KUN = int(os.environ.get("MUDDAT_KUN", 14))
 KUNLIK_JARIMA = int(os.environ.get("KUNLIK_JARIMA", 5000))
 LIMIT_KITOB = int(os.environ.get("LIMIT_KITOB", 3))
 TAKLIF_SOAT = int(os.environ.get("TAKLIF_SOAT", 24))
+# Kitobni qaytarish muddati yaqinlashganda necha kun oldin eslatiladi.
+ESLATMA_KUNLAR_OLDIN = int(os.environ.get("ESLATMA_KUNLAR_OLDIN", 2))
+# Jarima eslatmasi: task har 3 soatda chaqiriladi, lekin bitta o'quvchiga
+# shu soat oralig'idan tez-tez takrorlanib yubormasligi uchun.
+JARIMA_ESLATMA_TAKROR_SOAT = int(os.environ.get("JARIMA_ESLATMA_TAKROR_SOAT", 24))
 
 # --- Django REST Framework ---
 REST_FRAMEWORK = {
@@ -183,6 +204,10 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 20,
     "EXCEPTION_HANDLER": "config.exceptions.xato_handler",
 }
+
+# Ilovalar `apps/` ichida bo'lgani uchun standart test qidiruvi ularni
+# topa olmaydi — maxsus runner `apps/` dagi barcha ilovalarni tekshiradi.
+TEST_RUNNER = "config.test_runner.AppTestRunner"
 
 # --- JWT ---
 SIMPLE_JWT = {
@@ -202,6 +227,3 @@ CELERY_TIMEZONE = TIME_ZONE
 # --- Telegram bot (API dan foydalanish uchun) ---
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 BOT_API_BASE_URL = os.environ.get("BOT_API_BASE_URL", "http://127.0.0.1:8000/api")
-
-CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
-CELERY_RESULT_BACKEND = "redis://127.0.0.1:6379/0"

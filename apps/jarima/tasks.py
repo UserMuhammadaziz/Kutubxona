@@ -1,8 +1,11 @@
+from datetime import timedelta
+
 from celery import shared_task
+from django.conf import settings
 from django.utils.timezone import now
 
 from berish.models import Berish
-from config.telegram import telegram_xabar_yubor
+from config.telegram import telegram_escape, telegram_xabar_yubor
 from .models import Jarima
 from .services import jarimani_hisobla
 
@@ -32,45 +35,79 @@ def jarimalarni_hisobla():
 @shared_task
 def jarima_eslatma_yubor():
     """
-    Har 3 soatda ishlaydi (config/celery.py dagi beat_schedule ga qarang).
-    To'lanmagan jarimasi bor o'quvchilarga bot orqali eslatma yuboradi:
-    «Jarimangizni to'lang va kitobni qaytaring!». Jarima to'languncha takrorlanadi.
+    Har 3 soatda chaqiriladi (config/celery.py dagi beat_schedule ga qarang).
+    To'lanmagan jarimasi bor o'quvchilarga bot orqali eslatma yuboradi.
+
+    Takroriy xabar yuborilmasligi uchun: har bir o'quvchiga so'nggi eslatma
+    yuborilganiga JARIMA_ESLATMA_TAKROR_SOAT (standart 24 soat) o'tmagan
+    bo'lsa, bu chaqiruvda o'shanda skip qilinadi. Eslatma yuborilgan sanasi
+    Jarima.eslatma_yuborilgan_sana da saqlanadi.
     """
-    qs = (
+    qarz = (
         Jarima.objects.filter(tolandimi=False)
         .select_related("berish__oquvchi", "berish__nusxa__kitob")
         .order_by("berish__oquvchi_id")
     )
 
     oquvchilar = {}
-    for jarima in qs:
+    eng_yaqin_sana = {}
+    for jarima in qarz.iterator():
         oquvchi = jarima.berish.oquvchi
         if not oquvchi.telegram_id:
             continue
-        qarz = oquvchilar.setdefault(oquvchi, {"kitoblar": [], "jami": 0})
-        qarz["kitoblar"].append(
+
+        hisob = oquvchilar.setdefault(oquvchi, {"jarimalar": [], "jami": 0})
+        hisob["jarimalar"].append(
             {
                 "nomi": jarima.berish.nusxa.kitob.nomi,
                 "summa": jarima.summa,
                 "qaytarilmagan": jarima.berish.qaytarilgan_sana is None,
             }
         )
-        qarz["jami"] += jarima.summa
+        hisob["jami"] += jarima.summa
+
+        # Bu o'quvchining barcha jarimalari bo'yicha eng so'nggi eslatma sanasi.
+        oldingi = jarima.eslatma_yuborilgan_sana
+        if oldingi is not None and (
+            eng_yaqin_sana.get(oquvchi) is None or oldingi > eng_yaqin_sana[oquvchi]
+        ):
+            eng_yaqin_sana[oquvchi] = oldingi
 
     yuborildi = 0
-    for oquvchi, qarz in oquvchilar.items():
+    for oquvchi, ma in oquvchilar.items():
+        # Takroriy xabar bo'lmasligi uchun: o'quvchiga so'nggi eslatma
+        # yuborilganiga takror_muddat o'tmagan bo'lsa, butun o'quvchi
+        # skip qilinadi (jarimalar bir-biriga qarama-qarshi emas).
+        eng_yaqin = eng_yaqin_sana.get(oquvchi)
+        if eng_yaqin is not None:
+            takror_muddat = timedelta(hours=settings.JARIMA_ESLATMA_TAKROR_SOAT)
+            if eng_yaqin > now() - takror_muddat:
+                continue
+
         satrlar = []
-        for k in qarz["kitoblar"]:
+        for k in ma["jarimalar"]:
             belgi = "🔴" if k["qaytarilmagan"] else "📕"
-            satrlar.append(f"{belgi} 📖 {k['nomi']} — {k['summa']} so'm")
+            # Kitob nomi Telegram HTML parse_mode da teglarni buzsa, butun
+            # xabar yuborilmay qoladi — shuning uchun escape qilamiz.
+            satrlar.append(f"{belgi} 📖 {telegram_escape(k['nomi'])} — {k['summa']} so'm")
 
         matn = (
             "⚠️ <b>Jarima eslatmasi!</b>\n\n"
             + "\n".join(satrlar)
-            + f"\n\nUmumiy qarz: <b>{qarz['jami']} so'm</b>\n\n"
+            + f"\n\nUmumiy qarz: <b>{ma['jami']} so'm</b>\n\n"
             + "Iltimos, jarimangizni to'lang va kitobni qaytaring!\n"
             + "To'lovni kutubxonachiga topshiring."
         )
-        if telegram_xabar_yubor(oquvchi.telegram_id, matn):
-            yuborildi += 1
+
+        yuborish_vaqti = now()
+        if not telegram_xabar_yubor(oquvchi.telegram_id, matn):
+            continue
+
+        # Yuborildi — kelgori uchun sanani belgilaymiz, shunda keyingi
+        # chaqiruvlar (3 soatlik) takroriy xabar yubormaydi.
+        Jarima.objects.filter(
+            berish__oquvchi=oquvchi, tolandimi=False
+        ).update(eslatma_yuborilgan_sana=yuborish_vaqti)
+        yuborildi += 1
+
     return f"{yuborildi} ta o'quvchiga jarima eslatmasi yuborildi"

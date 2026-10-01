@@ -21,6 +21,7 @@ class JarimaSerializer(serializers.ModelSerializer):
             "tolandimi",
             "tolangan_sana",
             "qabul_qilgan",
+            "eslatma_yuborilgan_sana",
             "yangilangan",
         ]
         # summa va kechikkan_kunlar faqat server (celery / services.py)
@@ -30,7 +31,8 @@ class JarimaSerializer(serializers.ModelSerializer):
             "kechikkan_kunlar",
             "summa",
             "tolangan_sana",
-            "qabul_qilngan",
+            "qabul_qilgan",
+            "eslatma_yuborilgan_sana",
             "yangilangan",
         ]
 

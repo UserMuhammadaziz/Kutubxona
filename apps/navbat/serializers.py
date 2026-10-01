@@ -26,6 +26,7 @@ class NavbatSerializer(serializers.ModelSerializer):
             "taklif_vaqti",
             "taklif_muddati",
             "javob_vaqti",
+            "javob",
             "bekor_sababi",
         ]
         read_only_fields = [
@@ -36,6 +37,7 @@ class NavbatSerializer(serializers.ModelSerializer):
             "taklif_vaqti",
             "taklif_muddati",
             "javob_vaqti",
+            "javob",
             "bekor_sababi",
         ]
 
@@ -104,7 +106,7 @@ class NavbatMeniSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Navbat
-        fields = ["id", "kitob_nomi", "holati", "navbat_sanasi", "orin"]
+        fields = ["id", "kitob_nomi", "holati", "javob", "navbat_sanasi", "taklif_muddati", "orin"]
 
     def get_orin(self, obj):
         if obj.holati != "kutmoqda":

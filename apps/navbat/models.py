@@ -12,6 +12,11 @@ class Navbat(models.Model):
     ("bekor", "Bekor"),
 ]
 
+    CHOICES_JAVOB = [
+    ("olaman", "Olaman"),
+    ("kerak_emas", "Kerak emas"),
+]
+
     kitob = models.ForeignKey(Kitob, on_delete=models.CASCADE, related_name="navbat")
     oquvchi = models.ForeignKey(Oquvchi, on_delete=models.CASCADE, related_name='navbatlar')
     navbat_sanasi = models.DateTimeField(auto_now_add=True)
@@ -20,6 +25,8 @@ class Navbat(models.Model):
     taklif_vaqti = models.DateTimeField(null=True, blank=True)
     taklif_muddati = models.DateTimeField(null=True, blank=True)
     javob_vaqti = models.DateTimeField(null=True, blank=True)
+    javob = models.CharField(max_length=20, choices=CHOICES_JAVOB, blank=True)
+    taklif_xabari_yuborilgan = models.BooleanField(default=False)
     bekor_sababi = models.CharField(max_length=30, blank=True)
 
     class Meta:
@@ -28,3 +35,6 @@ class Navbat(models.Model):
             models.UniqueConstraint(fields=["kitob"], condition=Q(holati="taklif_qilindi"), name="one_pending_offer_per_book"),
         ]
         ordering = ["navbat_sanasi"]
+        indexes = [
+            models.Index(fields=["holati", "taklif_muddati"], name="navbat_taklif_muddat_idx"),
+        ]

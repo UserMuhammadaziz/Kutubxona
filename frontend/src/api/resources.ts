@@ -15,10 +15,13 @@ import type {
   OquvchiCreatePayload,
   Berish,
   BerishCreatePayload,
+  BerishHolati,
   QaytarishResponse,
   Jarima,
   Navbat,
+  NavbatHolati,
   Ariza,
+  ArizaHolati,
   TopBook,
   DashboardStats,
 } from '../types'
@@ -71,8 +74,13 @@ export const copiesApi = {
 
 // ---- Readers ----
 
+export interface ReaderListParams {
+  page?: number
+  search?: string
+}
+
 export const readersApi = {
-  list: (params?: { page?: number; search?: string }) =>
+  list: (params?: ReaderListParams) =>
     api.get<Paginated<Oquvchi>>('/readers/', { params }).then((r) => r.data),
   get: (id: number) => api.get<OquvchiDetail>(`/readers/${id}/`).then((r) => r.data),
   create: (payload: OquvchiCreatePayload) => api.post<Oquvchi>('/readers/', payload).then((r) => r.data),
@@ -82,8 +90,15 @@ export const readersApi = {
 
 // ---- Applications (Arizalar) ----
 
+export interface ApplicationListParams {
+  page?: number
+  holati?: ArizaHolati | ''
+  sinf?: string
+  search?: string
+}
+
 export const applicationsApi = {
-  list: (params?: { page?: number; holati?: string }) =>
+  list: (params?: ApplicationListParams) =>
     api.get<Paginated<Ariza>>('/applications/', { params }).then((r) => r.data),
   approve: (id: number) => api.post<Ariza>(`/applications/${id}/approve/`).then((r) => r.data),
   reject: (id: number, izoh?: string) =>
@@ -92,9 +107,14 @@ export const applicationsApi = {
 
 // ---- Loans ----
 
+export interface LoanListParams {
+  page?: number
+  holati?: BerishHolati | ''
+  oquvchi?: number
+}
+
 export const loansApi = {
-  list: (params?: { page?: number; holati?: string; oquvchi?: number }) =>
-    api.get<Paginated<Berish>>('/loans/', { params }).then((r) => r.data),
+  list: (params?: LoanListParams) => api.get<Paginated<Berish>>('/loans/', { params }).then((r) => r.data),
   create: (payload: BerishCreatePayload) => api.post<Berish>('/loans/', payload).then((r) => r.data),
   return: (id: number) => api.post<QaytarishResponse>(`/loans/${id}/return/`).then((r) => r.data),
   overdue: () => api.get<Berish[]>('/loans/overdue/').then((r) => r.data),
@@ -102,16 +122,28 @@ export const loansApi = {
 
 // ---- Fines ----
 
+export interface FineListParams {
+  page?: number
+  tolandimi?: boolean
+  berish__oquvchi?: number
+}
+
 export const finesApi = {
-  list: (params?: { page?: number; tolandimi?: boolean; berish__oquvchi?: number }) =>
-    api.get<Paginated<Jarima>>('/fines/', { params }).then((r) => r.data),
+  list: (params?: FineListParams) => api.get<Paginated<Jarima>>('/fines/', { params }).then((r) => r.data),
   pay: (id: number) => api.post<Jarima>(`/fines/${id}/pay/`).then((r) => r.data),
 }
 
 // ---- Reservations ----
 
+export interface ReservationListParams {
+  page?: number
+  holati?: NavbatHolati | ''
+  kitob?: number
+  oquvchi?: number
+}
+
 export const reservationsApi = {
-  list: (params?: { page?: number; holati?: string; kitob?: number; oquvchi?: number }) =>
+  list: (params?: ReservationListParams) =>
     api.get<Paginated<Navbat>>('/reservations/', { params }).then((r) => r.data),
   create: (payload: { kitob: number; oquvchi: number }) =>
     api.post<{ id: number; orin: number }>('/reservations/', payload).then((r) => r.data),

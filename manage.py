@@ -3,6 +3,16 @@
 import os
 import sys
 
+# Loyihaning barcha ilovalari `apps/` ichida va `settings.py` ularni
+# `sys.path` ga qo'shadi (ilova nomlari `apps.oquvchi` emas, `oquvchi`).
+# `manage.py test` barcha testlarni topa olishi uchun shu yerda ham
+# `apps/` ni qo'shib qo'yamiz — aks holda `manage.py test` (appsiz)
+# 0 ta test topib chiqadi.
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+APPS_DIR = os.path.join(BASE_DIR, "apps")
+if APPS_DIR not in sys.path:
+    sys.path.insert(0, APPS_DIR)
+
 
 def main():
     """Run administrative tasks."""

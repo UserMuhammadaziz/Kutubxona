@@ -33,7 +33,7 @@ class BerishSerializer(serializers.ModelSerializer):
             "id",
             "berilgan_sana",
             "qaytarish_muddati",
-            "qaytarigan_sana",
+            "qaytarilgan_sana",
             "olgan_xodim",
             "holati",
             "eslatma_yuborilgan",

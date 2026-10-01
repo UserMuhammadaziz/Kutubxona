@@ -67,37 +67,61 @@ class NavbatViewSet(viewsets.ModelViewSet):
     def respond(self, request, pk=None):
         navbat = self.get_object()
 
-        if navbat.taklif_muddati and now() > navbat.taklif_muddati:
-            services.taklifni_bekor_qil_va_keyingisiga_ut(navbat, "muddat_otdi")
-            raise ValidationError({"error": "muddat_tugagan", "detail": "Afsus, javob muddati tugagan"})
-
         serializer = NavbatJavobSerializer(instance=navbat, data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        # Muddati o'tgan bo'lsa va o'quvchi hali "olaman" demagan bo'lsa,
+        # taklif keyingi navbatdagiga o'tadi.
+        if navbat.taklif_muddati and now() > navbat.taklif_muddati:
+            services.taklifni_bekor_qil_va_keyingisiga_ut(navbat, "muddat_otdi")
+            raise ValidationError(
+                {"error": "muddat_tugagan", "detail": "Afsus, javob muddati tugagan"}
+            )
+
+        javob = serializer.validated_data["javob"]
         with transaction.atomic():
+            navbat.javob = javob
             navbat.javob_vaqti = now()
-            navbat.save(update_fields=["javob_vaqti"])
-            if serializer.validated_data["javob"] == "kerak_emas":
+            navbat.save(update_fields=["javob", "javob_vaqti"])
+            if javob == "kerak_emas":
                 services.taklifni_bekor_qil_va_keyingisiga_ut(navbat, "oquvchi_rad")
 
+        navbat.refresh_from_db()
         return Response(NavbatSerializer(navbat).data)
 
     @action(detail=True, methods=["post"], url_path="confirm")
     def confirm(self, request, pk=None):
-        """Kutubxonachi kitobni o'quvchiga berdi — navbat 'yakunlandi' deb belgilanadi."""
+        """Kutubxonachi kitobni o'quvchiga berdi — navbat 'yakunlandi' deb
+        belgilanadi va ajratilgan nusxa bo'shatiladi (aks holda u 'band'
+        holatda qolib, boshqa o'quvchilarga berilmay qolardi)."""
         navbat = self.get_object()
         if navbat.holati not in ("kutmoqda", "taklif_qilindi"):
             raise ValidationError(
                 {"error": "holat_notogri", "detail": "Faqat faol navbat tasdiqlanadi"}
             )
-        navbat.holati = "yakunlandi"
-        navbat.javob_vaqti = now()
-        navbat.save(update_fields=["holati", "javob_vaqti"])
+
+        with transaction.atomic():
+            nusxa = navbat.ajratilgan_nusxa
+            if nusxa and nusxa.holati == "band":
+                nusxa.holati = "mavjud"
+                nusxa.save(update_fields=["holati"])
+            navbat.holati = "yakunlandi"
+            navbat.javob_vaqti = now()
+            navbat.taklif_xabari_yuborilgan = False
+            navbat.save(
+                update_fields=["holati", "javob_vaqti", "taklif_xabari_yuborilgan"]
+            )
         return Response(NavbatSerializer(navbat).data)
 
     def destroy(self, request, *args, **kwargs):
         navbat = self.get_object()
-        navbat.holati = "bekor"
-        navbat.bekor_sababi = "oquvchi_chiqdi"
-        navbat.save(update_fields=["holati", "bekor_sababi"])
+        with transaction.atomic():
+            if navbat.holati == "taklif_qilindi":
+                services.taklifni_bekor_qil_va_keyingisiga_ut(
+                    navbat, "oquvchi_chiqdi", oquvchi_rozi=True
+                )
+            else:
+                navbat.holati = "bekor"
+                navbat.bekor_sababi = "oquvchi_chiqdi"
+                navbat.save(update_fields=["holati", "bekor_sababi"])
         return Response(status=status.HTTP_204_NO_CONTENT)

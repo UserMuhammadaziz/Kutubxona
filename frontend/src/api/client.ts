@@ -71,8 +71,20 @@ api.interceptors.response.use(
 
 export function errorMessage(err: unknown): string {
   if (axios.isAxiosError(err)) {
-    const data = err.response?.data as ApiError | undefined
-    if (data?.detail) return data.detail
+    const data = err.response?.data as Record<string, unknown> | undefined
+    const detail = (data?.detail ?? (data as ApiError | undefined)?.error) as unknown
+    if (typeof detail === 'string' && detail) return detail
+    // Ba'zi joylarda backend {"error": ..., "detail": ...} shaklida qaytaradi,
+    // ba'zan esa DRF standart {"field": ["xato"]} — ikkalasini ham qamrab olamiz.
+    if (data && typeof data === 'object') {
+      for (const qiymat of Object.values(data)) {
+        if (typeof qiymat === 'string' && qiymat) return qiymat
+        if (Array.isArray(qiymat) && typeof qiymat[0] === 'string') return qiymat[0]
+      }
+    }
+    if (err.response) {
+      return `Server xatosi (${err.response.status}). Keyinroq urinib ko'ring.`
+    }
     if (err.message) return err.message
   }
   if (err instanceof Error) return err.message

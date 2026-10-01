@@ -10,6 +10,7 @@ import { BookDetail } from './pages/BookDetail'
 import { Copies } from './pages/Copies'
 import { Readers } from './pages/Readers'
 import { ReaderDetail } from './pages/ReaderDetail'
+import { Applications } from './pages/Applications'
 import { Loans } from './pages/Loans'
 import { Reservations } from './pages/Reservations'
 import { Fines } from './pages/Fines'
@@ -34,6 +35,7 @@ function App() {
           <Route path="/copies" element={<Copies />} />
           <Route path="/readers" element={<Readers />} />
           <Route path="/readers/:id" element={<ReaderDetail />} />
+          <Route path="/applications" element={<Applications />} />
           <Route path="/loans" element={<Loans />} />
           <Route path="/reservations" element={<Reservations />} />
           <Route path="/fines" element={<Fines />} />

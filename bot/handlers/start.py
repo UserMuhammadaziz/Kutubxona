@@ -1,12 +1,10 @@
-from datetime import datetime
-
 from aiogram import F, Router
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import Message
 
 from api_client import ApiXato, api
-from keyboards import asosiy_menyu, otkazib_yuborish_tugmasi, telefon_sorash
+from keyboards import asosiy_menyu, telefon_sorash
 from states import Ariza
 
 router = Router(name="start")
@@ -16,6 +14,8 @@ KUTILMOQDA_XABAR = (
     "Kutubxonachi tasdiqlagach, /start buyrug'ini qayta bosing va botdan "
     "foydalanishingiz mumkin."
 )
+
+SINF_MASALALARI = "7-A, 9-B, 10-"
 
 
 @router.message(CommandStart())
@@ -47,11 +47,27 @@ async def start(message: Message, state: FSMContext):
         await message.answer(KUTILMOQDA_XABAR)
         return
 
+    if holat.get("holati") == "bekor":
+        izoh = holat.get("izoh") or "Sabab ko'rsatilmagan"
+        await message.answer(
+            "❌ Oldingi arizangiz rad etilgan.\n"
+            f"📝 Sabab: {izoh}\n\n"
+            "Qayta urinib ko'rishni xohlaysizmi?"
+        )
+
+    await _arizaga_kirish(message, state)
+
+
+async def _arizaga_kirish(message: Message, state: FSMContext):
     await state.set_state(Ariza.fish)
     await message.answer(
         "Assalomu alaykum! Kutubxona botidan foydalanish uchun avval a'zo "
         "bo'lishingiz kerak.\n\n"
-        "Ism, familiyangizni kiriting:"
+        "Ro'yxatga olish uchun 3 ta ma'lumot kerak:\n"
+        "1️⃣ Ism-familiyangiz\n"
+        "2️⃣ Telefon raqamingiz\n"
+        "3️⃣ Sinfingiz\n\n"
+        "1️⃣ Ism-familiyangizni yozing:"
     )
 
 
@@ -61,96 +77,75 @@ async def ariza_fish(message: Message, state: FSMContext):
     if not fish:
         await message.answer("Iltimos, ism-familiyangizni matn ko'rinishida yozing.")
         return
+    if len(fish) > 130:
+        await message.answer("Ism-familiya juda uzun (maksimum 130 belgi). Qayta yozing:")
+        return
 
     await state.update_data(fish=fish)
     await state.set_state(Ariza.telefon)
     await message.answer(
-        "Rahmat. Endi telefon raqamingizni yuboring:",
+        "2️⃣ Rahmat. Endi telefon raqamingizni yuboring:",
         reply_markup=telefon_sorash(),
     )
 
 
 @router.message(Ariza.telefon, F.contact)
 async def ariza_telefon(message: Message, state: FSMContext):
-    data = await state.get_data()
-    fish = data["fish"]
     telefon = message.contact.phone_number
     if not telefon.startswith("+"):
         telefon = f"+{telefon}"
-    await state.update_data(telefon=telefon)
-    await state.set_state(Ariza.tugilgan_sana)
-    await message.answer(
-        "Tug'ilgan sanangizni `YYYY-MM-DD` formatida kiriting (masalan: 2000-01-25):",
-        reply_markup=otkazib_yuborish_tugmasi(),
-    )
 
-
-@router.message(Ariza.tugilgan_sana)
-async def ariza_tugilgan_sana(message: Message, state: FSMContext):
-    matn = (message.text or "").strip()
-    if matn:
-        try:
-            sana = datetime.strptime(matn, "%Y-%m-%d").date()
-        except ValueError:
-            await message.answer(
-                "Sana noto'g'ri formatda. `YYYY-MM-DD` ko'rinishida yozing (masalan: 2000-01-25) yoki "
-                "⏭ O'tkazib yuborish tugmasini bosing.",
-                reply_markup=otkazib_yuborish_tugmasi(),
-            )
-            return
-        if sana > datetime.now().date():
-            await message.answer(
-                "Tug'ilgan sana kelajakda bo'lishi mumkin emas. Qayta kiriting:",
-                reply_markup=otkazib_yuborish_tugmasi(),
-            )
-            return
-        await state.update_data(tugilgan_sana=matn)
-    else:
-        await state.update_data(tugilgan_sana=None)
-
-    await state.set_state(Ariza.manzil)
-    await message.answer(
-        "Manzilingizni yozing (ixtiyoriy):",
-        reply_markup=otkazib_yuborish_tugmasi(),
-    )
-
-
-@router.message(Ariza.manzil)
-async def ariza_manzil(message: Message, state: FSMContext):
-    data = await state.get_data()
-    manzil = (message.text or "").strip()
-    await ariza_yuborish(message, state, data, manzil)
-
-
-@router.callback_query(F.data == "ariza_skip")
-async def ariza_skip(callback: CallbackQuery, state: FSMContext):
-    holat = await state.get_state()
-    if holat == Ariza.tugilgan_sana.state:
-        await state.update_data(tugilgan_sana=None)
-        await state.set_state(Ariza.manzil)
-        await callback.message.answer(
-            "Manzilingizni yozing (ixtiyoriy):",
-            reply_markup=otkazib_yuborish_tugmasi(),
+    # Telegram ba'zan "+998 90 123 45 67" shaklida beradi — bo'sh joylarni olib
+    # tashlab, oldindagi "00" yozuvini "+998" ga almashtiramiz.
+    telefon = telefon.replace(" ", "").replace("-", "")
+    if telefon.startswith("00998"):
+        telefon = "+998" + telefon[5:]
+    if not telefon.startswith("+998") or len(telefon) != 12:
+        await message.answer(
+            "Telefon raqam +998901234567 formatida bo'lishi kerak. "
+            "Tugma orqali qayta yuboring:"
         )
-    elif holat == Ariza.manzil.state:
-        data = await state.get_data()
-        await ariza_yuborish(callback.message, state, data, "")
-    await callback.answer()
+        return
+
+    await state.update_data(telefon=telefon)
+    await state.set_state(Ariza.sinf)
+    await message.answer(
+        f"3️⃣ Telefon: {telefon}\n\n"
+        f"Endi sinfingizni yozing (masalan: {SINF_MASALALARI}):"
+    )
 
 
-async def ariza_yuborish(message: Message, state: FSMContext, data: dict, manzil: str):
-    fish = data["fish"]
-    telefon = data["telefon"]
-    tugilgan_sana = data.get("tugilgan_sana")
+@router.message(Ariza.telefon)
+async def ariza_telefon_notogri(message: Message, state: FSMContext):
+    await message.answer(
+        "Iltimos, pastdagi tugma orqali telefon raqamingizni yuboring."
+    )
+
+
+@router.message(Ariza.sinf)
+async def ariza_sinf(message: Message, state: FSMContext):
+    sinf = (message.text or "").strip()
+    if not sinf:
+        await message.answer(
+            f"Iltimos, sinfingizni yozing (masalan: {SINF_MASALALARI}):"
+        )
+        return
+    if len(sinf) > 30:
+        await message.answer("Sinf nomi juda uzun (maksimum 30 belgi). Qayta yozing:")
+        return
+
+    data = await state.get_data()
+    await _arizani_yuborish(message, state, data, sinf)
+
+
+async def _arizani_yuborish(message: Message, state: FSMContext, data: dict, sinf: str):
     telegram_id = message.from_user.id
-
     try:
         await api.ariza_yubor(
             telegram_id=telegram_id,
-            fish=fish,
-            telefon=telefon,
-            tugilgan_sana=tugilgan_sana,
-            manzil=manzil,
+            fish=data["fish"],
+            telefon=data["telefon"],
+            sinf=sinf,
         )
     except ApiXato as e:
         await state.clear()
@@ -165,11 +160,10 @@ async def ariza_yuborish(message: Message, state: FSMContext, data: dict, manzil
     await state.clear()
     await message.answer(
         "✅ Arizangiz yuborildi!\n\n"
+        f"📋 Ism: {data['fish']}\n"
+        f"📞 Telefon: {data['telefon']}\n"
+        f"🎓 Sinf: {sinf}\n\n"
         "Kutubxonachi arizangizni tasdiqlagach, /start buyrug'ini bosing va "
-        "botdan foydalanasiz."
+        "botdan foydalanasiz. Tasdiqlash yoki rad etish natijasi shu yerga "
+        "xabar qilinadi."
     )
-
-
-@router.message(Ariza.telefon)
-async def ariza_telefon_notogri(message: Message):
-    await message.answer("Iltimos, pastdagi tugma orqali telefon raqamingizni yuboring.")

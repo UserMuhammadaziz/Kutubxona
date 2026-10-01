@@ -5,9 +5,10 @@ from django.db import transaction
 from django.utils.timezone import now
 from rest_framework.exceptions import ValidationError
 
-from config.telegram import telegram_xabar_yubor
+from config.telegram import telegram_escape, telegram_xabar_yubor
 from jarima.models import Jarima
 from jarima.services import jarimani_hisobla
+from kitob.services import kitob_holatini_yenila
 from navbat.models import Navbat
 from navbat.services import keyingi_navbatga_taklif_yubor
 from nusxa.models import Nusxa
@@ -39,6 +40,10 @@ def kitob_ber(nusxa, oquvchi, xodim):
     nusxa.holati = "berilgan"
     nusxa.save(update_fields=["holati"])
 
+    # Kitobning o'z holati ham nusxalardan kelib chiqib yangilanadi —
+    # aks holda kitob ro'yxatida «Mavjud» deb ko'rinib turar edi.
+    kitob_holatini_yenila(nusxa.kitob_id)
+
     berish = Berish.objects.create(
         nusxa=nusxa,
         oquvchi=oquvchi,
@@ -48,11 +53,17 @@ def kitob_ber(nusxa, oquvchi, xodim):
     )
 
     # Foydalanuvchi tayinlagan navbat (band) endi berilganligi tasdiqlanadi.
+    # taklif_xabari_yuborilgan=False: o'quvchi allaqachon "Kitob berildi"
+    # xabarini oladi, taklif xabari esa kerak emas (takroriy xabar bo'lmasin).
     Navbat.objects.filter(
         kitob=nusxa.kitob_id,
         oquvchi=oquvchi,
         holati__in=["kutmoqda", "taklif_qilindi"],
-    ).update(holati="yakunlandi", javob_vaqti=now())
+    ).update(
+        holati="yakunlandi",
+        javob_vaqti=now(),
+        taklif_xabari_yuborilgan=False,
+    )
 
     # Kitob olgan kundan boshlab qaytarish muddati (14 kun) boshlanadi.
     transaction.on_commit(lambda: _kitob_berildi_xabarini_yubor(berish))
@@ -68,7 +79,7 @@ def _kitob_berildi_xabarini_yubor(berish):
         return
     matn = (
         "📖 <b>Kitob berildi!</b>\n\n"
-        f"Qabul qilgan kitobingiz: <b>{berish.nusxa.kitob.nomi}</b>\n"
+        f"Qabul qilgan kitobingiz: <b>{telegram_escape(berish.nusxa.kitob.nomi)}</b>\n"
         f"Inventar raqami: {berish.nusxa.inventar_raqami}\n"
         f"Berilgan sana: {berish.berilgan_sana}\n"
         f"Qaytarish muddati: <b>{berish.qaytarish_muddati}</b>\n\n"
@@ -91,6 +102,10 @@ def kitob_qaytar(berish, xodim):
     nusxa = Nusxa.objects.select_for_update().get(pk=berish.nusxa_id)
     nusxa.holati = "mavjud"
     nusxa.save(update_fields=["holati"])
+
+    # Nusxa bo'shatildi — kitob holati ham qayta "Mavjud" ga qaytadi
+    # (agar boshqa mavjud nusxa bo'lsa, allaqachon "Mavjud" bo'lib qoladi).
+    kitob_holatini_yenila(nusxa.kitob_id)
 
     jarima = jarimani_hisobla(berish)
     taklif_ketdi = keyingi_navbatga_taklif_yubor(nusxa.id)
