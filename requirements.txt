@@ -1,0 +1,25 @@
+# Kutubxona — server uchun bog'liqliklar
+# Yaratildi: venv'dagi pip freeze asosida, dev-paketlar (paramiko,
+# django-silk, invoke) chiqarib tashlandi.
+
+Django==6.1.1
+djangorestframework==3.18.1
+djangorestframework-simplejwt==5.5.1
+django-filter==26.1
+
+# PostgreSQL
+psycopg2-binary==2.9.12
+
+# Celery + Redis (jarima hisoblash, eslatmalar, navbat tekshiruvi)
+celery==5.6.3
+redis==8.1.0
+
+# Telegram bot
+aiogram==3.31.0
+
+# .env o'qish
+python-dotenv==1.2.3
+
+# Ishlab chiqarish (production) WSGI server — Windows'da ishlamaydi,
+# shuning uchun lokal venvga qo'shilmagan.
+gunicorn==23.0.0

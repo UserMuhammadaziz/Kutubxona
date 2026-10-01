@@ -1,0 +1,8 @@
+# Shell skriptlari Linux'da ishlashi uchun LF chiziq uzilishida bo'lishi
+# shart. core.autocrlf=true bo'lsa ham, bu qoida kafolatlaydi.
+*.sh text eol=lf
+
+# Python va boshqa matn fayllari
+*.py text eol=lf
+*.txt text eol=lf
+.env.example text eol=lf
