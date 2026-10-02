@@ -18,13 +18,23 @@ class ArizaAdmin(admin.ModelAdmin):
     orqali qabul/rad eta oladi. Ikkalasi ham bitta servis funksiyasini
     chaqiradi, shuning uchun Telegram xabari ham bir xil yuboriladi."""
 
-    list_display = ("id", "fish", "sinf", "telefon", "telegram_id", "holati", "ariza_sanasi")
-    list_filter = ("holati", "sinf")
-    search_fields = ("fish", "telefon", "telegram_id")
+    list_display = (
+        "id",
+        "fish",
+        "rol",
+        "sinf",
+        "kasb",
+        "telefon",
+        "telegram_id",
+        "holati",
+        "ariza_sanasi",
+    )
+    list_filter = ("holati", "rol", "sinf")
+    search_fields = ("fish", "telefon", "telegram_id", "kasb")
     # `holati` va `tasdiqlangan_sana` ni qo'lda tahrirlashga yo'l qo'yilmaydi:
     # aks holda o'quvchiga Telegram xabari yuborilmay qolardi. Holat faqat
     # quyidagi ikkita action orqali o'zgaradi.
-    readonly_fields = ("ariza_sanasi", "tasdiqlangan_sana", "telegram_id", "holati")
+    readonly_fields = ("ariza_sanasi", "tasdiqlangan_sana", "telegram_id", "holati", "rol")
     actions = ("arizani_tasdiqlash", "arizani_rad_etish")
 
     @admin.action(description="Tanlangan arizalarni TASDIQLASH (o'quvchi yaratiladi)")

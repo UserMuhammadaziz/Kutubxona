@@ -9,13 +9,18 @@ class BogClash(StatesGroup):
 
 
 class Ariza(StatesGroup):
-    """A'zolik arizasi: ism-familiya -> telefon -> sinf.
+    """A'zolik arizasi.
 
-    Atigi uch maydon so'raladi (backend ham shuncha talab qiladi)."""
+    Rol `/start` dagi inline tugmalardan tanlanadi va FSM ma'lumotlarida
+    saqlanadi:
+    • `rol="oquvchi"`    → ism-familiya -> telefon -> sinf;
+    • `rol="oqituvchi"` → ism-familiya -> telefon -> kasb (o'qitayotgan fan).
+    """
 
     fish = State()
     telefon = State()
     sinf = State()
+    kasb = State()
 
 
 class Qidiruv(StatesGroup):

@@ -75,8 +75,8 @@ class ArizaViewSet(viewsets.ModelViewSet):
 
     queryset = Ariza.objects.all()
     serializer_class = ArizaSerializer
-    filterset_fields = ["holati", "sinf"]
-    search_fields = ["fish", "telefon", "telegram_id"]
+    filterset_fields = ["holati", "sinf", "rol"]
+    search_fields = ["fish", "telefon", "telegram_id", "kasb"]
     http_method_names = ["get", "post"]
 
     def get_permissions(self):

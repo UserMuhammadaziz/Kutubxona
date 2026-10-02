@@ -1,11 +1,14 @@
 from aiogram import F, Router
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message
+from aiogram.types import CallbackQuery, Message
 
 from api_client import ApiXato, api
 from keyboards import (
+    ARIZA_ROL_OQITUVCHI,
+    ARIZA_ROL_OQUVCHI,
     asosiy_menyu,
+    ariza_rol_tugmalari,
     klaviatura_olib_tashla,
     matndan_telefon_keltirish,
     telefon_keltirish,
@@ -22,6 +25,18 @@ KUTILMOQDA_XABAR = (
 )
 
 SINF_MASALALARI = "7-A, 9-B, 10-"
+KASB_MASALALARI = "Matematika, Ona tili, Fizika, Tarix"
+
+# Rolga qarab so'raladigan uchinchi maydon nomi.
+ROL_UCHUNCHI_MAYDON = {
+    ARIZA_ROL_OQUVCHI: "Sinfingiz",
+    ARIZA_ROL_OQITUVCHI: "Kasbingiz (o‘qitayotgan fanningiz)",
+}
+# Tasdiqlangan xabar matni (kalit — rol).
+ROL_TASDIQLANDI_XABARI = {
+    ARIZA_ROL_OQUVCHI: "🎓 <b>O'quvchi</b> sifatida a'riza yuborasiz.",
+    ARIZA_ROL_OQITUVCHI: "👨‍🏫 <b>O'qituvchi</b> sifatida a'riza yuborasiz.",
+}
 
 
 @router.message(CommandStart())
@@ -61,18 +76,50 @@ async def start(message: Message, state: FSMContext):
             "Qayta urinib ko'rishni xohlaysizmi?"
         )
 
-    await _arizaga_kirish(message, state)
+    await _rol_tanlash(message)
 
 
-async def _arizaga_kirish(message: Message, state: FSMContext):
-    await state.set_state(Ariza.fish)
+async def _rol_tanlash(message: Message):
+    """Ariza yuboruvchi rolini tanlash uchun inline tugmalarni ko'rsatadi."""
     await message.answer(
-        "Assalomu alaykum! Kutubxona botidan foydalanish uchun avval a'zo "
-        "bo'lishingiz kerak.\n\n"
+        "Kutubxona botidan foydalanish uchun avval a'zo bo'lishingiz kerak.\n\n"
+        "A'riza yuborish uchun o'zingizning rolingizni tanlang:",
+        reply_markup=ariza_rol_tugmalari(),
+    )
+
+
+@router.callback_query(F.data.startswith("ariza_rol:"))
+async def ariza_rol_tanlandi(callback: CallbackQuery, state: FSMContext):
+    """Rol tugmasi bosilganda rolni saqlaydi va ariza bo'sh bosqichini boshlaydi."""
+    rol = (callback.data or "").partition(":")[2]
+    if rol not in ROL_TASDIQLANDI_XABARI:
+        await callback.answer("Noma'lum ro'l.", show_alert=True)
+        return
+
+    # Tugma eski xabarda qolib qolgan bo'lishi mumkin — ariza allaqon
+    # ko'rib chiqilayotgan bo'lsa, boshidan o'tkazmaymiz.
+    try:
+        holat = await api.ariza_holati(callback.from_user.id)
+    except ApiXato as e:
+        await callback.answer(f"Xatolik yuz berdi: {e.detail}", show_alert=True)
+        return
+    if holat.get("holati") == "kutmoqda":
+        await callback.answer(KUTILMOQDA_XABAR, show_alert=True)
+        return
+
+    await state.clear()
+    await state.update_data(rol=rol)
+    await state.set_state(Ariza.fish)
+
+    await callback.answer()
+    if callback.message is None:
+        return
+    await callback.message.edit_text(
+        f"{ROL_TASDIQLANDI_XABARI[rol]}\n\n"
         "Ro'yxatga olish uchun 3 ta ma'lumot kerak:\n"
         "1️⃣ Ism-familiyangiz\n"
         "2️⃣ Telefon raqamingiz\n"
-        "3️⃣ Sinfingiz\n\n"
+        f"3️⃣ {ROL_UCHINCHI_MAYDON[rol]}\n\n"
         "1️⃣ Ism-familiyangizni yozing:"
     )
 
@@ -139,7 +186,20 @@ async def ariza_telefon_matn(message: Message, state: FSMContext):
 
 async def _telefon_qabul(message: Message, state: FSMContext, telefon: str):
     """Raqamni saqlaydi, telefon klaviaturasini olib tashlaydi va keyingi bosqichga o'tadi."""
+    data = await state.get_data()
+    rol = data.get("rol", ARIZA_ROL_OQUVCHI)
+
     await state.update_data(telefon=telefon)
+    if rol == ARIZA_ROL_OQITUVCHI:
+        await state.set_state(Ariza.kasb)
+        await message.answer(
+            f"✅ Telefon raqamingiz muvaffaqiyatli tasdiqlandi: {telefon}\n\n"
+            f"3️⃣ Endi kasbingizni yozing — qaysi fanni dars berasiz? "
+            f"(masalan: {KASB_MASALALARI})",
+            reply_markup=klaviatura_olib_tashla(),
+        )
+        return
+
     await state.set_state(Ariza.sinf)
     await message.answer(
         f"✅ Telefon raqamingiz muvaffaqiyatli tasdiqlandi: {telefon}\n\n"
@@ -161,17 +221,43 @@ async def ariza_sinf(message: Message, state: FSMContext):
         return
 
     data = await state.get_data()
-    await _arizani_yuborish(message, state, data, sinf)
+    await _arizani_yuborish(message, state, data, sinf=sinf, kasb="")
 
 
-async def _arizani_yuborish(message: Message, state: FSMContext, data: dict, sinf: str):
+@router.message(Ariza.kasb)
+async def ariza_kasb(message: Message, state: FSMContext):
+    """O'qituvchi arizasi uchun o'qitayotgan fanni qabul qiladi."""
+    kasb = (message.text or "").strip()
+    if not kasb:
+        await message.answer(
+            f"Iltimos, kasbingizni yozing (masalan: {KASB_MASALALARI}):"
+        )
+        return
+    if len(kasb) > 60:
+        await message.answer("Kasb nomi juda uzun (maksimum 60 belgi). Qayta yozing:")
+        return
+
+    data = await state.get_data()
+    await _arizani_yuborish(message, state, data, sinf="", kasb=kasb)
+
+
+async def _arizani_yuborish(
+    message: Message,
+    state: FSMContext,
+    data: dict,
+    sinf: str = "",
+    kasb: str = "",
+):
     telegram_id = message.from_user.id
+    rol = data.get("rol", ARIZA_ROL_OQUVCHI)
     try:
         await api.ariza_yubor(
             telegram_id=telegram_id,
             fish=data["fish"],
             telefon=data["telefon"],
+            rol=rol,
             sinf=sinf,
+            kasb=kasb,
         )
     except ApiXato as e:
         await state.clear()
@@ -184,11 +270,12 @@ async def _arizani_yuborish(message: Message, state: FSMContext, data: dict, sin
         return
 
     await state.clear()
+    uchinchi_qator = f"🎓 Sinf: {sinf}" if rol == ARIZA_ROL_OQUVCHI else f"📚 Kasb: {kasb}"
     await message.answer(
         "✅ Arizangiz yuborildi!\n\n"
         f"📋 Ism: {data['fish']}\n"
         f"📞 Telefon: {data['telefon']}\n"
-        f"🎓 Sinf: {sinf}\n\n"
+        f"{uchinchi_qator}\n\n"
         "Kutubxonachi arizangizni tasdiqlagach, /start buyrug'ini bosing va "
         "botdan foydalanasiz. Tasdiqlash yoki rad etish natijasi shu yerga "
         "xabar qilinadi."

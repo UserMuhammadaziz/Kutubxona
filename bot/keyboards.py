@@ -40,6 +40,37 @@ def klaviatura_olib_tashla() -> ReplyKeyboardRemove:
     return ReplyKeyboardRemove()
 
 
+# ---------- A'rolik arizasi ----------
+
+ARIZA_ROL_OQUVCHI = "oquvchi"
+ARIZA_ROL_OQITUVCHI = "oqituvchi"
+
+ARIZA_ROL_TUGMA_MATNLARI = {
+    ARIZA_ROL_OQUVCHI: "🎓 Oquvchi sifatida a'riza yuborish",
+    ARIZA_ROL_OQITUVCHI: "👨‍🏫 O'qituvchi sifatida a'riza yuborish",
+}
+
+
+def ariza_rol_tugmalari() -> InlineKeyboardMarkup:
+    """/start da ariza yuboruvchi rolini tanlaydigan inline tugmalar."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=ARIZA_ROL_TUGMA_MATNLARI[ARIZA_ROL_OQUVCHI],
+                    callback_data=f"ariza_rol:{ARIZA_ROL_OQUVCHI}",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=ARIZA_ROL_TUGMA_MATNLARI[ARIZA_ROL_OQITUVCHI],
+                    callback_data=f"ariza_rol:{ARIZA_ROL_OQITUVCHI}",
+                )
+            ],
+        ]
+    )
+
+
 def telefon_keltirish(raw: str) -> str | None:
     """Raqamni `+998XXXXXXXXX` ko'rinishiga keltiradi, imkonsiz bo'lsa None.
 

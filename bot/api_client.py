@@ -146,11 +146,16 @@ class ApiClient:
         telegram_id: int,
         fish: str,
         telefon: str,
-        sinf: str,
+        rol: str = "oquvchi",
+        sinf: str = "",
+        kasb: str = "",
     ):
         """POST /applications/ — a'zolik arizasi.
 
-        Backend faqat ism-familiya, telefon va sinfni talab qiladi."""
+        Rolga qarab bitta qo'shimcha maydon to'ladi:
+        • oquvchi    → `sinf` (masalan: 7-A)
+        • oqituvchi  → `kasb` (o'qitayotgan fan, masalan: Matematika)
+        """
         return await self._so_rov(
             "POST",
             "/applications/",
@@ -159,7 +164,9 @@ class ApiClient:
                 "telegram_id": telegram_id,
                 "fish": fish,
                 "telefon": telefon,
+                "rol": rol,
                 "sinf": sinf,
+                "kasb": kasb,
             },
         )
 

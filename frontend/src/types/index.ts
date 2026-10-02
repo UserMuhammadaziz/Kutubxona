@@ -193,12 +193,21 @@ export const ARIZA_HOLATI_LABELS: Record<ArizaHolati, string> = {
   bekor: 'Bekor qilindi',
 }
 
+export type ArizaRol = 'oquvchi' | 'oqituvchi'
+
+export const ARIZA_ROL_LABELS: Record<ArizaRol, string> = {
+  oquvchi: 'Oquvchi',
+  oqituvchi: 'O‘qituvchi',
+}
+
 export interface Ariza {
   id: number
   telegram_id: number
   fish: string
   telefon: string
+  rol: ArizaRol
   sinf: string | null
+  kasb: string
   tugilgan_sana: string | null
   manzil: string
   holati: ArizaHolati

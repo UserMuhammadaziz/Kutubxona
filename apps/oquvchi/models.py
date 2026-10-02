@@ -32,6 +32,11 @@ class Ariza(models.Model):
         ("bekor", "Bekor"),
     ]
 
+    ROL_CHOICES = [
+        ("oquvchi", "Oquvchi"),
+        ("oqituvchi", "O'qituvchi"),
+    ]
+
     telegram_id = models.BigIntegerField(unique=True)
     fish = models.CharField(max_length=130)
     telefon = models.CharField(
@@ -47,6 +52,12 @@ class Ariza(models.Model):
     # Yangi arizalar uchun sinf majburiy — buni ArizaYaratishSerializer
     # validate_sinf() va blank=False orqali kafolatlaymiz.
     sinf = models.CharField(max_length=30, null=True)
+    # O'qituvchilar uchun: o'qitayotgan fani (masalan "Matematika").
+    # Oquvchi arizalarida bo'sh qoladi.
+    kasb = models.CharField(max_length=60, blank=True)
+    # Kim ariza yuborgani: oquvchi yoki o'qituvchi. Eski arizalar "oquvchi"
+    # deb hisoblanadi (default qiymat).
+    rol = models.CharField(max_length=20, choices=ROL_CHOICES, default="oquvchi")
     tugilgan_sana = models.DateField(null=True, blank=True)
     manzil = models.CharField(max_length=255, blank=True)
     holati = models.CharField(max_length=20, choices=HOLAT_CHOICES, default="kutmoqda")

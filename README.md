@@ -149,12 +149,22 @@ va allaqachon to'langan jarimaga tegilmaydi.
 | GET | `/api/fines/` | Jarimalar |
 | GET | `/api/fines/my/?telegram_id=` | O'quvchining jarimalari |
 | POST | `/api/fines/{id}/pay/` | Jarimani to'langan qilish |
+| POST | `/api/applications/` | Bot: a'rolik arizasi (o'quvchi/o'qituvchi) |
+| GET | `/api/applications/status/?telegram_id=` | Bot: ariza holati |
+| POST | `/api/applications/{id}/approve/` | Arizani qabul qilish (karta ochiladi) |
+| POST | `/api/applications/{id}/reject/` | Arizani rad etish |
 | GET | `/api/stats/top-books/?limit=10` | Top kitoblar |
 | GET | `/api/stats/dashboard/` | Umumiy statistika |
 
 ## Bot buyruqlari
 
-- `/start` — kartani bog'lash (FSM)
+- `/start` — ro'yxatga olingan bo'lsa asosiy menyu; aks holda a'riza yuborish
+  uchun inline tugmalar: «🎓 Oquvchi sifatida a'riza yuborish» va
+  «👨‍🏫 O'qituvchi sifatida a'riza yuborish».
+  Tanlangan rolga qarab so'raladigan ma'lumotlar:
+  - **Oquvchi** → ism-familiya → telefon → sinf
+  - **O'qituvchi** → ism-familiya → telefon → kasb (o'qitayotgan fan,
+    masalan Matematika, Ona tili)
 - «Kitob qidirish», «Mening kitoblarim», «Navbatlarim», «Jarimalarim» — asosiy menyu tugmalari
 
 ## Texnologiyalar

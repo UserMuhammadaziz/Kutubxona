@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { applicationsApi } from '../api/resources'
 import { errorMessage } from '../api/client'
-import type { Ariza, ArizaHolati } from '../types'
-import { ARIZA_HOLATI_LABELS } from '../types'
+import type { Ariza, ArizaHolati, ArizaRol } from '../types'
+import { ARIZA_HOLATI_LABELS, ARIZA_ROL_LABELS } from '../types'
 import {
   Badge,
   Button,
@@ -33,11 +33,26 @@ const TONE: Record<ArizaHolati, 'amber' | 'green' | 'red'> = {
   bekor: 'red',
 }
 
+/** Oquvchida sinf, o'qituvchida kasb (o'qitayotgan fan) ko'rsatiladi. */
+function rolBoshqicha(a: Ariza): string {
+  return a.rol === 'oqituvchi'
+    ? `📚 Kasb: ${a.kasb || 'ko‘rsatilmagan'}`
+    : `🎓 ${a.sinf || 'Sinf ko‘rsatilmagan'}`
+}
+
+/** Tasdiqlash dialogida ishlatiladigan qisqa ko'rinish. */
+function rolQisqa(a: Ariza): string {
+  return a.rol === 'oqituvchi'
+    ? `kasb: ${a.kasb || '—'}`
+    : `sinf: ${a.sinf || '—'}`
+}
+
 export function Applications() {
   const qc = useQueryClient()
   const toast = useToast()
   const [page, setPage] = useState(1)
   const [holati, setHolati] = useState<ArizaHolati | ''>('kutmoqda')
+  const [rol, setRol] = useState<ArizaRol | ''>('')
   const [search, setSearch] = useState('')
   const kechikkanQidiruv = useDebouncedValue(search)
   const [qabulAriza, setQabulAriza] = useState<Ariza | null>(null)
@@ -49,11 +64,12 @@ export function Applications() {
     // queryKey o'zgarmaydi va 1-sahifa natijasi qayta ishlatiladi.
     // `kechikkanQidiruv` esa har bir tugma bosilishida so'rov yubormasligi
     // uchun ishlatiladi.
-    queryKey: ['applications', page, holati, kechikkanQidiruv],
+    queryKey: ['applications', page, holati, rol, kechikkanQidiruv],
     queryFn: () =>
       applicationsApi.list({
         page,
         holati: holati || undefined,
+        rol: rol || undefined,
         search: kechikkanQidiruv.trim() || undefined,
       }),
   })
@@ -64,7 +80,7 @@ export function Applications() {
       qc.invalidateQueries({ queryKey: ['applications'] })
       qc.invalidateQueries({ queryKey: ['readers'] })
       setQabulAriza(null)
-      toast.success(`«${ariza.fish}» tasdiqlandi — o‘quvchi ro‘yxatga qo‘shildi.`)
+      toast.success(`«${ariza.fish}» tasdiqlandi — ro‘yxatga qo‘shildi.`)
     },
     onError: (err) => toast.error(errorMessage(err)),
   })
@@ -90,6 +106,11 @@ export function Applications() {
     setPage(1)
   }
 
+  function rolOzgardi(qiymat: string) {
+    setRol(qiymat as ArizaRol | '')
+    setPage(1)
+  }
+
   return (
     <div>
       <PageHeader
@@ -106,6 +127,20 @@ export function Applications() {
               onChange={(e) => qidirishOzgardi(e.target.value)}
               aria-label="Arizalarni qidirish"
             />
+          </div>
+          <div className="sm:w-56">
+            <Select
+              value={rol}
+              onChange={(e) => rolOzgardi(e.target.value)}
+              aria-label="Ariza beruvchi roli"
+            >
+              <option value="">Barcha rollar</option>
+              {Object.entries(ARIZA_ROL_LABELS).map(([qiymat, nomi]) => (
+                <option key={qiymat} value={qiymat}>
+                  {nomi}
+                </option>
+              ))}
+            </Select>
           </div>
           <div className="sm:w-56">
             <Select
@@ -145,13 +180,14 @@ export function Applications() {
               : 'Filtrni o‘zgartirib ko‘ring yoki boshqa so‘z bilan qidiring.'
           }
           action={
-            search || holati ? (
+            search || holati || rol ? (
               <Button
                 variant="secondary"
                 size="sm"
                 onClick={() => {
                   qidirishOzgardi('')
                   holatiOzgardi('')
+                  rolOzgardi('')
                 }}
               >
                 Filtrni tozalash
@@ -174,7 +210,7 @@ export function Applications() {
                 <Badge tone={TONE[a.holati]}>{ARIZA_HOLATI_LABELS[a.holati]}</Badge>
               </div>
               <div className="text-xs text-slate-500 dark:text-slate-400">
-                🎓 {a.sinf || 'Sinf ko‘rsatilmagan'} · Telegram: {a.telegram_id}
+                {ARIZA_ROL_LABELS[a.rol]} · {rolBoshqicha(a)} · Telegram: {a.telegram_id}
               </div>
               <div className="text-xs text-slate-400">{formatDate(a.ariza_sanasi)}</div>
               {a.izoh && (
@@ -205,7 +241,8 @@ export function Applications() {
             <thead className="border-b border-slate-200 bg-canvas text-xs uppercase text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
               <tr>
                 <th className="px-4 py-3">F.I.Sh.</th>
-                <th className="px-4 py-3">Sinf</th>
+                <th className="px-4 py-3">Rol</th>
+                <th className="px-4 py-3">Sinf / Kasb</th>
                 <th className="px-4 py-3">Telefon</th>
                 <th className="px-4 py-3">Holati</th>
                 <th className="px-4 py-3">Sana</th>
@@ -219,7 +256,10 @@ export function Applications() {
                     <div className="font-medium text-slate-900 dark:text-slate-100">{a.fish}</div>
                     <div className="text-xs text-slate-400">Telegram: {a.telegram_id}</div>
                   </td>
-                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{a.sinf || '—'}</td>
+                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{ARIZA_ROL_LABELS[a.rol]}</td>
+                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
+                    {a.rol === 'oqituvchi' ? a.kasb || '—' : a.sinf || '—'}
+                  </td>
                   <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{a.telefon}</td>
                   <td className="px-4 py-3">
                     <Badge tone={TONE[a.holati]}>{ARIZA_HOLATI_LABELS[a.holati]}</Badge>
@@ -265,8 +305,8 @@ export function Applications() {
         message={
           qabulAriza && (
             <>
-              <b>{qabulAriza.fish}</b> (sinf: {qabulAriza.sinf || '—'}) arizasini qabul qilib,{' '}
-              <b>o‘quvchi</b> ro‘yxatiga qo‘shasizmi?
+              <b>{qabulAriza.fish}</b> ({ARIZA_ROL_LABELS[qabulAriza.rol].toLowerCase()},{' '}
+              {rolQisqa(qabulAriza)}) arizasini qabul qilib, <b>ro‘yxatga</b> qo‘shasizmi?
               <br />
               <br />
               Karta raqami avtomatik beriladi va Telegram orqali tasdiqlash xabari yuboriladi.

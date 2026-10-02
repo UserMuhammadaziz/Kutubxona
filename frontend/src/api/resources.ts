@@ -22,6 +22,7 @@ import type {
   NavbatHolati,
   Ariza,
   ArizaHolati,
+  ArizaRol,
   TopBook,
   DashboardStats,
 } from '../types'
@@ -93,6 +94,7 @@ export const readersApi = {
 export interface ApplicationListParams {
   page?: number
   holati?: ArizaHolati | ''
+  rol?: ArizaRol | ''
   sinf?: string
   search?: string
 }

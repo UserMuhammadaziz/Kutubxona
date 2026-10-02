@@ -91,7 +91,9 @@ class ArizaSerializer(serializers.ModelSerializer):
             "telegram_id",
             "fish",
             "telefon",
+            "rol",
             "sinf",
+            "kasb",
             "tugilgan_sana",
             "manzil",
             "holati",
@@ -99,22 +101,33 @@ class ArizaSerializer(serializers.ModelSerializer):
             "tasdiqlangan_sana",
             "izoh",
         ]
-        read_only_fields = ["id", "ariza_sanasi", "tasdiqlangan_sana", "holati", "izoh"]
+        read_only_fields = ["id", "ariza_sanasi", "tasdiqlangan_sana", "holati", "izoh", "rol"]
 
 
 class ArizaYaratishSerializer(serializers.ModelSerializer):
     """POST /api/applications/ — bot orqali yangi a'zolik arizasi.
 
-    Bot faqat ism-familiya, telefon raqam va sinfni so'raydi. tugilgan_sana
-    va manzil qoldirilgan ma'lumot uchun ixtiyoriy qoldirilgan (eski arizalar
-    bilan moslik uchun) — yangi bot ularni so'ramaydi.
-    """
+    Bot rolni oldindan tanlaydi va shunga qarab so'raydi:
+    • `rol="oquvchi"`    → ism-familiya, telefon va sinf;
+    • `rol="oqituvchi"` → ism-familiya, telefon va kasb (o'qitayotgan fan).
+
+    tugilgan_sana va manzil ixtiyoriy (eski arizalar bilan moslik uchun) —
+    yangi bot ularni so'ramaydi."""
 
     telegram_id = serializers.IntegerField(validators=[])
 
     class Meta:
         model = Ariza
-        fields = ["telegram_id", "fish", "telefon", "sinf", "tugilgan_sana", "manzil"]
+        fields = [
+            "telegram_id",
+            "fish",
+            "telefon",
+            "rol",
+            "sinf",
+            "kasb",
+            "tugilgan_sana",
+            "manzil",
+        ]
 
     def validate_tugilgan_sana(self, value):
         if value and value > date.today():
@@ -131,7 +144,45 @@ class ArizaYaratishSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Sinf nomi juda uzun (maksimum 30 belgi).")
         return sinf
 
+    def validate_kasb(self, value):
+        kasb = (value or "").strip()
+        if not kasb:
+            raise serializers.ValidationError(
+                "Kasbingizni ko'rsating (masalan: Matematika)."
+            )
+        if len(kasb) > 60:
+            raise serializers.ValidationError("Kasb nomi juda uzun (maksimum 60 belgi).")
+        return kasb
+
     def validate(self, attrs):
+        rol = attrs.get("rol") or "oquvchi"
+        attrs["rol"] = rol
+
+        if rol == "oqituvchi":
+            # O'qituvchi uchun sinf kerak emas, faqat kasb majburiy.
+            attrs["sinf"] = None
+            kasb = (attrs.get("kasb") or "").strip()
+            if not kasb:
+                raise serializers.ValidationError(
+                    {"kasb": "Kasbingizni ko'rsating (masalan: Matematika)."}
+                )
+            if len(kasb) > 60:
+                raise serializers.ValidationError(
+                    {"kasb": "Kasb nomi juda uzun (maksimum 60 belgi)."}
+                )
+            attrs["kasb"] = kasb
+        else:
+            # Oquvchi uchun sinf majburiy, kasb kerak emas.
+            sinf = attrs.get("sinf") or ""
+            if not sinf.strip():
+                raise serializers.ValidationError({"sinf": "Sinfni ko'rsating (masalan: 7-A)."})
+            if len(sinf.strip()) > 30:
+                raise serializers.ValidationError(
+                    {"sinf": "Sinf nomi juda uzun (maksimum 30 belgi)."}
+                )
+            attrs["sinf"] = sinf.strip()
+            attrs["kasb"] = ""
+
         telegram_id = attrs["telegram_id"]
         if Oquvchi.objects.filter(telegram_id=telegram_id).exists():
             raise serializers.ValidationError(

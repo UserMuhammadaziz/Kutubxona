@@ -405,6 +405,100 @@ class ArizaRadEtishTest(ArizaTestMixin, TestCase):
         self.assertEqual(Ariza.objects.filter(holati="kutmoqda").count(), 1)
 
 
+class OqituvchiArizaTest(ArizaTestMixin, TestCase):
+    """`rol="oqituvchi"` arizalari: ism-familiya, telefon va kasb (fan)."""
+
+    def url(self):
+        return "/api/applications/"
+
+    def yubor(self, **qoshimcha):
+        ma_lumot = {
+            "telegram_id": 111111,
+            "fish": "Karimova Nilufar",
+            "telefon": "+998901234567",
+            "rol": "oqituvchi",
+        }
+        ma_lumot.update(qoshimcha)
+        return APIClient().post(self.url(), ma_lumot, format="json")
+
+    def test_kasb_bilan_ariza_qabul_qilinadi(self):
+        javob = self.yubor(kasb="Matematika")
+        self.assertEqual(javob.status_code, 201, javob.data)
+
+        ariza = Ariza.objects.get()
+        self.assertEqual(ariza.rol, "oqituvchi")
+        self.assertEqual(ariza.kasb, "Matematika")
+        self.assertIsNone(ariza.sinf)
+        self.assertEqual(ariza.holati, "kutmoqda")
+
+    def test_kasb_majburiy(self):
+        javob = self.yubor()
+        self.assertEqual(javob.status_code, 400)
+        self.assertIn("kasb", javob.data["detail"])
+        self.assertEqual(Ariza.objects.count(), 0)
+
+    def test_uzun_kasb_rad_etiladi(self):
+        javob = self.yubor(kasb="x" * 61)
+        self.assertEqual(javob.status_code, 400)
+        self.assertIn("kasb", javob.data["detail"])
+
+    def test_tasdiqlashda_karta_ochiladi_va_kasb_xabarida_korishi(self):
+        ariza = Ariza.objects.create(
+            telegram_id=111111,
+            fish="Karimova Nilufar",
+            telefon="+998901234567",
+            rol="oqituvchi",
+            kasb="Ona tili",
+        )
+
+        with self.xabarni_tekshir():
+            javob = self.client.post(f"/api/applications/{ariza.pk}/approve/")
+
+        self.assertEqual(javob.status_code, 200, javob.data)
+
+        oquvchi = Oquvchi.objects.get(telefon="+998901234567")
+        self.assertEqual(oquvchi.telegram_id, 111111)
+        self.assertTrue(oquvchi.karta_raqami.startswith("LIB-"))
+        # Sinf o'qituvchida bo'sh bo'ladi (None emas — CharField NOT NULL).
+        self.assertEqual(oquvchi.sinf, "")
+
+        self.yuborish.assert_called_once()
+        xabar = YUBORILGAN_XABARLAR[0]
+        self.assertIn("Ona tili", xabar["matn"])
+
+    def test_rol_filteri_ishlaydi(self):
+        Ariza.objects.create(
+            telegram_id=111111,
+            fish="Alisher Karimov",
+            telefon="+998901234567",
+            sinf="7-A",
+        )
+        Ariza.objects.create(
+            telegram_id=222222,
+            fish="Karimova Nilufar",
+            telefon="+998901234568",
+            rol="oqituvchi",
+            kasb="Fizika",
+        )
+
+        javob = self.client.get("/api/applications/", {"rol": "oqituvchi"})
+        self.assertEqual(javob.status_code, 200)
+        self.assertEqual(javob.data["count"], 1)
+        self.assertEqual(javob.data["results"][0]["kasb"], "Fizika")
+
+    def test_kasb_bo_yicha_qidiruv(self):
+        Ariza.objects.create(
+            telegram_id=222222,
+            fish="Karimova Nilufar",
+            telefon="+998901234568",
+            rol="oqituvchi",
+            kasb="Informatika",
+        )
+        javob = self.client.get("/api/applications/", {"search": "Informatika"})
+        self.assertEqual(javob.status_code, 200)
+        self.assertEqual(javob.data["count"], 1)
+
+
 class ArizaAdminActionTest(ArizaTestMixin, TestCase):
     """Django admin orqali qabul/rad etish ham xabar yuborishi kerak."""
 

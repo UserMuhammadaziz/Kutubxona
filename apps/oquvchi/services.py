@@ -71,11 +71,17 @@ class ArizaTelegramBandi(ValueError):
 
 
 def tasdiqlash_xabari(ariza: Ariza, oquvchi: Oquvchi, yangi_karta: bool) -> str:
-    """Ariza qabul qilinganda o'quvchiga yuboriladigan xabar matni."""
+    """Ariza qabul qilinganda arizani yuborgan shaxsga yuboriladigan xabar matni."""
     fish = telegram_escape(oquvchi.fish)
-    sinf = telegram_escape(oquvchi.sinf)
     karta = telegram_escape(oquvchi.karta_raqami)
-    sinf_qismi = f"\n🎓 Sinf: <b>{sinf}</b>" if oquvchi.sinf else ""
+    if ariza.rol == "oqituvchi":
+        sinf_qismi = ""
+        kasb_qismi = f"\n📚 Kasbingiz: <b>{telegram_escape(ariza.kasb)}</b>" if ariza.kasb else ""
+    else:
+        sinf_qismi = (
+            f"\n🎓 Sinf: <b>{telegram_escape(oquvchi.sinf)}</b>" if oquvchi.sinf else ""
+        )
+        kasb_qismi = ""
     karta_qismi = (
         f"\n🆕 Sizga berilgan karta raqami: <b>{karta}</b>\n"
         "Bu raqamni saqlab qo'ying." if yangi_karta else ""
@@ -83,7 +89,7 @@ def tasdiqlash_xabari(ariza: Ariza, oquvchi: Oquvchi, yangi_karta: bool) -> str:
     return (
         "✅ <b>A'zolik arizangiz tasdiqlandi!</b>\n\n"
         f"Xush kelibsiz, {fish}!"
-        f"{sinf_qismi}\n"
+        f"{sinf_qismi}{kasb_qismi}\n"
         f"🪪 Karta raqamingiz: <b>{karta}</b>"
         f"{karta_qismi}\n\n"
         "Endi /start buyrug'ini bosing va kitob qidirish, navbatga turish, "
@@ -160,7 +166,7 @@ def arizani_tasdiqla(ariza: Ariza):
             fish=ariza.fish,
             telefon=ariza.telefon,
             telegram_id=ariza.telegram_id,
-            sinf=ariza.sinf,
+            sinf=ariza.sinf or "",
             tugilgan_sana=ariza.tugilgan_sana,
             manzil=ariza.manzil,
         )
