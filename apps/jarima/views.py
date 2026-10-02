@@ -17,7 +17,7 @@ class JarimaViewSet(viewsets.ModelViewSet):
     POST /api/fines/{id}/pay/ -> jarimani to'langan deb belgilash
     """
 
-    queryset = Jarima.objects.select_related("berish__oquvchi", "berish__nusxa__kitob").order_by("-id")
+    queryset = Jarima.objects.select_related("berish__oquvchi", "berish__kitob").order_by("-id")
     serializer_class = JarimaSerializer
     filterset_fields = ["tolandimi", "berish__oquvchi"]
     http_method_names = ["get", "post"]
@@ -60,7 +60,7 @@ class JarimaViewSet(viewsets.ModelViewSet):
         if oquvchi.telegram_id:
             matn = (
                 "✅ <b>Jarima to'landi!</b>\n\n"
-                f"📖 Kitob: {telegram_escape(jarima.berish.nusxa.kitob.nomi)}\n"
+                f"📖 Kitob: {telegram_escape(jarima.berish.kitob.nomi)}\n"
                 f"💰 Summa: {jarima.summa} so'm\n\n"
                 "Siz jarimangizni to'ladingiz. "
                 "Keyingi safar kitobni vaqtida topshiring!"

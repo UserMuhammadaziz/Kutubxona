@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import NamedTuple
 
 from django.conf import settings
 from django.db import transaction
@@ -7,6 +8,44 @@ from django.utils.timezone import now
 from config.telegram import telegram_escape, telegram_xabar_yubor
 from nusxa.models import Nusxa
 from .models import Navbat
+
+
+class NavbatNatija(NamedTuple):
+    """`navbatga_qosh` qaytargan ma'lumot: navbat yozuvi, o'rin raqami va
+    yangi yozuv yaratilgani (`yangi=False` — o'quvchi allaqachon shu kitob
+    navbatida edi)."""
+
+    navbat: Navbat
+    orin: int
+    yangi: bool
+
+
+def navbat_oringi(navbat):
+    """Navbatdagi o'rin raqami: o'zidan olda nechta odam turgani."""
+    return (
+        Navbat.objects.filter(
+            kitob=navbat.kitob,
+            holati="kutmoqda",
+            navbat_sanasi__lte=navbat.navbat_sanasi,
+        ).count()
+    )
+
+
+@transaction.atomic
+def navbatga_qosh(kitob, oquvchi):
+    """O'quvchini kitob navbatiga qo'shadi. Agar o'quvchi allaqachon shu
+    kitobning faol navbatida bo'lsa, yangi yozuv yaratilmaydi — mavjud
+    navbat qaytariladi (unique_active_queue constraint'i buzilmasligi uchun)."""
+    mavjud = (
+        Navbat.objects.select_for_update()
+        .filter(kitob=kitob, oquvchi=oquvchi, holati__in=["kutmoqda", "taklif_qilindi"])
+        .first()
+    )
+    if mavjud:
+        return NavbatNatija(navbat=mavjud, orin=navbat_oringi(mavjud), yangi=False)
+
+    navbat = Navbat.objects.create(kitob=kitob, oquvchi=oquvchi)
+    return NavbatNatija(navbat=navbat, orin=navbat_oringi(navbat), yangi=True)
 
 
 def taklif_xabari_matni(navbat):

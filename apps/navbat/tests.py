@@ -294,6 +294,7 @@ class BerishEslatmaTest(NavbatTestBase):
         oquvchi = self.oquvchi("+998901234567", 111111)
         Berish.objects.create(
             nusxa=self.nusxa,
+            kitob=self.nusxa.kitob,
             oquvchi=oquvchi,
             bergan_xodim=self.xodim,
             qaytarish_muddati=now().date() + timedelta(days=2),
@@ -312,6 +313,7 @@ class BerishEslatmaTest(NavbatTestBase):
         oquvchi = self.oquvchi("+998901234567", 111111)
         berish = Berish.objects.create(
             nusxa=self.nusxa,
+            kitob=self.nusxa.kitob,
             oquvchi=oquvchi,
             bergan_xodim=self.xodim,
             qaytarish_muddati=now().date() + timedelta(days=2),

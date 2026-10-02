@@ -9,11 +9,13 @@ from datetime import date
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from rest_framework.exceptions import ValidationError
 
 from berish.models import Berish
-from berish.services import kitob_ber, kitob_qaytar
+from berish.services import kitob_ber, kitob_ber_by_kitob, kitob_qaytar
 from kitob.models import Kitob
 from kitob.services import kitob_holatini_yenila
+from navbat.models import Navbat
 from nusxa.models import Nusxa
 from oquvchi.models import Oquvchi
 
@@ -136,3 +138,104 @@ class HolatniTekshirishTest(KitobHolatiTestBase):
         self.assertEqual(berish.oquvchi_id, self.oquvchi.id)
         self.assertEqual(berish.holati, "faol")
         self.assertIsNone(berish.qaytarilgan_sana)
+
+
+class AsliKitobBerishTest(KitobHolatiTestBase):
+    """Nusxasi umuman yo'q kitob «asli» holatda beriladi: `Berish.nusxa`
+    bo'sh qoladi, kitob esa `Berish.kitob` orqali bog'lanadi."""
+
+    def test_nusxasi_yoq_kitob_asli_beriladi(self):
+        berish = kitob_ber_by_kitob(self.kitob, self.oquvchi, self.xodim)
+
+        self.assertIsNone(berish.nusxa_id)
+        self.assertEqual(berish.kitob_id, self.kitob.id)
+        self.assertEqual(berish.holati, "faol")
+        self.assertEqual(berish.bergan_xodim_id, self.xodim.id)
+
+    def test_asli_berilganda_kitob_berilgan_boladi(self):
+        kitob_ber_by_kitob(self.kitob, self.oquvchi, self.xodim)
+
+        self.kitob.refresh_from_db()
+        self.assertEqual(self.kitob.holati, "berilgan")
+
+    def test_asli_kitob_qaytarilganda_mavjud_bo_ladi(self):
+        berish = kitob_ber_by_kitob(self.kitob, self.oquvchi, self.xodim)
+
+        kitob_qaytar(berish, self.xodim)
+
+        self.kitob.refresh_from_db()
+        berish.refresh_from_db()
+        self.assertEqual(self.kitob.holati, "mavjud")
+        self.assertEqual(berish.holati, "qaytarilgan")
+
+    def test_asli_berilgan_kitob_qayta_berilmaydi(self):
+        kitob_ber_by_kitob(self.kitob, self.oquvchi, self.xodim)
+
+        ikkinchi = Oquvchi.objects.create(
+            fish="Shoxista Raximova",
+            telefon="+998902345678",
+            telegram_id=222222,
+            karta_raqami="K-002",
+        )
+        with self.assertRaises(ValidationError) as kontekst:
+            kitob_ber_by_kitob(self.kitob, ikkinchi, self.xodim)
+
+        self.assertEqual(kontekst.exception.detail["error"], "kitob_band")
+        self.assertEqual(Berish.objects.filter(kitob=self.kitob).count(), 1)
+
+    def test_asli_berish_navbatni_yopadi(self):
+        navbat = Navbat.objects.create(kitob=self.kitob, oquvchi=self.oquvchi)
+
+        kitob_ber_by_kitob(self.kitob, self.oquvchi, self.xodim)
+
+        navbat.refresh_from_db()
+        self.assertEqual(navbat.holati, "yakunlandi")
+
+    def test_nusxa_bo_lsa_asli_berilmaydi(self):
+        """Nusxasi bor kitob nusxasiz berilmaydi — xatoga tushadi."""
+        self.nusxa("INV-1")
+
+        with self.assertRaises(ValidationError) as kontekst:
+            kitob_ber(None, self.oquvchi, self.xodim, kitob=self.kitob)
+
+        self.assertEqual(kontekst.exception.detail["error"], "nusxa_mavjud")
+
+
+class KitobBoYichaBerishTest(KitobHolatiTestBase):
+    """`kitob_ber_by_kitob`: nusxa bor -> nusxa, yo'q -> asli, hammasi band
+    -> xato + avtomatik navbat."""
+
+    def test_mavjud_nusxa_avtomatik_beriladi(self):
+        nusxa = self.nusxa("INV-1")
+        self.nusxa("INV-2")
+
+        berish = kitob_ber_by_kitob(self.kitob, self.oquvchi, self.xodim)
+
+        self.assertEqual(berish.nusxa_id, nusxa.id)
+        self.assertIsNotNone(berish.kitob_id)
+        nusxa.refresh_from_db()
+        self.assertEqual(nusxa.holati, "berilgan")
+
+    def test_barcha_nusxalar_band_bo_lsa_xato_va_avtomatik_navbat(self):
+        self.nusxa("INV-1", holati="berilgan")
+        self.nusxa("INV-2", holati="berilgan")
+
+        with self.assertRaises(ValidationError) as kontekst:
+            kitob_ber_by_kitob(self.kitob, self.oquvchi, self.xodim)
+
+        detail = kontekst.exception.detail
+        self.assertEqual(detail["error"], "barcha_nusxalar_berilgan")
+        self.assertTrue(detail["navbatga_qoshildi"])
+        self.assertEqual(int(detail["orin"]), 1)
+        self.assertEqual(Navbat.objects.count(), 1)
+        self.assertEqual(Navbat.objects.get().oquvchi_id, self.oquvchi.id)
+        self.assertEqual(Berish.objects.count(), 0, "xato bo'lsa kitob berilmasligi kerak")
+
+    def test_bitta_nusxa_bo_sa_ham_qayta_beriladi(self):
+        self.nusxa("INV-1", holati="berilgan")
+        erkin = self.nusxa("INV-2")
+
+        berish = kitob_ber_by_kitob(self.kitob, self.oquvchi, self.xodim)
+
+        self.assertEqual(berish.nusxa_id, erkin.id)
+        self.assertEqual(Navbat.objects.count(), 0)

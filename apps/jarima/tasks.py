@@ -45,7 +45,7 @@ def jarima_eslatma_yubor():
     """
     qarz = (
         Jarima.objects.filter(tolandimi=False)
-        .select_related("berish__oquvchi", "berish__nusxa__kitob")
+        .select_related("berish__oquvchi", "berish__kitob")
         .order_by("berish__oquvchi_id")
     )
 
@@ -59,7 +59,7 @@ def jarima_eslatma_yubor():
         hisob = oquvchilar.setdefault(oquvchi, {"jarimalar": [], "jami": 0})
         hisob["jarimalar"].append(
             {
-                "nomi": jarima.berish.nusxa.kitob.nomi,
+                "nomi": jarima.berish.kitob.nomi,
                 "summa": jarima.summa,
                 "qaytarilmagan": jarima.berish.qaytarilgan_sana is None,
             }

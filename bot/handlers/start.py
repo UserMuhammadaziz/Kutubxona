@@ -88,6 +88,23 @@ async def _rol_tanlash(message: Message):
     )
 
 
+def rol_tanlash_xabari(rol):
+    """Rol tanlangandan keyin yuboriladigan xabar matni.
+
+    Alohida funksiya qilib ajratilgan, chunki ichidagi nomlar (masalan
+    `ROL_UCHUNCHI_MAYDON`) ish vaqtida `NameError` bersa, matnni shu yerda
+    tekshirib bo'ladi (bot/_check.py) — serverda esa butun oqim buzilardi.
+    """
+    return (
+        f"{ROL_TASDIQLANDI_XABARI[rol]}\n\n"
+        "Ro'yxatga olish uchun 3 ta ma'lumot kerak:\n"
+        "1️⃣ Ism-familiyangiz\n"
+        "2️⃣ Telefon raqamingiz\n"
+        f"3️⃣ {ROL_UCHUNCHI_MAYDON[rol]}\n\n"
+        "1️⃣ Ism-familiyangizni yozing:"
+    )
+
+
 @router.callback_query(F.data.startswith("ariza_rol:"))
 async def ariza_rol_tanlandi(callback: CallbackQuery, state: FSMContext):
     """Rol tugmasi bosilganda rolni saqlaydi va ariza bo'sh bosqichini boshlaydi."""
@@ -114,14 +131,7 @@ async def ariza_rol_tanlandi(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     if callback.message is None:
         return
-    await callback.message.edit_text(
-        f"{ROL_TASDIQLANDI_XABARI[rol]}\n\n"
-        "Ro'yxatga olish uchun 3 ta ma'lumot kerak:\n"
-        "1️⃣ Ism-familiyangiz\n"
-        "2️⃣ Telefon raqamingiz\n"
-        f"3️⃣ {ROL_UCHINCHI_MAYDON[rol]}\n\n"
-        "1️⃣ Ism-familiyangizni yozing:"
-    )
+    await callback.message.edit_text(rol_tanlash_xabari(rol))
 
 
 @router.message(Ariza.fish)

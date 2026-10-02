@@ -49,7 +49,7 @@ class Command(BaseCommand):
         faqat_nofaol = options["faqat_nofaol"]
 
         jarimalar = Jarima.objects.select_related(
-            "berish__oquvchi", "berish__nusxa__kitob"
+            "berish__oquvchi", "berish__kitob"
         ).filter(tolandimi=False)
 
         # 1) FK butunligi buzilgan yozuvlar (berish yoki o'quvchi yo'q).

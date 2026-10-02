@@ -11,7 +11,7 @@ from berish.serializers import BerishSerializer, BerishYaratishSerializer, Beris
 
 class BerishViewSet(viewsets.ModelViewSet):
     permission_classes = [IsLibrarian]
-    queryset = Berish.objects.select_related("nusxa__kitob", "oquvchi").order_by("-id")
+    queryset = Berish.objects.select_related("nusxa", "kitob", "oquvchi").order_by("-id")
     serializer_class = BerishSerializer
     filterset_fields = ["holati", "oquvchi"]
     http_method_names = ["get", "post"]
@@ -24,11 +24,19 @@ class BerishViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = BerishYaratishSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        berish = services.kitob_ber(
-            nusxa=serializer.validated_data["nusxa"],
-            oquvchi=serializer.validated_data["oquvchi"],
-            xodim=request.user,
-        )
+        malumot = serializer.validated_data
+        if malumot.get("kitob"):
+            berish = services.kitob_ber_by_kitob(
+                kitob=malumot["kitob"],
+                oquvchi=malumot["oquvchi"],
+                xodim=request.user,
+            )
+        else:
+            berish = services.kitob_ber(
+                nusxa=malumot["nusxa"],
+                oquvchi=malumot["oquvchi"],
+                xodim=request.user,
+            )
         return Response(BerishSerializer(berish).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"], url_path="return")

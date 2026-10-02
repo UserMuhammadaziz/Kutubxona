@@ -20,7 +20,7 @@ def eslatma_yuborish():
          yuborilmasa, keyingi kunda qayta urinishadi.
     """
     nishon_sana = now().date() + timedelta(days=settings.ESLATMA_KUNLAR_OLDIN)
-    qs = Berish.objects.select_related("oquvchi", "nusxa__kitob").filter(
+    qs = Berish.objects.select_related("oquvchi", "nusxa", "kitob").filter(
         qaytarish_muddati=nishon_sana,
         qaytarilgan_sana__isnull=True,
         eslatma_yuborilgan=False,
@@ -35,10 +35,14 @@ def eslatma_yuborish():
             continue
 
         qolgan = (berish.qaytarish_muddati - now().date()).days
+        if berish.nusxa_id:
+            manzil = f"Inventar raqami: {berish.nusxa.inventar_raqami}"
+        else:
+            manzil = "Nusxasi yo'q — kitob aslida berilgan"
         matn = (
             "⏰ <b>Qaytarish muddati yaqinlashmoqda!</b>\n\n"
-            f"📖 <b>{telegram_escape(berish.nusxa.kitob.nomi)}</b>\n"
-            f"Inventar raqami: {berish.nusxa.inventar_raqami}\n"
+            f"📖 <b>{telegram_escape(berish.kitob.nomi)}</b>\n"
+            f"{manzil}\n"
             f"Qaytarish muddati: <b>{berish.qaytarish_muddati}</b>\n"
             f"Qolgan kun: <b>{qolgan}</b>\n\n"
             "Iltimos, vaqtida kutubxonaga qaytaring! Kechikdirilsa jarima "

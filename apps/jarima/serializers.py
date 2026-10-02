@@ -6,7 +6,7 @@ from jarima.models import Jarima
 class JarimaSerializer(serializers.ModelSerializer):
 
     oquvchi_fish = serializers.CharField(source="berish.oquvchi.fish", read_only=True)
-    kitob_nomi = serializers.CharField(source="berish.nusxa.kitob.nomi", read_only=True)
+    kitob_nomi = serializers.CharField(source="berish.kitob.nomi", read_only=True)
 
     class Meta:
         model = Jarima
@@ -53,7 +53,7 @@ class JarimaTolashSerializer(serializers.Serializer):
 class JarimaMeniSerializer(serializers.ModelSerializer):
     """GET /api/fines/my/?telegram_id= — o'quvchining to'lanmagan jarimalari."""
 
-    kitob_nomi = serializers.CharField(source="berish.nusxa.kitob.nomi", read_only=True)
+    kitob_nomi = serializers.CharField(source="berish.kitob.nomi", read_only=True)
 
     class Meta:
         model = Jarima

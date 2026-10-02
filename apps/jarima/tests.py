@@ -57,6 +57,7 @@ class JarimaTestBase(TestCase):
     def kechikkan_berish(self, oquvchi, kunlar=3, tasdiq=False):
         berish = Berish.objects.create(
             nusxa=self.nusxa,
+            kitob=self.nusxa.kitob,
             oquvchi=oquvchi,
             bergan_xodim=self.xodim,
             berilgan_sana=date(2020, 1, 1),
@@ -187,6 +188,7 @@ class JarimaEslatmaTest(JarimaTestBase):
         )
         berish2 = Berish.objects.create(
             nusxa=ikkinchi_nusxa,
+            kitob=ikkinchi_nusxa.kitob,
             oquvchi=oquvchi,
             bergan_xodim=self.xodim,
             berilgan_sana=date(2020, 1, 1),

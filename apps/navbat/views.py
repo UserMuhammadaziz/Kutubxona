@@ -5,6 +5,8 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
+from berish.serializers import BerishSerializer
+from nusxa.models import Nusxa
 from oquvchi.models import Oquvchi
 from user.permissions import IsLibrarian
 from . import services
@@ -15,6 +17,7 @@ from .serializers import (
     NavbatJavobSerializer,
     NavbatMeniSerializer,
 )
+from berish import services as berish_services
 
 
 class NavbatViewSet(viewsets.ModelViewSet):
@@ -40,16 +43,38 @@ class NavbatViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = NavbatYaratishSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        navbat = Navbat.objects.create(
-            kitob=serializer.validated_data["kitob"],
-            oquvchi=serializer.validated_data["oquvchi"],
+        kitob = serializer.validated_data["kitob"]
+        oquvchi = serializer.validated_data["oquvchi"]
+
+        natija = services.navbatga_qosh(kitob, oquvchi)
+
+        # Nusxasi umuman yo'q kitob: navbatda kutishning o'rniga kitob
+        # «asli» holatda darhol beriladi. Navbat yozuvi esa yopiladi
+        # (kitob_ber uni o'zi `yakunlandi` qiladi).
+        if not Nusxa.objects.filter(kitob=kitob).exists():
+            try:
+                berish = berish_services.kitob_ber(
+                    nusxa=None, oquvchi=oquvchi, kitob=kitob, xodim=None
+                )
+            except ValidationError:
+                # Berish bo'lmadi (limit/jarima/blok) — yaratilgan navbat
+                # yozuvini olib tashlaymiz, o'quvchi o'z xatosini ko'rsin.
+                natija.navbat.delete()
+                raise
+            return Response(
+                {
+                    "id": natija.navbat.id,
+                    "orin": natija.orin,
+                    "berildi": True,
+                    "berish": BerishSerializer(berish).data,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+
+        return Response(
+            {"id": natija.navbat.id, "orin": natija.orin, "berildi": False},
+            status=status.HTTP_201_CREATED,
         )
-        orin = Navbat.objects.filter(
-            kitob=navbat.kitob,
-            holati="kutmoqda",
-            navbat_sanasi__lte=navbat.navbat_sanasi,
-        ).count()
-        return Response({"id": navbat.id, "orin": orin}, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=["get"], url_path="my")
     def meni(self, request):

@@ -164,6 +164,12 @@ STATIC_URL = 'static/'
 # fayllarni o'zi bermaydi).
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
+# React paneli build natijasi shu yerga yig'iladi (`npm run build` →
+# `web/static/web/dist/`). Bu papka `STATICFILES_DIRS` da bo'lmasa,
+# `collectstatic` uni ko'chir maydi va sayt eski buildni ko'rsatib qoladi
+# (yoki yangi build 404 beradi) — shuning uchun shu yerda ko'rsatiladi.
+STATICFILES_DIRS = [BASE_DIR / 'web' / 'static']
+
 AUTH_USER_MODEL = 'user.User'
 
 # Email
