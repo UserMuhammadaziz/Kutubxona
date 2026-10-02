@@ -12,6 +12,7 @@ from django.test import TestCase
 from rest_framework.exceptions import ValidationError
 
 from berish.models import Berish
+from berish.serializers import BerishMeniSerializer, BerishSerializer
 from berish.services import kitob_ber, kitob_ber_by_kitob, kitob_qaytar
 from kitob.models import Kitob
 from kitob.services import kitob_holatini_yenila
@@ -239,3 +240,35 @@ class KitobBoYichaBerishTest(KitobHolatiTestBase):
 
         self.assertEqual(berish.nusxa_id, erkin.id)
         self.assertEqual(Navbat.objects.count(), 0)
+
+
+class BerishSerializerTest(KitobHolatiTestBase):
+    """API javobida `asli` va `inventar_raqami` maydonlari to'g'ri chiqishi."""
+
+    def test_asli_berish_serializerda(self):
+        berish = kitob_ber_by_kitob(self.kitob, self.oquvchi, self.xodim)
+
+        ma_lumot = BerishSerializer(berish).data
+
+        self.assertTrue(ma_lumot["asli"])
+        self.assertEqual(ma_lumot["inventar_raqami"], "")
+        self.assertEqual(ma_lumot["kitob"], self.kitob.id)
+        self.assertEqual(ma_lumot["kitob_nomi"], self.kitob.nomi)
+
+    def test_nusxali_berish_serializerda(self):
+        berish = kitob_ber_by_kitob(self.kitob, self.oquvchi, self.xodim)
+
+        ma_lumot = BerishMeniSerializer(berish).data
+
+        self.assertTrue(ma_lumot["asli"])
+        self.assertEqual(ma_lumot["inventar_raqami"], "")
+
+    def test_nusxali_berish_inventar_raqamini_korsatadi(self):
+        nusxa = self.nusxa("INV-1")
+        berish = kitob_ber(nusxa, self.oquvchi, self.xodim)
+
+        ma_lumot = BerishSerializer(berish).data
+
+        self.assertFalse(ma_lumot["asli"])
+        self.assertEqual(ma_lumot["inventar_raqami"], "INV-1")
+        self.assertFalse(BerishMeniSerializer(berish).data["asli"])

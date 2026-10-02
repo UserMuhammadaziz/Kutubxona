@@ -57,9 +57,11 @@ class NavbatViewSet(viewsets.ModelViewSet):
                     nusxa=None, oquvchi=oquvchi, kitob=kitob, xodim=None
                 )
             except ValidationError:
-                # Berish bo'lmadi (limit/jarima/blok) — yaratilgan navbat
-                # yozuvini olib tashlaymiz, o'quvchi o'z xatosini ko'rsin.
-                natija.navbat.delete()
+                # Berish bo'lmadi (limit/jarima/blok) — bu so'rovda yaratilgan
+                # navbat yozuvini olib tashlaymiz. O'quvchi avvaldan navbatda
+                # bo'lgan bo'lsa (`yangi=False`) o'z yozuvi saqlanadi.
+                if natija.yangi:
+                    natija.navbat.delete()
                 raise
             return Response(
                 {

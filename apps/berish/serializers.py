@@ -11,6 +11,9 @@ class BerishSerializer(serializers.ModelSerializer):
 
     kitob_nomi = serializers.CharField(source="kitob.nomi", read_only=True)
     inventar_raqami = serializers.SerializerMethodField()
+    # Nusxasi yo'q kitob «asli» holda berilgan — frontend shu belgi bilan
+    # "Asli kitob" deb ko'rsatadi.
+    asli = serializers.SerializerMethodField()
     oquvchi_fish = serializers.CharField(source="oquvchi.fish", read_only=True)
 
     class Meta:
@@ -47,11 +50,8 @@ class BerishSerializer(serializers.ModelSerializer):
         # Nusxasi yo'q kitob «asli» holda berilgan — inventar raqami yo'q.
         return obj.nusxa.inventar_raqami if obj.nusxa_id else ""
 
-    @staticmethod
-    def _asli(obj):
+    def get_asli(self, obj):
         return obj.nusxa_id is None
-
-    asli = serializers.SerializerMethodField()
 
 
 class BerishYaratishSerializer(serializers.Serializer):
