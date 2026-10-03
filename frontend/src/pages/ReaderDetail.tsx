@@ -96,18 +96,32 @@ export function ReaderDetail() {
       <PageHeader
         title={reader.fish}
         subtitle={`${reader.karta_raqami} · ${reader.telefon}`}
-        actions={<Badge tone={reader.faol ? 'green' : 'red'}>{reader.faol ? 'Faol' : 'Faol emas'}</Badge>}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            {reader.rol === 'oqituvchi' && <Badge tone="blue">O‘qituvchi</Badge>}
+            <Badge tone={reader.faol ? 'green' : 'red'}>{reader.faol ? 'Faol' : 'Faol emas'}</Badge>
+          </div>
+        }
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="p-5 lg:col-span-1">
           <dl className="space-y-3 text-sm">
-            <div>
-              <dt className="text-slate-500 dark:text-slate-400">Sinf</dt>
-              <dd className="font-medium text-slate-900 dark:text-slate-100">
-                {reader.sinf ? `${reader.sinf}-sinf` : '—'}
-              </dd>
-            </div>
+            {reader.rol === 'oqituvchi' ? (
+              <div>
+                <dt className="text-slate-500 dark:text-slate-400">O‘qitayotgan fan</dt>
+                <dd className="font-medium text-slate-900 dark:text-slate-100">
+                  {reader.kasb || '—'}
+                </dd>
+              </div>
+            ) : (
+              <div>
+                <dt className="text-slate-500 dark:text-slate-400">Sinf</dt>
+                <dd className="font-medium text-slate-900 dark:text-slate-100">
+                  {reader.sinf ? `${reader.sinf}-sinf` : '—'}
+                </dd>
+              </div>
+            )}
             <div>
               <dt className="text-slate-500 dark:text-slate-400">Ro'yxatdan o'tgan sana</dt>
               <dd className="font-medium text-slate-900 dark:text-slate-100">
