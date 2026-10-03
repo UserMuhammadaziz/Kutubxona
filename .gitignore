@@ -11,6 +11,10 @@ celerybeat-schedule
 celerybeat-schedule-shm
 celerybeat-schedule-wal
 
+# Django collectstatic va yuklangan fayllar
+staticfiles/
+media/
+
 # Frontend
 frontend/node_modules/
 frontend/dist/
