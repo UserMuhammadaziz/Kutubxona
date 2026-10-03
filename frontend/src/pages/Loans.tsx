@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { copiesApi, loansApi, readersApi } from '../api/resources'
+import { booksApi, copiesApi, loansApi, readersApi } from '../api/resources'
 import { errorMessage } from '../api/client'
-import { BERISH_HOLATI_LABELS, type Berish, type BerishCreatePayload, type BerishHolati } from '../types'
+import { BERISH_HOLATI_LABELS, type Berish, type BerishCreatePayload, type BerishHolati, type Kitob } from '../types'
 import {
   Badge,
   Button,
@@ -34,6 +34,43 @@ const TONE: Record<BerishHolati, 'blue' | 'green' | 'red'> = {
   yoqolgan: 'red',
 }
 
+/** Berish ro'yxatida nusxa o'rniga ko'rsatiladigan matn. */
+function berishNomi(b: Berish): string {
+  return b.asli || !b.inventar_raqami ? 'Asli kitob' : b.inventar_raqami
+}
+
+/**
+ * Tanlangan kitob bo'yicha berish natijasi — dialogda oldindan ko'rsatiladi.
+ * Qoidalar serverdagi `kitob_ber_by_kitob` bilan bir xil:
+ * mavjud nusxa → o'sha nusxa; nusxa yo'q → asli; hammasi band → navbat.
+ */
+function berishRejasi(kitob: Kitob | null): {
+  matn: string
+  mumkin: boolean
+  aside: boolean
+} {
+  if (!kitob) return { matn: '', mumkin: false, aside: false }
+  if (kitob.mavjud_nusxalar > 0) {
+    return {
+      matn: `Beriladi: mavjud nusxa (${kitob.mavjud_nusxalar} ta mavjud / jami ${kitob.jami_nusxalar})`,
+      mumkin: true,
+      aside: false,
+    }
+  }
+  if (kitob.jami_nusxalar === 0) {
+    return {
+      matn: "Beriladi: kitob asli (bu kitobning umuman nusxasi yo'q)",
+      mumkin: true,
+      aside: true,
+    }
+  }
+  return {
+    matn: `Hozircha barcha nusxalar band (${kitob.jami_nusxalar} ta). O'quvchi navbatga qo'shiladi.`,
+    mumkin: false,
+    aside: false,
+  }
+}
+
 export function Loans() {
   const qc = useQueryClient()
   const toast = useToast()
@@ -42,7 +79,10 @@ export function Loans() {
   const [modalOpen, setModalOpen] = useState(false)
   const [readerSearch, setReaderSearch] = useState('')
   const kechikkanReaderSearch = useDebouncedValue(readerSearch)
-  const [form, setForm] = useState<BerishCreatePayload>({ nusxa: 0, oquvchi: 0 })
+  const [bookSearch, setBookSearch] = useState('')
+  const kechikkanBookSearch = useDebouncedValue(bookSearch)
+  const [aniqNusxa, setAniqNusxa] = useState(false)
+  const [form, setForm] = useState<BerishCreatePayload>({ kitob: 0, oquvchi: 0 })
   const [error, setError] = useState<string | null>(null)
   const [qaytariladigan, setQaytariladigan] = useState<Berish | null>(null)
 
@@ -57,20 +97,31 @@ export function Loans() {
     enabled: modalOpen,
   })
 
+  const { data: books, isLoading: booksLoading } = useQuery({
+    queryKey: ['books', 'search', kechikkanBookSearch],
+    queryFn: () => booksApi.search(kechikkanBookSearch),
+    enabled: modalOpen,
+  })
+
   const { data: availableCopies, isLoading: copiesLoading } = useQuery({
     queryKey: ['copies', 'available-for-select'],
     queryFn: () => copiesApi.list({ holati: 'mavjud' }),
-    enabled: modalOpen,
+    enabled: modalOpen && aniqNusxa,
   })
 
   const createMut = useMutation({
     mutationFn: (payload: BerishCreatePayload) => loansApi.create(payload),
-    onSuccess: () => {
+onSuccess: (berish) => {
       qc.invalidateQueries({ queryKey: ['loans'] })
       qc.invalidateQueries({ queryKey: ['copies'] })
       qc.invalidateQueries({ queryKey: ['readers'] })
+      qc.invalidateQueries({ queryKey: ['books'] })
       setModalOpen(false)
-      toast.success('Kitob berildi. O‘quvchiga Telegram orqali xabar yuborildi.')
+      toast.success(
+        berish.asli
+          ? `“${berish.kitob_nomi}” asli holda berildi. O‘quvchiga Telegram orqali xabar yuborildi.`
+          : 'Kitob berildi. O‘quvchiga Telegram orqali xabar yuborildi.',
+      )
     },
     onError: (err) => setError(errorMessage(err)),
   })
@@ -97,23 +148,42 @@ export function Loans() {
     onError: (err) => toast.error(errorMessage(err)),
   })
 
-  function openCreate() {
-    setForm({ nusxa: 0, oquvchi: 0 })
-    setError(null)
-    setModalOpen(true)
-  }
+function openCreate() {
+  setForm({ kitob: 0, oquvchi: 0 })
+  setError(null)
+  setBookSearch('')
+  setReaderSearch('')
+  setAniqNusxa(false)
+  setModalOpen(true)
+}
 
-  function onSubmit(e: FormEvent) {
-    e.preventDefault()
-    if (!form.nusxa || !form.oquvchi) {
-      setError("Nusxa va o'quvchini tanlang")
+function onSubmit(e: FormEvent) {
+  e.preventDefault()
+  if (!form.oquvchi) {
+    setError("O'quvchini tanlang")
+    return
+  }
+  setError(null)
+  if (aniqNusxa) {
+    const nusxa = form.nusxa ?? 0
+    if (!nusxa) {
+      setError('Nusxani tanlang yoki "Aniq nusxani tanlash" belgisini o‘chiring')
       return
     }
-    setError(null)
-    createMut.mutate(form)
+    createMut.mutate({ oquvchi: form.oquvchi, nusxa })
+    return
   }
+  if (!form.kitob) {
+    setError('Kitobni tanlang')
+    return
+  }
+  createMut.mutate({ oquvchi: form.oquvchi, kitob: form.kitob })
+}
 
   const filtrBor = holati !== ''
+  const tanlanganKitob: Kitob | null =
+    books?.find((k) => k.id === form.kitob) ?? null
+  const reja = berishRejasi(tanlanganKitob)
 
   return (
     <div>
@@ -187,11 +257,17 @@ export function Loans() {
           render={(l) => (
             <div className="flex flex-col gap-2">
               <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
+<div className="min-w-0">
                   <div className="font-medium text-slate-900 dark:text-slate-100">
                     {l.kitob_nomi}
                   </div>
-                  <div className="text-xs text-slate-400">{l.inventar_raqami}</div>
+                  <div className="text-xs text-slate-400">
+                    {l.asli ? (
+                      <span className="text-amber-600 dark:text-amber-400">Asli kitob</span>
+                    ) : (
+                      l.inventar_raqami
+                    )}
+                  </div>
                 </div>
                 <Badge tone={TONE[l.holati]}>{BERISH_HOLATI_LABELS[l.holati]}</Badge>
               </div>
@@ -221,12 +297,16 @@ export function Loans() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
               {data.results.map((l) => (
                 <tr key={l.id} className="hover:bg-canvas dark:hover:bg-slate-800/50">
-                  <td className="px-4 py-3">
+<td className="px-4 py-3">
                     <div className="font-medium text-slate-900 dark:text-slate-100">
                       {l.kitob_nomi}
                     </div>
                     <div className="text-xs text-slate-400 dark:text-slate-500">
-                      {l.inventar_raqami}
+                      {l.asli ? (
+                        <span className="text-amber-600 dark:text-amber-400">Asli kitob</span>
+                      ) : (
+                        l.inventar_raqami
+                      )}
                     </div>
                   </td>
                   <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{l.oquvchi_fish}</td>
@@ -255,11 +335,11 @@ export function Loans() {
 
       {data && <Pagination count={data.count} page={page} onChange={setPage} />}
 
-      <Modal
+<Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         title="Kitob berish"
-        description="O‘quvchi va mavjud nusxani tanlang. Berish Telegram orqali xabar bilan tasdiqlanadi."
+        description="O‘quvchini va kitobni tanlang. Nusxa mavjud bo‘lsa avtomatik tanlanadi, aks holda kitobning aslini beriladi. Berish Telegram orqali xabar bilan tasdiqlanadi."
       >
         <ErrorBanner message={error} />
         <form onSubmit={onSubmit}>
@@ -291,29 +371,106 @@ export function Loans() {
               </Select>
             )}
           </Field>
+
           <Field>
-            <Label htmlFor="l-nusxa">Mavjud nusxa</Label>
-            {copiesLoading ? (
-              <ListSkeleton rows={3} className="py-2" />
-            ) : availableCopies?.results.length ? (
+            <Label htmlFor="l-kitob-qidirish">Kitobni qidirish</Label>
+            <Input
+              id="l-kitob-qidirish"
+              placeholder="Kitob nomi, muallif yoki ISBN..."
+              value={bookSearch}
+              onChange={(e) => setBookSearch(e.target.value)}
+            />
+          </Field>
+          <Field>
+            <Label htmlFor="l-kitob">Kitob</Label>
+            {booksLoading ? (
+              <Spinner label="Kitoblar yuklanmoqda..." className="py-2" />
+            ) : books?.length ? (
               <Select
-                id="l-nusxa"
-                value={form.nusxa}
-                onChange={(e) => setForm({ ...form, nusxa: Number(e.target.value) })}
+                id="l-kitob"
+                value={form.kitob ?? 0}
+                disabled={aniqNusxa}
+                onChange={(e) => setForm({ ...form, kitob: Number(e.target.value) })}
               >
                 <option value={0}>Tanlang...</option>
-                {availableCopies.results.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.kitob_nomi} — {c.inventar_raqami}
+                {books.map((k) => (
+                  <option key={k.id} value={k.id}>
+                    {k.nomi} — {k.muallif}
+                    {k.mavjud_nusxalar > 0
+                      ? ` (${k.mavjud_nusxalar}/${k.jami_nusxalar} nusxa)`
+                      : k.jami_nusxalar === 0
+                        ? ' (asli)'
+                        : ' (barcha nusxalar band)'}
                   </option>
                 ))}
               </Select>
             ) : (
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                Hozircha mavjud nusxa yo‘q. Avval nusxa qo‘shing.
+                {bookSearch
+                  ? 'Kitob topilmadi. Boshqa so‘z bilan qidiring.'
+                  : 'Qidirish uchun kitob nomi yoki muallifini yozing.'}
               </p>
             )}
           </Field>
+
+          {tanlanganKitob && !aniqNusxa && (
+            <p
+              className={`-mt-2 mb-4 rounded-lg border px-3 py-2 text-sm ${
+                reja.aside
+                  ? 'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200'
+                  : 'border-slate-200 bg-canvas text-slate-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300'
+              }`}
+            >
+              {reja.aside ? '📕 ' : 'ℹ️ '}
+              {reja.matn}
+            </p>
+          )}
+
+          <label className="mb-4 flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={aniqNusxa}
+              onChange={(e) => {
+                setAniqNusxa(e.target.checked)
+                setError(null)
+              }}
+            />
+            <span>
+              Aniq nusxani qo‘lda tanlash
+              <span className="block text-xs text-slate-400">
+                Kerak bo‘lsa aynan qaysi nusxa berilishini ko‘rsatasiz
+              </span>
+            </span>
+          </label>
+
+          {aniqNusxa && (
+            <Field>
+              <Label htmlFor="l-nusxa">Mavjud nusxa</Label>
+              {copiesLoading ? (
+                <ListSkeleton rows={3} className="py-2" />
+              ) : availableCopies?.results.length ? (
+                <Select
+                  id="l-nusxa"
+                  value={form.nusxa ?? 0}
+                  onChange={(e) => setForm({ ...form, nusxa: Number(e.target.value) })}
+                >
+                  <option value={0}>Tanlang...</option>
+                  {availableCopies.results.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.kitob_nomi} — {c.inventar_raqami}
+                    </option>
+                  ))}
+                </Select>
+              ) : (
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Hozircha mavjud nusxa yo‘q. Avval nusxa qo‘shing yoki kitobni
+                  tanlab, aslini bering.
+                </p>
+              )}
+            </Field>
+          )}
+
           <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
@@ -338,7 +495,7 @@ export function Loans() {
         message={
           qaytariladigan && (
             <>
-              <b>{qaytariladigan.kitob_nomi}</b> ({qaytariladigan.inventar_raqami}) kitobini{' '}
+              <b>{qaytariladigan.kitob_nomi}</b> ({berishNomi(qaytariladigan)}) kitobini{' '}
               <b>{qaytariladigan.oquvchi_fish}</b>dan qaytarasizmi?
               <br />
               <br />

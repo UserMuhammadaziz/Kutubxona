@@ -228,12 +228,18 @@ export const BERISH_HOLATI_LABELS: Record<BerishHolati, string> = {
 
 export interface Berish {
   id: number
-  nusxa: number
+  /** Nusxa berilgan bo'lsa ID, asli (nusxasi yo'q) berilgan bo'lsa null. */
+  nusxa: number | null
+  /** Har doim to'ldiriladi — asli berilganda ham kitob o'zi saqlanadi. */
+  kitob: number
   kitob_nomi: string
+  /** Nusxasi yo'q bo'lsa server bo'sh qator yuboradi. */
   inventar_raqami: string
+  /** true — kitob «asli» holatda (nusxasi yo'q) berilgan. */
+  asli: boolean
   oquvchi: number
   oquvchi_fish: string
-  bergan_xodim: number
+  bergan_xodim: number | null
   olgan_xodim: number | null
   berilgan_sana: string
   qaytarish_muddati: string
@@ -246,14 +252,23 @@ export interface BerishMeni {
   id: number
   kitob_nomi: string
   inventar_raqami: string
+  asli: boolean
   berilgan_sana: string
   qaytarish_muddati: string
   qolgan_kun: number
 }
 
+/**
+ * POST /api/loans/ — bitta maydon majburiy:
+ * • `kitob` — kitob bo'yicha berish. Mavjud nusxa avtomatik tanlanadi,
+ *   nusxa umuman yo'q bo'lsa kitob «asli» holda beriladi, barcha nusxalar
+ *   band bo'lsa xato chiqadi va o'quvchi navbatga avtomatik qo'shiladi;
+ * • `nusxa` — aniq nusxa berish (qo'shimcha tanlovchi usul).
+ */
 export interface BerishCreatePayload {
-  nusxa: number
   oquvchi: number
+  kitob?: number
+  nusxa?: number
 }
 
 export interface QaytarishResponse {
