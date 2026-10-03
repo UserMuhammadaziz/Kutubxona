@@ -12,15 +12,32 @@ KITOB_QIDIRISH = "🔍 Kitob qidirish"
 KATEGORIYALAR = "📚 Kategoriyalar"
 MENING_KITOBLARIM = "📚 Mening kitoblarim"
 NAVBATLARIM = "⏳ Navbatlarim"
+BANDLARIM = "🔒 Bandlarim"
 JARIMALARIM = "💰 Jarimalarim"
 TELEFON_YUBORISH = "📱 Telefon raqamni yuborish"
+
+# Menyu tugmasi va uning ichidagi ikki asosiy harakat.
+MENYU = "🏠 Menyu"
+MENYU_START = "▶️ Start"
+MENYU_YORDAM = "❓ Yordam"
+YORDAM = MENYU_YORDAM
 
 # Asosiy menyudagi barcha tugma matnlari. Ariza to'ldirilayotgan paytda
 # foydalanuvchi shu tugmalardan birini bossa, matn "sinf" yoki "kasb"
 # sifatida yuborilmasligi kerak — shuning uchun handler'lar ro'yxatdan
 # foydalanadi (`start.py::_menyu_tugmasi_bosilganmi`).
 ASOSIY_TUGMALAR = frozenset(
-    {KITOB_QIDIRISH, KATEGORIYALAR, MENING_KITOBLARIM, NAVBATLARIM, JARIMALARIM}
+    {
+        KITOB_QIDIRISH,
+        KATEGORIYALAR,
+        MENING_KITOBLARIM,
+        NAVBATLARIM,
+        BANDLARIM,
+        JARIMALARIM,
+        MENYU,
+        MENYU_START,
+        MENYU_YORDAM,
+    }
 )
 
 
@@ -29,9 +46,20 @@ def asosiy_menyu() -> ReplyKeyboardMarkup:
         keyboard=[
             [KeyboardButton(text=KITOB_QIDIRISH), KeyboardButton(text=KATEGORIYALAR)],
             [KeyboardButton(text=MENING_KITOBLARIM), KeyboardButton(text=NAVBATLARIM)],
-            [KeyboardButton(text=JARIMALARIM)],
+            [KeyboardButton(text=BANDLARIM), KeyboardButton(text=JARIMALARIM)],
+            [KeyboardButton(text=MENYU)],
         ],
         resize_keyboard=True,
+    )
+
+
+def menyu_tugmalari() -> InlineKeyboardMarkup:
+    """«🏠 Menyu» tugmasi bosilganda ochiladigan menyu: Start va Yordam."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=MENU_START, callback_data="menyu:start")],
+            [InlineKeyboardButton(text=MENU_YORDAM, callback_data="menyu:yordam")],
+        ]
     )
 
 
@@ -191,11 +219,24 @@ def janr_kitob_tugmalari(
     return InlineKeyboardMarkup(inline_keyboard=qatorlar)
 
 
-def kitob_band_qilish_tugmalari(kitob_id: int, qaytish: str | None = None) -> InlineKeyboardMarkup:
-    """Batafsil sahifada: kitobni band qilish + (berilgan bo'lsa) ro'yxatga qaytish."""
+def kitob_band_qilish_tugmalari(
+    kitob_id: int, qaytish: str | None = None, navbat_mavjud: bool = False
+) -> InlineKeyboardMarkup:
+    """Batafsil sahifada: kitobni band qilish (tasdiqlanadi) + navbat.
+
+    * `🔒 Band qilish` — kitobni maxsus maqsadga saqlab qo'yish so'rovi.
+      So'rov yaratilgach kitob **hech kimga berilmaydi**; faqat kutubxonachi
+      yoki administrator tasdiqlagandan keyin so'rov qilgan o'quvchiga
+      beriladi.
+    * `⏳ Navbatga turish` — mavjud nusxa yo'q bo'lganda oddiy navbat.
+    """
     inline_keyboard = [
-        [InlineKeyboardButton(text="🕐 Band qilish", callback_data=f"navbat_tur:{kitob_id}")]
+        [InlineKeyboardButton(text="🔒 Band qilish", callback_data=f"band:{kitob_id}")]
     ]
+    if navbat_mavjud:
+        inline_keyboard.append(
+            [InlineKeyboardButton(text="⏳ Navbatga turish", callback_data=f"navbat_tur:{kitob_id}")]
+        )
     if qaytish:
         inline_keyboard.append(
             [InlineKeyboardButton(text="🔙 Ro'yxatga qaytish", callback_data=qaytish)]
@@ -203,10 +244,31 @@ def kitob_band_qilish_tugmalari(kitob_id: int, qaytish: str | None = None) -> In
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
 
 
+def band_bekor_tugmasi(band_id: int) -> InlineKeyboardMarkup:
+    """Mening bandlarim: kutilayotgan so'rovni bekor qilish."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🚪 Bandni bekor qilish", callback_data=f"band_bekor:{band_id}")]
+        ]
+    )
+
+
+def band_tasdiq_tugmalari(band_id: int) -> InlineKeyboardMarkup:
+    """Kutubxonachi: band so'rovini tasdiqlash yoki rad etish."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="✅ Tasdiqlash (berish)", callback_data=f"band_tasdiq:{band_id}"),
+                InlineKeyboardButton(text="❌ Rad etish", callback_data=f"band_rad:{band_id}"),
+            ]
+        ]
+    )
+
+
 def navbatga_turish_tugmasi(kitob_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🕐 Band qilish", callback_data=f"navbat_tur:{kitob_id}")]
+            [InlineKeyboardButton(text="⏳ Navbatga turish", callback_data=f"navbat_tur:{kitob_id}")]
         ]
     )
 

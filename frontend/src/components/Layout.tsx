@@ -12,6 +12,7 @@ const navItems = [
   { to: '/teachers', label: "O'qituvchilar", icon: '👩‍🏫' },
   { to: '/applications', label: 'Arizalar', icon: '📋' },
   { to: '/loans', label: 'Berish / Qaytarish', icon: '🔄' },
+  { to: '/bandlar', label: 'Bandlar', icon: '🔒' },
   { to: '/reservations', label: 'Navbatlar', icon: '⏳' },
   { to: '/fines', label: 'Jarimalar', icon: '💰' },
 ]

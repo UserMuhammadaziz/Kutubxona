@@ -35,11 +35,13 @@ const emptyForm: OquvchiCreatePayload = {
 }
 
 interface ReadersProps {
-  /** `undefined` — barcha a'zolar; `oqituvchi` — "O'qituvchilar" bo'limi. */
+  /** `oquvchi` — "O'quvchilar" bo'limi; `oqituvchi` — "O'qituvchilar" bo'limi.
+   *  Berilmasa `oquvchi` deb hisoblanadi: har bir bo'lim faqat o'z
+   *  a'zolarini ko'rsatadi (aralash ro'yxat chiqmasligi uchun). */
   rol?: OquvchiRol
 }
 
-export function Readers({ rol }: ReadersProps = {}) {
+export function Readers({ rol = 'oquvchi' }: ReadersProps = {}) {
   const qc = useQueryClient()
   const toast = useToast()
   const [page, setPage] = useState(1)
@@ -185,9 +187,6 @@ export function Readers({ rol }: ReadersProps = {}) {
                       ? r.kasb || 'Fan ko‘rsatilmagan'
                       : r.sinf || 'Sinf ko‘rsatilmagan'}
                   </div>
-                  {!oqituvchilar && r.rol === 'oqituvchi' && (
-                    <div className="text-xs text-brand-600 dark:text-brand-400">O‘qituvchi</div>
-                  )}
                 </div>
                 <Badge tone={r.faol ? 'green' : 'red'}>{r.faol ? 'Faol' : 'Bloklangan'}</Badge>
               </div>

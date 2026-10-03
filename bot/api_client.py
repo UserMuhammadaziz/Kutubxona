@@ -280,4 +280,40 @@ class ApiClient:
     async def kitobni_qaytar(self, berish_id: int):
         return await self._so_rov("POST", f"/loans/{berish_id}/return/")
 
+    # ---------- Band qilish (saqlab qo'yish) ----------
+    async def band_qil(self, kitob_id: int, telegram_id: int, izoh: str = ""):
+        """POST /holds/ — kitobni band qilish so'rovi.
+
+        So'rov yaratilgach kitob tasdiqlanmaguncha hech kimga berilmaydi;
+        tasdiqlashni faqat kutubxonachi yoki administrator qiladi
+        (`/holds/{id}/approve/`)."""
+        return await self._so_rov(
+            "POST",
+            "/holds/",
+            json_data={"kitob": kitob_id, "telegram_id": telegram_id, "izoh": izoh},
+        )
+
+    async def bandlarim(self, telegram_id: int):
+        return await self._so_rov("GET", "/holds/my/", params={"telegram_id": telegram_id})
+
+    async def band_bekor_qil(self, band_id: int, telegram_id: int):
+        return await self._so_rov(
+            "POST", f"/holds/{band_id}/cancel/", json_data={"telegram_id": telegram_id}
+        )
+
+    async def bandlar(self, holati: str = "kutmoqda"):
+        """GET /holds/?holati= — kutubxonachi uchun ro'yxat (botda ruxsat
+        BOt_ADMIN_CHAT_IDS orqali tekshiriladi)."""
+        return await self._so_rov("GET", "/holds/", params={"holati": holati})
+
+    async def bandni_tasdiqla(self, band_id: int, izoh: str = ""):
+        return await self._so_rov(
+            "POST", f"/holds/{band_id}/approve/", json_data={"izoh": izoh}
+        )
+
+    async def bandni_rad_et(self, band_id: int, izoh: str = ""):
+        return await self._so_rov(
+            "POST", f"/holds/{band_id}/reject/", json_data={"izoh": izoh}
+        )
+
 api = ApiClient()

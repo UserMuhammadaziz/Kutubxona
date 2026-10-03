@@ -4,7 +4,7 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from berish.views import BerishViewSet
 from jarima.views import JarimaViewSet
-from kitob.views import KitobViewSet
+from kitob.views import BandQilishViewSet, KitobViewSet
 from navbat.views import NavbatViewSet
 from nusxa.views import NusxaViewSet
 from oquvchi.views import OquvchiViewSet, ArizaViewSet
@@ -18,6 +18,7 @@ router.register("applications", ArizaViewSet, basename="applications")
 router.register("loans", BerishViewSet, basename="loans")
 router.register("fines", JarimaViewSet, basename="fines")
 router.register("reservations", NavbatViewSet, basename="reservations")
+router.register("holds", BandQilishViewSet, basename="holds")
 router.register("staff", UserViewSet, basename="staff")
 
 urlpatterns = [

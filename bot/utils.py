@@ -58,9 +58,35 @@ async def xabarni_tahrirlash(
             return False
         if "message to edit not found" in str(xato).lower():
             await xabar.answer(
-                "Bu xabar allaqon eskirgan. Asosiy menyudan qayta bosing."
+                "Bu xabar allaqachon eskirgan. Asosiy menyudan qayta bosing."
             )
             return False
         logger.warning("xabar tahrirlanmadi: %s", xato)
         return False
     return True
+
+
+def yordam_matni() -> str:
+    """«❓ Yordam» va `/yordam` uchun bot imkoniyatlari matni.
+
+    Alohida funksiyada saqlanadi: matn ichidagi tugma nomlari (`keyboards.py`)
+    ish vaqtida o'zgarishi mumkin — shu sababli ular import qilinadi.
+    """
+    return (
+        "❓ <b>Yordam</b>\n\n"
+        "Bot quyidagi imkoniyatlarni beradi:\n\n"
+        "🔍 <b>Kitob qidirish</b> — nom, muallif yoki ISBN bo'yicha kitob topish.\n"
+        "📚 <b>Kategoriyalar</b> — janr bo'yicha ro'yxatdan kitob ko'rish.\n"
+        "🔒 <b>Band qilish</b> — kerakli kitobni maxsus maqsadga saqlab qo'yish\n"
+        "   (dars, imtihon, tadbir). Band qilingan kitob boshqalarga berilmaydi:\n"
+        "   uni faqat kutubxonachi yoki administrator tasdiqlagandan keyin sizga\n"
+        "   beriladi. Holatni «🔒 Bandlarim» bo'limida kuzatib turasiz.\n"
+        "⏳ <b>Navbatga turish</b> — hozir berilmayotgan kitob uchun navbat\n"
+        "   (kitob bo'shagach sizga taklif yuboriladi).\n"
+        "📚 <b>Mening kitoblarim</b> — olgan kitoblaringiz va qaytarish muddati.\n"
+        "💰 <b>Jarimalarim</b> — kechikish uchun to'lanmagan jarimalar.\n\n"
+        "🏠 <b>Menyu</b> — asosiy bo'limlarga qaytish.\n"
+        "❓ <b>Yordam</b> — shu matn.\n\n"
+        "Ariza to'ldirilayotganda pastdagi tugmalarni bosib bo'lmaydi — "
+        "shunda /bekor bosing."
+    )

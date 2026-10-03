@@ -14,8 +14,10 @@ Bu modul kitob holatini nusxalar holatidan kelib chiqib hisoblaydi:
 Muhim: «Yo'qolgan» — bu qo'lda belgilanadigan doimiy holat, shuning uchun
 avtomatik yangilash uni hech qachon tegmaydi.
 """
-from kitob.models import Kitob
+from kitob.models import BandQilish, Kitob
 from nusxa.models import Nusxa
+
+from django.utils.timezone import now as django_now
 
 
 def _faol_asli_berish_bormi(kitob_id):
@@ -54,3 +56,176 @@ def kitob_holatini_yenila(kitob_id):
     kitob.holati = yangi
     kitob.save(update_fields=["holati"])
     return yangi
+
+
+# ---------------------------------------------------------------- band qilish
+def faol_band_bormi(kitob_id):
+    """Bu kitob uchun tasdiqlash kutilayotgan band so'rovi bormi?
+
+    `berish/services.py` shu yordamchiga qarab kitob berilishini
+    to'xtatadi: band qilingan kitob faqat kutubxonachi tasdiqlagandan
+    keyin berilishi kerak."""
+    return BandQilish.objects.filter(kitob_id=kitob_id, holati="kutmoqda").exists()
+
+
+def faol_bandni_top(kitob_id):
+    """Tasdiqlash kutilayotgan band so'rovi (yo'q bo'lsa `None`)."""
+    return BandQilish.objects.filter(
+        kitob_id=kitob_id, holati="kutmoqda"
+    ).select_related("oquvchi", "kitob").first()
+
+
+def _band_xato(kod, detail, **qoshimcha):
+    from rest_framework.exceptions import ValidationError
+
+    raise ValidationError({"error": kod, "detail": detail, **qoshimcha})
+
+
+def band_qilish(kitob, oquvchi, izoh=""):
+    """Kitobni band qilish so'rovini yaratadi.
+
+    Band qilingandan keyin kitob hech kimga berilmaydi: berish
+    `berish/services.py::kitob_ber` ichida `faol_band_bormi()` orqali
+    bloklanadi. Kitobni faqat kutubxonachi yoki administrator tasdiqlab,
+    so'rov yaratuvchiga berish yozuvini ochishi mumkin (`tasdiqla()`).
+
+    Idempotent: aynan shu o'quvchi shu kitob uchun allaqachon so'rov
+    yuborgan bo'lsa, mavjud so'rov qaytariladi (ikki marta band qilinmaydi).
+    """
+    from berish.models import Berish
+
+    if not oquvchi.faol:
+        _band_xato("oquvchi_bloklangan", "O'quvchi bloklangan")
+
+    mavjud = BandQilish.objects.filter(
+        kitob=kitob, oquvchi=oquvchi, holati="kutmoqda"
+    ).first()
+    if mavjud:
+        return mavjud, False
+
+    boshqa = faol_bandni_top(kitob.pk)
+    if boshqa:
+        _band_xato(
+            "allaqachon_band_qilingan",
+            "Bu kitob boshqa o'quvchi uchun band qilingan",
+            band_id=boshqa.pk,
+        )
+
+    if Berish.objects.filter(
+        kitob_id=kitob.pk, oquvchi=oquvchi, qaytarilgan_sana__isnull=True
+    ).exists():
+        _band_xato("allaqachon_berilgan", "Bu kitob allaqachon olganizda bor")
+
+    band = BandQilish.objects.create(kitob=kitob, oquvchi=oquvchi, izoh=izoh or "")
+    _xodimlarga_xabar_yubor(band)
+    return band, True
+
+
+def _xodimlarga_xabar_yubor(band):
+    """Yangi band so'rovi haqida kutubxonachi/administratorlarga xabar.
+
+    Xodimlar `.env` dagi `BOT_ADMIN_CHAT_IDS` ro'yxatiga kirgan Telegram
+    hisoblar; ro'yxat bo'sh bo'lsa xabar yuborilmaydi (xato ham chiqmaydi) —
+    tasdiqlash web-panel orqali ham mumkin.
+    """
+    import os
+
+    from config.telegram import telegram_escape, telegram_xabar_yubor
+
+    raw = os.environ.get("BOT_ADMIN_CHAT_IDS", "")
+    chat_idlar = [
+        int(q.strip())
+        for q in raw.split(",")
+        if q.strip().lstrip("-").isdigit()
+    ]
+    if not chat_idlar:
+        return
+
+    rol = "o'qituvchi" if band.oquvchi.rol == "oqituvchi" else "o'quvchi"
+    qator = f"🔒 Yangi band so'rovi: {telegram_escape(band.kitob.nomi)}"
+    if band.izoh:
+        qator += f"\n📝 {telegram_escape(band.izoh)}"
+    matn = (
+        f"{qator}\n"
+        f"So'raydi: {telegram_escape(band.oquvchi.fish)} ({rol})\n"
+        f"Tasdiqlash uchun botda /bandlar buyrug'ini bosing."
+    )
+    for chat_id in chat_idlar:
+        telegram_xabar_yubor(chat_id, matn)
+
+
+def band_qilishni_bekor_qil(band, oquvchi):
+    """O'quvchi kutayotgan band so'rovini bekor qiladi."""
+    if band.oquvchi_id != oquvchi.pk:
+        _band_xato("ruxsat_yuq", "Bu so'rov sizniki emas")
+    if band.holati != "kutmoqda":
+        _band_xato("so_rov_yopilgan", "Bu so'rov allaqachon yopilgan")
+    band.holati = "bekor_qilindi"
+    band.tasdiqlash_sanasi = django_now()
+    band.save(update_fields=["holati", "tasdiqlash_sanasi"])
+    return band
+
+
+def band_qilishni_rad_et(band, xodim, izoh=""):
+    """Kutubxonachi/administrator band so'rovini rad etadi."""
+    _band_holatini_tekshir(band)
+    band.holati = "rad_etildi"
+    band.tasdiqlovchi = xodim
+    band.tasdiqlash_izohi = izoh or ""
+    band.tasdiqlash_sanasi = django_now()
+    band.save(
+        update_fields=["holati", "tasdiqlovchi", "tasdiqlash_izohi", "tasdiqlash_sanasi"]
+    )
+    return band
+
+
+def _band_holatini_tekshir(band):
+    if band.holati != "kutmoqda":
+        _band_xato(
+            "so_rov_yopilgan",
+            "Bu so'rov allaqachon yopilgan",
+            holati=band.holati,
+        )
+
+
+def band_qilishni_tasdiqla(band, xodim, izoh=""):
+    """Band so'rovini tasdiqlaydi va kitobni so'rov qilgan o'quvchiga beradi.
+
+    Muhim: tasdiqlash — berishning yagona yo'li. Shu sababli berish
+    `band_tasdiqlandi=True` bilan chaqiriladi, aks holda band himoyasi
+    (boshqa hech kimga berilmasligi) tasdiqlashni o'zi bloklab qo'yardi.
+    """
+    from django.db import transaction
+
+    from berish.services import kitob_ber_by_kitob
+
+    with transaction.atomic():
+        band = (
+            BandQilish.objects.select_for_update()
+            .select_related("kitob", "oquvchi")
+            .get(pk=band.pk)
+        )
+        _band_holatini_tekshir(band)
+
+        nusxa_mavjud = Nusxa.objects.filter(kitob_id=band.kitob_id, holati="mavjud").exists()
+        if not nusxa_mavjud and Nusxa.objects.filter(kitob_id=band.kitob_id).exists():
+            _band_xato(
+                "berish_mumkin_emas",
+                "Bu kitobning barcha nusxalari hozir berilgan — berish uchun "
+                "avval nusxa bo'shatish kerak",
+            )
+
+        berish = kitob_ber_by_kitob(
+            band.kitob, band.oquvchi, xodim, band_tasdiqlandi=True
+        )
+        band.holati = "tasdiqlandi"
+        band.tasdiqlovchi = xodim
+        band.tasdiqlash_izohi = izoh or ""
+        band.tasdiqlash_sanasi = django_now()
+        band.berish = berish
+        band.save(
+            update_fields=[
+                "holati", "tasdiqlovchi", "tasdiqlash_izohi", "tasdiqlash_sanasi", "berish",
+            ]
+        )
+    return band, berish

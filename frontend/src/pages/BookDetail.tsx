@@ -1,8 +1,8 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { booksApi } from '../api/resources'
+import { booksApi, holdsApi } from '../api/resources'
 import { Badge, Button, Card, PageHeader, Spinner, Table } from '../components/ui'
-import { JANR_LABELS, NAVBAT_HOLATI_LABELS, NUSXA_HOLATI_LABELS, TIL_LABELS, HOLAT_LABELS, type Janr, type NavbatHolati, type NusxaHolati } from '../types'
+import { BAND_HOLATI_LABELS, JANR_LABELS, NAVBAT_HOLATI_LABELS, NUSXA_HOLATI_LABELS, TIL_LABELS, HOLAT_LABELS, type Janr, type NavbatHolati, type NusxaHolati, type BandHolati } from '../types'
 import { formatDate, formatMoney } from '../lib/format'
 
 export function BookDetail() {
@@ -12,6 +12,7 @@ export function BookDetail() {
 
   const { data: book, isLoading } = useQuery({ queryKey: ['books', bookId], queryFn: () => booksApi.get(bookId) })
   const { data: queue } = useQuery({ queryKey: ['books', bookId, 'queue'], queryFn: () => booksApi.queue(bookId) })
+  const { data: holds } = useQuery({ queryKey: ['books', bookId, 'holds'], queryFn: () => holdsApi.list({ kitob: bookId, holati: 'kutmoqda' }) })
 
   if (isLoading || !book) return <Spinner />
 
@@ -130,6 +131,34 @@ export function BookDetail() {
                         <Badge tone="amber">{NAVBAT_HOLATI_LABELS[q.holati as NavbatHolati] ?? q.holati}</Badge>
                       </td>
                       <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{formatDate(q.navbat_sanasi)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </>
+          )}
+
+          {holds?.results?.length && (
+            <>
+              <h2 className="mb-3 mt-6 text-lg font-semibold text-slate-900 dark:text-slate-100">Band qilingan so'rovlar ({holds.results.length})</h2>
+              <Table>
+                <thead className="border-b border-slate-200 bg-canvas text-xs uppercase text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
+                  <tr>
+                    <th className="px-4 py-3">O'quvchi</th>
+                    <th className="px-4 py-3">Holati</th>
+                    <th className="px-4 py-3">Sana</th>
+                    <th className="px-4 py-3">Izoh</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                  {holds.results.map((h) => (
+                    <tr key={h.id}>
+                      <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{h.oquvchi_fish}</td>
+                      <td className="px-4 py-3">
+                        <Badge tone="amber">{BAND_HOLATI_LABELS[h.holati as BandHolati] ?? h.holati}</Badge>
+                      </td>
+                      <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{formatDate(h.so_rov_sanasi)}</td>
+                      <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{h.izoh || '—'}</td>
                     </tr>
                   ))}
                 </tbody>

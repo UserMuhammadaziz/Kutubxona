@@ -6,6 +6,7 @@ from django.db import transaction
 from django.utils.timezone import now
 
 from config.telegram import telegram_escape, telegram_xabar_yubor
+from kitob.services import faol_band_bormi
 from nusxa.models import Nusxa
 from .models import Navbat
 
@@ -95,6 +96,10 @@ def navbatni_mavjud_nusxa_bilan_ishga_tushir(kitob_id):
 
     Nusxa yo'q bo'lsa ham taklif yuboriladi: berish «asli» ko'rinishida
     qayd etiladi, shunda navbat o'lik chorakda qolmaydi.
+
+    Band qilingan (tasdiqlash kutilayotgan) kitobga taklif yuborilmaydi:
+    u maxsus maqsadga ajratilgan, navbatdagi odamga berish tasdiqlanish
+    kutilmoqda.
     """
     navbat_bormi = (
         Navbat.objects.select_for_update()
@@ -102,6 +107,9 @@ def navbatni_mavjud_nusxa_bilan_ishga_tushir(kitob_id):
         .exists()
     )
     if not navbat_bormi:
+        return False
+
+    if faol_band_bormi(kitob_id):
         return False
 
     nusxa = (

@@ -328,7 +328,7 @@ async def main() -> int:
     print("=" * 72)
     menyu = kb.asosiy_menyu()
     menyu_tugmalari = [b.text for qator in menyu.keyboard for b in qator]
-    tekshir(len(menyu_tugmalari) == 5, f"menyuda {len(menyu_tugmalari)} tugma")
+    tekshir(len(menyu_tugmalari) == 7, f"menyuda {len(menyu_tugmalari)} tugma")
     for t in menyu_tugmalari:
         tekshir(await ushlanadimi("message", xabar(t)), t)
 
@@ -419,7 +419,9 @@ async def main() -> int:
         and start._menyu_tugmasi_bosilganmi(kb.JARIMALARIM)
         and start._menyu_tugmasi_bosilganmi(kb.NAVBATLARIM)
         and start._menyu_tugmasi_bosilganmi(kb.KITOB_QIDIRISH)
-        and start._menyu_tugmasi_bosilganmi(kb.MENING_KITOBLARIM),
+        and start._menyu_tugmasi_bosilganmi(kb.MENING_KITOBLARIM)
+        and start._menyu_tugmasi_bosilganmi(kb.BANDLARIM)
+        and start._menyu_tugmasi_bosilganmi(kb.MENYU),
         "barcha menyu tugmalari ariza maydoniga tushmaydi",
     )
     tekshir(

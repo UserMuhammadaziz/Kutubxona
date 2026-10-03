@@ -357,6 +357,59 @@ export interface NavbatMeni {
   orin: number | null
 }
 
+// ---- BandQilish (Hold) ----
+
+export type BandHolati = 'kutmoqda' | 'tasdiqlandi' | 'rad_etildi' | 'bekor_qilindi'
+
+export const BAND_HOLATI_LABELS: Record<BandHolati, string> = {
+  kutmoqda: 'Tasdiqlash kutilmoqda',
+  tasdiqlandi: 'Tasdiqlandi',
+  rad_etildi: 'Rad etildi',
+  bekor_qilindi: 'Bekor qilindi',
+}
+
+export interface BandQilish {
+  id: number
+  kitob: number
+  kitob_nomi: string
+  kitob_muallif: string
+  oquvchi: number
+  oquvchi_fish: string
+  oquvchi_rol: OquvchiRol
+  oquvchi_sinf: string
+  holati: BandHolati
+  izoh: string
+  so_rov_sanasi: string
+  tasdiqlovchi: number | null
+  tasdiqlovchi_fish: string
+  tasdiqlash_sanasi: string | null
+  tasdiqlash_izohi: string
+  berish: number | null
+}
+
+export interface BandQilishMeni {
+  id: number
+  kitob: number
+  kitob_nomi: string
+  kitob_muallif: string
+  holati: BandHolati
+  izoh: string
+  so_rov_sanasi: string
+  tasdiqlash_sanasi: string | null
+  tasdiqlash_izohi: string
+}
+
+export interface BandQilishYaratishPayload {
+  kitob: number
+  oquvchi?: number
+  telegram_id?: number
+  izoh?: string
+}
+
+export interface BandQilishTasdiqPayload {
+  izoh?: string
+}
+
 // ---- Stats ----
 
 export interface TopBook {

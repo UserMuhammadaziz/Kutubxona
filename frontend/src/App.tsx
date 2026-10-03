@@ -12,6 +12,7 @@ import { Readers } from './pages/Readers'
 import { ReaderDetail } from './pages/ReaderDetail'
 import { Applications } from './pages/Applications'
 import { Loans } from './pages/Loans'
+import { Bandlar } from './pages/Bandlar'
 import { Reservations } from './pages/Reservations'
 import { Fines } from './pages/Fines'
 import { Staff } from './pages/Staff'
@@ -38,6 +39,7 @@ function App() {
           <Route path="/teachers" element={<Readers rol="oqituvchi" />} />
           <Route path="/applications" element={<Applications />} />
           <Route path="/loans" element={<Loans />} />
+          <Route path="/bandlar" element={<Bandlar />} />
           <Route path="/reservations" element={<Reservations />} />
           <Route path="/fines" element={<Fines />} />
 

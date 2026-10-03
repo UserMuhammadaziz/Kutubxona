@@ -26,6 +26,10 @@ import type {
   ArizaRol,
   TopBook,
   DashboardStats,
+  BandQilish,
+  BandQilishMeni,
+  BandQilishYaratishPayload,
+  BandHolati,
 } from '../types'
 
 // ---- Auth ----
@@ -154,6 +158,29 @@ export const reservationsApi = {
     api.post<{ id: number; orin: number }>('/reservations/', payload).then((r) => r.data),
   confirm: (id: number) => api.post<Navbat>(`/reservations/${id}/confirm/`).then((r) => r.data),
   remove: (id: number) => api.delete(`/reservations/${id}/`),
+}
+
+// ---- Holds (Band qilish) ----
+
+export interface HoldListParams {
+  page?: number
+  holati?: BandHolati | ''
+  kitob?: number
+}
+
+export const holdsApi = {
+  list: (params?: HoldListParams) =>
+    api.get<Paginated<BandQilish>>('/holds/', { params }).then((r) => r.data),
+  create: (payload: BandQilishYaratishPayload) =>
+    api.post<BandQilish>('/holds/', payload).then((r) => r.data),
+  my: (telegram_id: number) =>
+    api.get<BandQilishMeni[]>('/holds/my/', { params: { telegram_id } }).then((r) => r.data),
+  approve: (id: number, izoh?: string) =>
+    api.post<BandQilish>(`/holds/${id}/approve/`, { izoh }).then((r) => r.data),
+  reject: (id: number, izoh?: string) =>
+    api.post<BandQilish>(`/holds/${id}/reject/`, { izoh }).then((r) => r.data),
+  cancel: (id: number, telegram_id: number) =>
+    api.post<BandQilish>(`/holds/${id}/cancel/`, { telegram_id }).then((r) => r.data),
 }
 
 // ---- Staff ----

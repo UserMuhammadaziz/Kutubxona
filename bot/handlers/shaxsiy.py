@@ -3,9 +3,11 @@ from aiogram.types import CallbackQuery, Message
 
 from api_client import ApiXato, api
 from keyboards import (
+    BANDLARIM,
     JARIMALARIM,
     MENING_KITOBLARIM,
     NAVBATLARIM,
+    band_bekor_tugmasi,
     navbatdan_chiqish_tugmasi,
     taklif_javob_tugmalari,
 )
@@ -81,6 +83,47 @@ async def jarimalarim(message: Message):
     matn += f"\n\n💰 Umumiy qarz: {natija['umumiy_qarz']} so'm"
     matn += "\n\nTo'lovni kutubxonachiga topshiring."
     await message.answer(matn)
+
+
+@router.message(F.text == BANDLARIM)
+async def bandlarim(message: Message):
+    """Men band qilgan kitoblar va ularning holati."""
+    telegram_id = message.from_user.id
+    try:
+        royxat = await api.bandlarim(telegram_id)
+    except ApiXato as e:
+        await message.answer(_xatolar(e))
+        return
+
+    if not royxat:
+        await message.answer(
+            "🔒 Siz band qilgan kitob yo'q.\n\n"
+            "Kerakli kitobni topib, kartochkasidagi «🔒 Band qilish» "
+            "tugmasini bosing — so'rov kutubxonachi tasdiqlashiga yuboriladi."
+        )
+        return
+
+    holat_matnlari = {
+        "kutmoqda": "⏳ Kutubxonachi tasdiqlashini kutilmoqda",
+        "tasdiqlandi": "✅ Tasdiqlandi, kitob sizga berildi",
+        "rad_etildi": "❌ Rad etildi",
+        "bekor_qilindi": "🚪 Siz bekor qilgansiz",
+    }
+
+    for b in royxat[:20]:
+        qator = (
+            f"📖 <b>{x(b['kitob_nomi'])}</b>\n"
+            f"   {holat_matnlari.get(b['holati'], b['holati'])}"
+        )
+        if b.get("izoh"):
+            qator += f"\n   📝 {x(b['izoh'])}"
+        if b.get("tasdiqlash_izohi"):
+            qator += f"\n   📝 Xodim izohi: {x(b['tasdiqlash_izohi'])}"
+
+        if b["holati"] == "kutmoqda":
+            await message.answer(qator, reply_markup=band_bekor_tugmasi(b["id"]))
+        else:
+            await message.answer(qator)
 
 
 @router.message(F.text == NAVBATLARIM)

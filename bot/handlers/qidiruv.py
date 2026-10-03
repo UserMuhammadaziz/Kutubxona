@@ -6,6 +6,7 @@ from api_client import ApiXato, api
 from keyboards import (
     KATEGORIYALAR,
     KITOB_QIDIRISH,
+    band_bekor_tugmasi,
     janr_kitob_tugmalari,
     janr_tugmalari,
     kitob_batafsil_tugmasi,
@@ -227,7 +228,9 @@ async def janr_kitob_tanlandi(callback: CallbackQuery):
         callback,
         matn,
         reply_markup=kitob_band_qilish_tugmalari(
-            kitob_id, qaytish=f"jpage:{janr}:{sahifa}"
+            kitob_id,
+            qaytish=f"jpage:{janr}:{sahifa}",
+            navbat_mavjud=not _mavjud_nusxa_bormi(kitob),
         ),
     )
     await callback.answer()
@@ -252,8 +255,18 @@ async def kitob_kartochka(callback: CallbackQuery):
         return
 
     matn = _kitob_batafsil_matn(kitob)
-    await callback.message.answer(matn, reply_markup=navbatga_turish_tugmasi(kitob_id))
+    await callback.message.answer(
+        matn,
+        reply_markup=kitob_band_qilish_tugmalari(
+            kitob_id, navbat_mavjud=not _mavjud_nusxa_bormi(kitob)
+        ),
+    )
     await callback.answer()
+
+
+def _mavjud_nusxa_bormi(kitob: dict) -> bool:
+    """Kitobning kamida bitta `mavjud` nusxasi bormi."""
+    return any(n.get("holati") == "mavjud" for n in kitob.get("nusxalar") or [])
 
 
 def _kitob_batafsil_matn(kitob: dict) -> str:
@@ -278,8 +291,89 @@ def _kitob_batafsil_matn(kitob: dict) -> str:
     else:
         matn += "\n\n⚠️ Bu kitobning kutubxonada nusxasi yo'q, asil kitobni band qilishingiz mumkin."
 
-    matn += "\n\nShu kitobni band qilmoqchimisiz?"
+    matn += (
+        "\n\n🔒 <b>Band qilish</b> — kitobni maxsus maqsadga saqlab qoyish"
+        " (o'qituvchi darsga tayyorlanmoqda, o'quvchi imtihonga...). "
+        "Band qilingan kitob boshqalarga berilmaydi: uni faqat kutubxonachi "
+        "yoki administrator tasdiqlagandan keyin sizga beriladi."
+    )
+    if not mavjud_nusxa:
+        matn += (
+            "\n\n⏳ <b>Navbatga turish</b> — hozir berish mumkin bo'lmagan kitob "
+            "kutmoqchi bo'lsangiz (avval berilgach sizga taklif yuboriladi)."
+        )
     return matn
+
+
+@router.callback_query(F.data.startswith("band:"))
+async def band_qilish_sorovi(callback: CallbackQuery):
+    """«🔒 Band qilish» — kitobni tasdiqlash kutilayotgan holda saqlab qo'yish.
+
+    So'rov yaratilgach kitobni hech kimga berib bo'lmaydi; tasdiqlashni
+    kutubxonachi yoki administrator qiladi va shunda kitob so'rov qilgan
+    o'quvchiga beriladi.
+    """
+    qismlar = callback.data.split(":")
+    if len(qismlar) < 2 or not qismlar[1].isdigit():
+        await callback.answer("Kitob topilmadi.", show_alert=True)
+        return
+    kitob_id = int(qismlar[1])
+
+    if callback.message is None:
+        await callback.answer("Xabar eskirgan. Qayta qidiring.", show_alert=True)
+        return
+
+    try:
+        band = await api.band_qil(kitob_id, callback.from_user.id)
+    except ApiXato as e:
+        xabarlar = {
+            "oquvchi_topilmadi": "Avval /start orqali ro'yxatdan o'ting.",
+            "topilmadi": "Avval /start orqali ro'yxatdan o'ting.",
+            "oquvchi_bloklangan": "Sizning kartangiz bloklangan.",
+            "allaqachon_band_qilingan": "Bu kitob boshqa o'quvchi uchun band qilingan.",
+            "allaqachon_berilgan": "Bu kitob allaqachon sizda bor.",
+        }
+        await callback.message.answer(x(xabarlar.get(e.kod, e.detail)))
+        await callback.answer()
+        return
+
+    nomi = band.get("kitob_nomi") or await _kitob_nomi(kitob_id)
+    qator = f"📖 <b>{x(nomi)}</b>"
+    izoh = band.get("izoh")
+    if izoh:
+        qator += f"\n📝 {x(izoh)}"
+
+    await callback.message.answer(
+        f"🔒 {qator}\n\n"
+        "Kitob band qilishga so'rov qilindi.\n"
+        "⏳ Endi uni faqat <b>kutubxonachi yoki administrator</b> tasdiqlaydi — "
+        "tasdiqlangach kitob boshqalarga ham berilmaydi.\n\n"
+        "Tasdiqlanganligi xabar qilinadi. «🔒 Bandlarim» orqali holatni "
+        "kuzatib turishingiz mumkin.",
+        reply_markup=band_bekor_tugmasi(band["id"]),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("band_bekor:"))
+async def band_bekor_qilish(callback: CallbackQuery):
+    """O'quvchi o'z band'so'rovini bekor qiladi — kitob yana ochiq bo'ladi."""
+    qismlar = callback.data.split(":")
+    if len(qismlar) < 2 or not qismlar[1].isdigit():
+        await callback.answer("So'rov topilmadi.", show_alert=True)
+        return
+
+    try:
+        await api.band_bekor_qil(int(qismlar[1]), callback.from_user.id)
+    except ApiXato as e:
+        await callback.answer(e.detail, show_alert=True)
+        return
+
+    await xabarni_tahrirlash(
+        callback,
+        "🚪 Band qilish bekor qilindi. Kitob yana boshqalarga ham berilishi mumkin.",
+    )
+    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("navbat_tur:"))
@@ -300,8 +394,10 @@ async def navbatga_tur(callback: CallbackQuery):
     except ApiXato as e:
         xabarlar = {
             "oquvchi_topilmadi": "Avval /start orqali ro'yxatdan o'ting.",
+            "topilmadi": "Avval /start orqali ro'yxatdan o'ting.",
             "oquvchi_bloklangan": "Sizning kartangiz bloklangan.",
             "allaqachon_navbatda": "Siz bu kitobga allaqachon navbatdasiz.",
+            "barcha_nusxalar_berilgan": "Bu kitobning nusxalari hozir berilgan.",
         }
         await callback.message.answer(x(xabarlar.get(e.kod, e.detail)))
         await callback.answer()
@@ -326,8 +422,11 @@ async def navbatga_tur(callback: CallbackQuery):
         )
     else:
         await callback.message.answer(
-            f"✅ Kitob band qilindi! Siz navbatda {natija['orin']}-o'rindasiz.\n\n"
-            f"Kutubxonaga keling va kutubxonachidan «{x(nomi)}» kitobini so'rang."
+            f"✅ Navbatga qo'shildingiz! Siz {natija['orin']}-o'rindasiz.\n\n"
+            f"Kitob bo'shagan zahoti «{x(nomi)}» kitobini sizga taklif qilinadi. "
+            "Navbatni bekor qilish uchun «⏳ Navbatlarim» bo'limidan foydalaning.\n"
+            "💡 Maxsus maqsadga (dars, imtihon, tadbir) ajratish uchun esa "
+            "«🔒 Band qilish» ni ishlating — u tasdiqlash kutiladi."
         )
     await callback.answer()
 

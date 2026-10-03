@@ -9,7 +9,7 @@ from config.telegram import telegram_escape, telegram_xabar_yubor
 from jarima.models import Jarima
 from jarima.services import jarimani_hisobla
 from kitob.models import Kitob
-from kitob.services import kitob_holatini_yenila
+from kitob.services import faol_band_bormi, faol_bandni_top, kitob_holatini_yenila
 from navbat.models import Navbat
 from navbat.services import (
     keyingi_navbatga_taklif_yubor,
@@ -47,9 +47,11 @@ def faol_asli_berish(kitob_id):
     ).exists()
 
 
-def kitob_ber_by_kitob(kitob, oquvchi, xodim):
+def kitob_ber_by_kitob(kitob, oquvchi, xodim, band_tasdiqlandi=False):
     """Kitob bo'yicha berish — qaysi holatda nima qilinishini hal qiladi:
 
+    * kitob band qilingan bo'lsa -> hech kimga berilmaydi (`band_tasdiqlandi`
+      faqat band tasdiqlanayotganda `True` bo'ladi);
     * mavjud nusxa bor -> shu nusxa beriladi;
     * nusxa yo'q -> kitob «asli» holatda beriladi (berish/tasks xabari);
     * nusxalari bor, lekin hammasi band/berilgan -> xato chiqadi va
@@ -60,9 +62,19 @@ def kitob_ber_by_kitob(kitob, oquvchi, xodim):
     blok ichida esa butun tranzaksiya bekor qilinib, navbat ham yo'qolardi.
     Nusxa esa `kitob_ber` ichida `select_for_update` bilan qayta bloklanadi.
     """
+    if not band_tasdiqlandi and faol_band_bormi(kitob.pk):
+        band = faol_bandni_top(kitob.pk)
+        _xato(
+            "kitob_band_qilingan",
+            "Bu kitob band qilingan — uni faqat kutubxonachi tasdiqlagandan "
+            "keyin berish mumkin",
+            band_id=band.pk if band else None,
+            oquvchi=band.oquvchi.fish if band else None,
+        )
+
     nusxa = Nusxa.objects.filter(kitob=kitob, holati="mavjud").order_by("id").first()
     if nusxa:
-        return kitob_ber(nusxa, oquvchi, xodim)
+        return kitob_ber(nusxa, oquvchi, xodim, band_tasdiqlandi=band_tasdiqlandi)
 
     if Nusxa.objects.filter(kitob=kitob).exists():
         natija = navbatga_qosh(kitob, oquvchi)
@@ -74,11 +86,14 @@ def kitob_ber_by_kitob(kitob, oquvchi, xodim):
             navbatga_qoshildi=natija.yangi,
         )
 
-    return kitob_ber(None, oquvchi=oquvchi, kitob=kitob, xodim=xodim)
+    return kitob_ber(
+        None, oquvchi=oquvchi, kitob=kitob, xodim=xodim,
+        band_tasdiqlandi=band_tasdiqlandi,
+    )
 
 
 @transaction.atomic
-def kitob_ber(nusxa, oquvchi, xodim, kitob=None):
+def kitob_ber(nusxa, oquvchi, xodim, kitob=None, band_tasdiqlandi=False):
     """Kitob berish: barcha biznes cheklovlarni tekshiradi, so'ng nusxa
     holatini va Berish yozuvini bitta tranzaksiyada o'zgartiradi.
 
@@ -86,6 +101,10 @@ def kitob_ber(nusxa, oquvchi, xodim, kitob=None):
     * `nusxa` berilsa — aniq nusxa beriladi (nusxa holati tekshiriladi);
     * `nusxa=None` va `kitob` berilsa — nusxasi yo'q kitob «asli» holatda
       beriladi (bunda `bergan_xodim` bo'sh qoldirilishi mumkin).
+
+    `band_tasdiqlandi=True` faqat `kitob.services.band_qilishni_tasdiqla`
+    ichidan chaqiriladi: band qilingan kitobni aynan tasdiqlash yo'li orqali
+    berish kerak, aks holda bandning o'zi berishni bloklab qo'yardi.
     """
     # O'quvchi qatorini bloklash shart: limit tekshiruvi `count()` bilan
     # bajariladi va ikki parallel so'rov (kutubxonachi ikki nusxa bir vaqtda
@@ -115,6 +134,18 @@ def kitob_ber(nusxa, oquvchi, xodim, kitob=None):
         kitob_id = nusxa.kitob_id
         nusxa_holati = "berilgan"
         kitob = nusxa.kitob
+
+    # Band himoyasi: tasdiqlanmagan band so'rovi bo'lsa kitobni hech kimga
+    # berib bo'lmaydi (so'rov qiluvchiga ham — avval tasdiqlanishi kerak).
+    if not band_tasdiqlandi and faol_band_bormi(kitob_id):
+        band = faol_bandni_top(kitob_id)
+        _xato(
+            "kitob_band_qilingan",
+            "Bu kitob band qilingan — uni faqat kutubxonachi tasdiqlagandan "
+            "keyin berish mumkin",
+            band_id=band.pk if band else None,
+            oquvchi=band.oquvchi.fish if band else None,
+        )
 
     if nusxa_holati:
         nusxa.holati = nusxa_holati
