@@ -13,6 +13,7 @@ import type {
   Oquvchi,
   OquvchiDetail,
   OquvchiCreatePayload,
+  OquvchiRol,
   Berish,
   BerishCreatePayload,
   BerishHolati,
@@ -78,6 +79,8 @@ export const copiesApi = {
 export interface ReaderListParams {
   page?: number
   search?: string
+  rol?: OquvchiRol | ''
+  faol?: boolean
 }
 
 export const readersApi = {

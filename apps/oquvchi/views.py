@@ -23,6 +23,7 @@ from .serializers import (
 class OquvchiViewSet(viewsets.ModelViewSet):
     """
     GET   /api/readers/       -> ro'yxat (qidiruv: fish, telefon, karta_raqami)
+    GET   /api/readers/?rol=oqituvchi -> faqat o'qituvchilar ("O'qituvchilar" bo'limi)
     POST  /api/readers/       -> yangi o'quvchi ro'yxatga olish (karta_raqami avtomatik)
     GET   /api/readers/{id}/  -> o'quvchi kartochkasi: joriy kitoblari va jarimalari
     PATCH /api/readers/{id}/  -> tahrirlash
@@ -32,6 +33,7 @@ class OquvchiViewSet(viewsets.ModelViewSet):
     permission_classes = [IsLibrarian]
     queryset = Oquvchi.objects.all().order_by("-royxat_sanasi", "-id")
     search_fields = ["fish", "telefon", "karta_raqami"]
+    filterset_fields = ["rol", "faol", "sinf"]
     http_method_names = ["get", "post", "patch"]
 
     def get_serializer_class(self):

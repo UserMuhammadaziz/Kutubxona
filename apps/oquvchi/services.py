@@ -146,11 +146,23 @@ def arizani_tasdiqla(ariza: Ariza):
             raise ArizaTelegramBandi(ariza)
         oquvchi.telegram_id = ariza.telegram_id
         oquvchi.fish = ariza.fish
+        # Rol va fan arizadan olinadi: "O'quvchilar"/"O'qituvchilar"
+        # bo'limlari shu maydonlar orqali ajratiladi.
+        yangilangan = ["telegram_id", "fish"]
+        if oquvchi.rol != ariza.rol:
+            oquvchi.rol = ariza.rol
+            yangilangan.append("rol")
+        if ariza.rol == "oqituvchi":
+            if ariza.kasb and oquvchi.kasb != ariza.kasb:
+                oquvchi.kasb = ariza.kasb
+                yangilangan.append("kasb")
+            if oquvchi.sinf:
+                oquvchi.sinf = ""
+                yangilangan.append("sinf")
         # Sinf, tugilgan_sana va manzil arizadagi qiymat bilan to'ldiriladi,
         # lekin o'quvchi ularni allaqachon to'ldirgan bo'lsa ustidan
         # yozilmaydi (ariza ko'pincha faqat ism/telefon/sinf so'raydi).
         # Faqat o'zgarishi kerak bo'lgan maydonlarni saqlaymiz.
-        yangilangan = ["telegram_id", "fish"]
         if oquvchi.sinf != ariza.sinf and ariza.sinf:
             oquvchi.sinf = ariza.sinf
             yangilangan.append("sinf")
@@ -163,10 +175,12 @@ def arizani_tasdiqla(ariza: Ariza):
         oquvchi.save(update_fields=yangilangan)
     else:
         oquvchi = oquvchi_yarat(
+            rol=ariza.rol,
             fish=ariza.fish,
             telefon=ariza.telefon,
             telegram_id=ariza.telegram_id,
             sinf=ariza.sinf or "",
+            kasb=ariza.kasb or "",
             tugilgan_sana=ariza.tugilgan_sana,
             manzil=ariza.manzil,
         )

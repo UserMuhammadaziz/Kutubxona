@@ -493,6 +493,25 @@ class OqituvchiArizaTest(ArizaTestMixin, TestCase):
         xabar = YUBORILGAN_XABARLAR[0]
         self.assertIn("Ona tili", xabar["matn"])
 
+    def test_tasdiqlashda_rol_va_kasb_oquvchiga_ko_chadi(self):
+        """Tasdiqlangan o'qituvchi "O'qituvchilar" bo'limida ko'rinishi uchun
+        `Oquvchi.rol` va `Oquvchi.kasb` to'ldirilishi kerak."""
+        ariza = Ariza.objects.create(
+            telegram_id=111111,
+            fish="Karimova Nilufar",
+            telefon="+998901234567",
+            rol="oqituvchi",
+            kasb="Ona tili",
+        )
+
+        with self.xabarni_tekshir():
+            javob = self.client.post(f"/api/applications/{ariza.pk}/approve/")
+
+        self.assertEqual(javob.status_code, 200, javob.data)
+        oquvchi = Oquvchi.objects.get(telefon="+998901234567")
+        self.assertEqual(oquvchi.rol, "oqituvchi")
+        self.assertEqual(oquvchi.kasb, "Ona tili")
+
     def test_rol_filteri_ishlaydi(self):
         Ariza.objects.create(
             telegram_id=111111,
@@ -606,3 +625,72 @@ class KartaRaqamiTest(TestCase):
         karta_raqamlari = list(Oquvchi.objects.values_list("karta_raqami", flat=True))
         self.assertEqual(len(karta_raqamlari), 3)
         self.assertEqual(len(set(karta_raqamlari)), 3, "karta raqamlari takrorlandi")
+
+
+class OquvchiRolTest(ArizaTestMixin, TestCase):
+    """"O'qituvchilar" bo'limi: `?rol=oqituvchi` filtri faqat o'qituvchilarni
+    ko'rsatishi va o'qituvchi qo'shishda fan majburiy bo'lishi tekshiriladi."""
+
+    def setUp(self):
+        super().setUp()
+        self.oquvchi = Oquvchi.objects.create(
+            fish="Alisher Karimov", telefon="+998901234567", karta_raqami="LIB-2026-0001", sinf="7-A"
+        )
+        self.oqituvchi = Oquvchi.objects.create(
+            rol="oqituvchi",
+            fish="Karimova Nilufar",
+            telefon="+998901234568",
+            karta_raqami="LIB-2026-0002",
+            kasb="Ona tili",
+        )
+
+    def test_rol_filtri_faqat_oqituvchilarni_qaytaradi(self):
+        javob = self.client.get("/api/readers/", {"rol": "oqituvchi"})
+        self.assertEqual(javob.status_code, 200)
+        self.assertEqual(javob.data["count"], 1)
+        self.assertEqual(javob.data["results"][0]["fish"], "Karimova Nilufar")
+
+    def test_filtrsiz_ro_yxatda_ikkalasi_bor(self):
+        javob = self.client.get("/api/readers/")
+        self.assertEqual(javob.status_code, 200)
+        self.assertEqual(javob.data["count"], 2)
+
+    def test_oqituvchi_kartochkasida_kasb_qaytadi(self):
+        javob = self.client.get(f"/api/readers/{self.oqituvchi.pk}/")
+        self.assertEqual(javob.status_code, 200)
+        self.assertEqual(javob.data["rol"], "oqituvchi")
+        self.assertEqual(javob.data["kasb"], "Ona tili")
+
+    def test_oqituvchi_qo_shish_fan_bilan(self):
+        javob = self.client.post(
+            "/api/readers/",
+            {
+                "rol": "oqituvchi",
+                "fish": "Rahimov Sardor",
+                "telefon": "+998901234569",
+                "kasb": "Fizika",
+            },
+            format="json",
+        )
+        self.assertEqual(javob.status_code, 201, javob.data)
+        self.assertEqual(javob.data["rol"], "oqituvchi")
+        self.assertEqual(javob.data["kasb"], "Fizika")
+        self.assertEqual(javob.data["sinf"], "")
+
+    def test_oqituvchi_fansiz_qabul_qilinmaydi(self):
+        javob = self.client.post(
+            "/api/readers/",
+            {"rol": "oqituvchi", "fish": "Rahimov Sardor", "telefon": "+998901234570"},
+            format="json",
+        )
+        self.assertEqual(javob.status_code, 400, javob.data)
+        self.assertIn("kasb", str(javob.data))
+
+    def test_oddiy_oquvchi_sinfi_bilan_qabul_qilinadi(self):
+        javob = self.client.post(
+            "/api/readers/",
+            {"fish": "Nodirbek", "telefon": "+998901234571", "sinf": "9-B"},
+            format="json",
+        )
+        self.assertEqual(javob.status_code, 201, javob.data)
+        self.assertEqual(javob.data["rol"], "oquvchi")

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import axios from 'axios'
 import { booksApi, copiesApi, loansApi, readersApi } from '../api/resources'
 import { errorMessage } from '../api/client'
 import { BERISH_HOLATI_LABELS, type Berish, type BerishCreatePayload, type BerishHolati, type Kitob } from '../types'
@@ -117,13 +118,23 @@ onSuccess: (berish) => {
       qc.invalidateQueries({ queryKey: ['readers'] })
       qc.invalidateQueries({ queryKey: ['books'] })
       setModalOpen(false)
-      toast.success(
-        berish.asli
-          ? `“${berish.kitob_nomi}” asli holda berildi. O‘quvchiga Telegram orqali xabar yuborildi.`
-          : 'Kitob berildi. O‘quvchiga Telegram orqali xabar yuborildi.',
-      )
+      const xabar = berish.asli
+        ? `“${berish.kitob_nomi}” berildi (nusxasi yo‘q — kitob aslida berildi).`
+        : `“${berish.kitob_nomi}” berildi (${berish.inventar_raqami}).`
+      toast.success(`${xabar} O‘quvchiga Telegram orqali xabar yuborildi.`)
     },
-    onError: (err) => setError(errorMessage(err)),
+    onError: (err) => {
+      const kod = axios.isAxiosError(err) ? (err.response?.data as { error?: string })?.error : undefined
+      // Barcha nusxalar band: backend o'quvchini navbatga qo'shadi. Bu
+      // "xato" emas, shuning uchun alohida ko'rsatiladi.
+      if (kod === 'barcha_nusxalar_berilgan') {
+        qc.invalidateQueries({ queryKey: ['reservations'] })
+        toast.info('Bu kitobning barcha nusxalari band — o‘quvchi navbatga qo‘shildi.')
+        setModalOpen(false)
+        return
+      }
+setError(errorMessage(err))
+    },
   })
 
   const returnMut = useMutation({
@@ -164,7 +175,12 @@ function onSubmit(e: FormEvent) {
     return
   }
   setError(null)
-  if (aniqNusxa) {
+
+  // Aniq nusxa tanlangan bo'lsa ham, lekin mavjud nusxa yo'q bo'lsa —
+  // kitobning aslini berishga o'tamiz. Sabab: ma'lumotda 0 ta nusxa bor
+  // bo'lganda faqat nusxa orqali berish "nusxa yo'q" xatosiga olib kelardi.
+  const mavjudNusxalar = availableCopies?.results ?? []
+  if (aniqNusxa && mavjudNusxalar.length > 0) {
     const nusxa = form.nusxa ?? 0
     if (!nusxa) {
       setError('Nusxani tanlang yoki "Aniq nusxani tanlash" belgisini o‘chiring')
@@ -339,7 +355,7 @@ function onSubmit(e: FormEvent) {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         title="Kitob berish"
-        description="O‘quvchini va kitobni tanlang. Nusxa mavjud bo‘lsa avtomatik tanlanadi, aks holda kitobning aslini beriladi. Berish Telegram orqali xabar bilan tasdiqlanadi."
+        description="O‘quvchini va kitobni tanlang. Nusxa mavjud bo‘lsa avtomatik tanlanadi, aks holda kitobning aslini beriladi — «nusxa yo‘q» degan xatoga yo‘q qolmaydi. Berish Telegram orqali xabar bilan tasdiqlanadi."
       >
         <ErrorBanner message={error} />
         <form onSubmit={onSubmit}>
@@ -464,8 +480,8 @@ function onSubmit(e: FormEvent) {
                 </Select>
               ) : (
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Hozircha mavjud nusxa yo‘q. Avval nusxa qo‘shing yoki kitobni
-                  tanlab, aslini bering.
+                  Hozircha mavjud nusxa yo‘q — kitobning aslini beriladi. Nusxa
+                  qo‘shish shart emas.
                 </p>
               )}
             </Field>

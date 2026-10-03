@@ -9,6 +9,7 @@ const navItems = [
   { to: '/books', label: 'Kitoblar', icon: '📚' },
   { to: '/copies', label: 'Nusxalar', icon: '📦' },
   { to: '/readers', label: "O'quvchilar", icon: '🎓' },
+  { to: '/teachers', label: "O'qituvchilar", icon: '👩‍🏫' },
   { to: '/applications', label: 'Arizalar', icon: '📋' },
   { to: '/loans', label: 'Berish / Qaytarish', icon: '🔄' },
   { to: '/reservations', label: 'Navbatlar', icon: '⏳' },

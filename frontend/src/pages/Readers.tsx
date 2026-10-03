@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { readersApi } from '../api/resources'
 import { errorMessage } from '../api/client'
-import type { Oquvchi, OquvchiCreatePayload } from '../types'
+import type { Oquvchi, OquvchiCreatePayload, OquvchiRol } from '../types'
 import {
   Badge,
   Button,
@@ -24,17 +24,32 @@ import {
 import { useToast } from '../components/Toast'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 
-const emptyForm: OquvchiCreatePayload = { fish: '', telefon: '+998', sinf: '', tugilgan_sana: '', manzil: '' }
+const emptyForm: OquvchiCreatePayload = {
+  rol: 'oquvchi',
+  fish: '',
+  telefon: '+998',
+  sinf: '',
+  kasb: '',
+  tugilgan_sana: '',
+  manzil: '',
+}
 
-export function Readers() {
+interface ReadersProps {
+  /** `undefined` — barcha a'zolar; `oqituvchi` — "O'qituvchilar" bo'limi. */
+  rol?: OquvchiRol
+}
+
+export function Readers({ rol }: ReadersProps = {}) {
   const qc = useQueryClient()
   const toast = useToast()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const kechikkanQidiruv = useDebouncedValue(search)
   const [modalOpen, setModalOpen] = useState(false)
-  const [form, setForm] = useState<OquvchiCreatePayload>(emptyForm)
+  const [form, setForm] = useState<OquvchiCreatePayload>({ ...emptyForm, rol: rol ?? 'oquvchi' })
   const [error, setError] = useState<string | null>(null)
+
+  const oqituvchilar = rol === 'oqituvchi'
 
   const {
     data,
@@ -44,8 +59,9 @@ export function Readers() {
     refetch: refetchList,
     isFetching,
   } = useQuery({
-    queryKey: ['readers', page, kechikkanQidiruv],
-    queryFn: () => readersApi.list({ page, search: kechikkanQidiruv || undefined }),
+    queryKey: ['readers', page, kechikkanQidiruv, rol ?? null],
+    queryFn: () =>
+      readersApi.list({ page, search: kechikkanQidiruv || undefined, rol: rol ?? undefined }),
   })
 
   const createMut = useMutation({
@@ -68,7 +84,7 @@ export function Readers() {
   })
 
   function openCreate() {
-    setForm(emptyForm)
+    setForm({ ...emptyForm, rol: rol ?? 'oquvchi' })
     setError(null)
     setModalOpen(true)
   }
@@ -83,11 +99,15 @@ export function Readers() {
   return (
     <div>
       <PageHeader
-        title="O'quvchilar"
-        subtitle="Kutubxona a'zolari ro'yxati"
+        title={oqituvchilar ? "O'qituvchilar" : "O'quvchilar"}
+        subtitle={
+          oqituvchilar
+            ? "Faqat a'zo bo'lgan o'qituvchilar ro'yxati"
+            : "Kutubxona a'zolari ro'yxati"
+        }
         actions={
           <Button onClick={openCreate}>
-            <span aria-hidden>+</span> Yangi o'quvchi
+            <span aria-hidden>+</span> {oqituvchilar ? "Yangi o'qituvchi" : "Yangi o'quvchi"}
           </Button>
         }
       />
@@ -118,12 +138,20 @@ export function Readers() {
 
       {!isLoading && !isError && !data?.results.length && (
         <EmptyState
-          icon={qidirilmoqda ? '🔍' : '🎓'}
-          title={qidirilmoqda ? 'Hech narsa topilmadi' : 'Hali o‘quvchi qo‘shilmagan'}
+          icon={qidirilmoqda ? '🔍' : oqituvchilar ? '👩‍🏫' : '🎓'}
+          title={
+            qidirilmoqda
+              ? 'Hech narsa topilmadi'
+              : oqituvchilar
+                ? "Hali o'qituvchi qo'shilmagan"
+                : 'Hali o‘quvchi qo‘shilmagan'
+          }
           description={
             qidirilmoqda
               ? `«${search}» bo‘yicha natija yo‘q. Boshqa so‘z bilan urinib ko‘ring.`
-              : 'Birinchi o‘quvchini qo‘shish uchun yuqoridagi tugmani bosing.'
+              : oqituvchilar
+                ? "Birinchi o'qituvchini qo'shish uchun yuqoridagi tugmani bosing."
+                : 'Birinchi o‘quvchini qo‘shish uchun yuqoridagi tugmani bosing.'
           }
           action={
             qidirilmoqda ? (
@@ -132,7 +160,7 @@ export function Readers() {
               </Button>
             ) : (
               <Button size="sm" onClick={openCreate}>
-                Yangi o‘quvchi
+                {oqituvchilar ? "Yangi o'qituvchi" : 'Yangi o‘quvchi'}
               </Button>
             )
           }
@@ -153,8 +181,13 @@ export function Readers() {
                     {r.fish}
                   </Link>
                   <div className="text-xs text-slate-500 dark:text-slate-400">
-                    {r.sinf || 'Sinf ko‘rsatilmagan'}
+                    {oqituvchilar
+                      ? r.kasb || 'Fan ko‘rsatilmagan'
+                      : r.sinf || 'Sinf ko‘rsatilmagan'}
                   </div>
+                  {!oqituvchilar && r.rol === 'oqituvchi' && (
+                    <div className="text-xs text-brand-600 dark:text-brand-400">O‘qituvchi</div>
+                  )}
                 </div>
                 <Badge tone={r.faol ? 'green' : 'red'}>{r.faol ? 'Faol' : 'Bloklangan'}</Badge>
               </div>
@@ -176,7 +209,7 @@ export function Readers() {
             <thead className="border-b border-slate-200 bg-canvas text-xs uppercase text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
               <tr>
                 <th className="px-4 py-3">F.I.Sh.</th>
-                <th className="px-4 py-3">Sinf</th>
+                <th className="px-4 py-3">{oqituvchilar ? 'Fan' : 'Sinf'}</th>
                 <th className="px-4 py-3">Telefon</th>
                 <th className="px-4 py-3">Karta raqami</th>
                 <th className="px-4 py-3">Holati</th>
@@ -194,7 +227,9 @@ export function Readers() {
                       {r.fish}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{r.sinf || '—'}</td>
+                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
+                    {oqituvchilar ? r.kasb || '—' : r.sinf || '—'}
+                  </td>
                   <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{r.telefon}</td>
                   <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{r.karta_raqami}</td>
                   <td className="px-4 py-3">
@@ -219,7 +254,11 @@ export function Readers() {
 
       {data && <Pagination count={data.count} page={page} onChange={setPage} />}
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Yangi o'quvchi qo'shish">
+      <Modal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={oqituvchilar ? "Yangi o'qituvchi qo'shish" : "Yangi o'quvchi qo'shish"}
+      >
         <ErrorBanner message={error} />
         <form onSubmit={onSubmit}>
           <Field>
@@ -242,12 +281,21 @@ export function Readers() {
             />
           </Field>
           <Field>
-            <Label htmlFor="y-sinf">Sinf</Label>
+            <Label htmlFor={oqituvchilar ? 'y-kasb' : 'y-sinf'}>
+              {oqituvchilar ? "O'qitayotgan fan" : 'Sinf'}
+            </Label>
             <Input
-              id="y-sinf"
-              placeholder="7-A"
-              value={form.sinf}
-              onChange={(e) => setForm({ ...form, sinf: e.target.value })}
+              id={oqituvchilar ? 'y-kasb' : 'y-sinf'}
+              required={oqituvchilar}
+              placeholder={oqituvchilar ? 'Matematika' : '7-A'}
+              value={oqituvchilar ? (form.kasb ?? '') : form.sinf}
+              onChange={(e) =>
+                setForm(
+                  oqituvchilar
+                    ? { ...form, kasb: e.target.value }
+                    : { ...form, sinf: e.target.value },
+                )
+              }
             />
           </Field>
           <Field>

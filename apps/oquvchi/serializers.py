@@ -6,6 +6,11 @@ from rest_framework import serializers
 from .models import Ariza, Oquvchi
 from .services import oquvchi_yarat
 
+# Ariza.rol va Oquvchi.rol uchun bir xil qiymatlar (models.RUL_CHOICES ga
+# qarab qo'lda yoziladi, chunki serializer import paytida model sinflariga
+# murojaat qilmasligimiz kerak).
+ROL_CHOICES = [("oquvchi", "Oquvchi"), ("oqituvchi", "O'qituvchi")]
+
 
 class OquvchiSerializer(serializers.ModelSerializer):
     """O'quvchilar ro'yxati / kartochkasi uchun asosiy serializer."""
@@ -14,11 +19,13 @@ class OquvchiSerializer(serializers.ModelSerializer):
         model = Oquvchi
         fields = [
             "id",
+            "rol",
             "fish",
             "telefon",
             "telegram_id",
             "karta_raqami",
             "sinf",
+            "kasb",
             "tugilgan_sana",
             "manzil",
             "royxat_sanasi",
@@ -28,12 +35,27 @@ class OquvchiSerializer(serializers.ModelSerializer):
 
 
 class OquvchiYaratishSerializer(serializers.ModelSerializer):
-    """POST /api/readers/ — karta_raqami avtomatik generatsiya qilinadi."""
+    """POST /api/readers/ — karta_raqami avtomatik generatsiya qilinadi.
+
+    `rol="oqituvchi"` yuborilsa fan (`kasb`) majburiy bo'ladi."""
+
+    rol = serializers.ChoiceField(choices=ROL_CHOICES, required=False, default="oquvchi")
 
     class Meta:
         model = Oquvchi
-        fields = ["id", "fish", "telefon", "sinf", "tugilgan_sana", "manzil", "karta_raqami"]
+        fields = ["id", "rol", "fish", "telefon", "sinf", "kasb", "tugilgan_sana", "manzil", "karta_raqami"]
         read_only_fields = ["id", "karta_raqami"]
+
+    def validate(self, attrs):
+        if attrs.get("rol") == "oqituvchi":
+            kasb = (attrs.get("kasb") or "").strip()
+            if not kasb:
+                raise serializers.ValidationError(
+                    {"kasb": "O'qituvchi uchun fani ko'rsating (masalan: Matematika)."}
+                )
+            attrs["kasb"] = kasb
+            attrs["sinf"] = ""
+        return attrs
 
     def validate_telefon(self, value):
         if Oquvchi.objects.filter(telefon=value).exists():

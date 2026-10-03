@@ -2,6 +2,14 @@ from django.db import models
 from django.core.validators import RegexValidator
 
 class Oquvchi(models.Model):
+    # O'quvchi yoki o'qituvchi. Ariza tasdiqlanganda arizadagi roldan olinadi
+    # ("O'qituvchilar" bo'limi shu maydon orqali ajratiladi).
+    rol = models.CharField(
+        max_length=20,
+        choices=[("oquvchi", "Oquvchi"), ("oqituvchi", "O'qituvchi")],
+        default="oquvchi",
+        db_index=True,
+    )
     fish = models.CharField(max_length=130)
     telefon = models.CharField(
     max_length=20,
@@ -16,6 +24,8 @@ class Oquvchi(models.Model):
     telegram_id = models.BigIntegerField(unique=True, null=True, blank=True)
     karta_raqami = models.CharField(max_length=20, unique=True)
     sinf = models.CharField(max_length=30, blank=True)
+    # Faqat o'qituvchilar uchun: o'qitayotgan fani (arizadagi `kasb`).
+    kasb = models.CharField(max_length=60, blank=True)
     tugilgan_sana = models.DateField(null=True, blank=True)
     manzil = models.CharField(max_length=255, blank=True)
     royxat_sanasi = models.DateField(auto_now_add=True)

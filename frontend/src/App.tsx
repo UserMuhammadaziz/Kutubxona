@@ -35,6 +35,7 @@ function App() {
           <Route path="/copies" element={<Copies />} />
           <Route path="/readers" element={<Readers />} />
           <Route path="/readers/:id" element={<ReaderDetail />} />
+          <Route path="/teachers" element={<Readers rol="oqituvchi" />} />
           <Route path="/applications" element={<Applications />} />
           <Route path="/loans" element={<Loans />} />
           <Route path="/reservations" element={<Reservations />} />

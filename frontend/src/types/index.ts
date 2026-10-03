@@ -157,13 +157,22 @@ export interface NusxaCreatePayload {
 
 // ---- Oquvchi (Reader) ----
 
+export type OquvchiRol = 'oquvchi' | 'oqituvchi'
+
+export const OQUVCHI_ROL_LABELS: Record<OquvchiRol, string> = {
+  oquvchi: 'Oquvchi',
+  oqituvchi: 'O‘qituvchi',
+}
+
 export interface Oquvchi {
   id: number
+  rol: OquvchiRol
   fish: string
   telefon: string
   telegram_id: number | null
   karta_raqami: string
   sinf: string
+  kasb: string
   tugilgan_sana: string | null
   manzil: string | null
   royxat_sanasi: string
@@ -176,9 +185,11 @@ export interface OquvchiDetail extends Oquvchi {
 }
 
 export interface OquvchiCreatePayload {
+  rol?: OquvchiRol
   fish: string
   telefon: string
   sinf?: string
+  kasb?: string
   tugilgan_sana?: string
   manzil?: string
 }
