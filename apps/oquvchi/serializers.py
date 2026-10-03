@@ -115,6 +115,16 @@ class ArizaYaratishSerializer(serializers.ModelSerializer):
     yangi bot ularni so'ramaydi."""
 
     telegram_id = serializers.IntegerField(validators=[])
+    # Ikkala maydon ham ixtiyoriy bo'lib yoziladi: qaysi biri to'ldirilishi
+    # `validate()` ichida rolga qarab aniqlanadi. Aks holda o'qituvchi arizasida
+    # bo'sh `sinf`, o'quvchi arizasida bo'sh `kasb` "maydan bo'sh" xatosini
+    # keltirib chiqarardi.
+    sinf = serializers.CharField(
+        max_length=30, required=False, allow_blank=True, allow_null=True
+    )
+    kasb = serializers.CharField(
+        max_length=60, required=False, allow_blank=True, allow_null=True
+    )
 
     class Meta:
         model = Ariza
@@ -136,24 +146,6 @@ class ArizaYaratishSerializer(serializers.ModelSerializer):
             )
         return value
 
-    def validate_sinf(self, value):
-        sinf = (value or "").strip()
-        if not sinf:
-            raise serializers.ValidationError("Sinfni ko'rsating (masalan: 7-A).")
-        if len(sinf) > 30:
-            raise serializers.ValidationError("Sinf nomi juda uzun (maksimum 30 belgi).")
-        return sinf
-
-    def validate_kasb(self, value):
-        kasb = (value or "").strip()
-        if not kasb:
-            raise serializers.ValidationError(
-                "Kasbingizni ko'rsating (masalan: Matematika)."
-            )
-        if len(kasb) > 60:
-            raise serializers.ValidationError("Kasb nomi juda uzun (maksimum 60 belgi).")
-        return kasb
-
     def validate(self, attrs):
         rol = attrs.get("rol") or "oquvchi"
         attrs["rol"] = rol
@@ -173,14 +165,14 @@ class ArizaYaratishSerializer(serializers.ModelSerializer):
             attrs["kasb"] = kasb
         else:
             # Oquvchi uchun sinf majburiy, kasb kerak emas.
-            sinf = attrs.get("sinf") or ""
-            if not sinf.strip():
+            sinf = (attrs.get("sinf") or "").strip()
+            if not sinf:
                 raise serializers.ValidationError({"sinf": "Sinfni ko'rsating (masalan: 7-A)."})
-            if len(sinf.strip()) > 30:
+            if len(sinf) > 30:
                 raise serializers.ValidationError(
                     {"sinf": "Sinf nomi juda uzun (maksimum 30 belgi)."}
                 )
-            attrs["sinf"] = sinf.strip()
+            attrs["sinf"] = sinf
             attrs["kasb"] = ""
 
         telegram_id = attrs["telegram_id"]

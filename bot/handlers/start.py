@@ -1,5 +1,7 @@
+import logging
+
 from aiogram import F, Router
-from aiogram.filters import CommandStart
+from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
@@ -17,6 +19,7 @@ from keyboards import (
 from states import Ariza
 
 router = Router(name="start")
+logger = logging.getLogger(__name__)
 
 KUTILMOQDA_XABAR = (
     "📋 A'zolik arizangiz ko'rib chiqilmoqda.\n\n"
@@ -231,7 +234,14 @@ async def ariza_sinf(message: Message, state: FSMContext):
         return
 
     data = await state.get_data()
-    await _arizani_yuborish(message, state, data, sinf=sinf, kasb="")
+    await _arizani_yuborish(
+        message,
+        state,
+        data,
+        sinf=sinf,
+        kasb="",
+        savol=f"3️⃣ Endi sinfingizni yozing (masalan: {SINF_MASALALARI}):",
+    )
 
 
 @router.message(Ariza.kasb)
@@ -248,7 +258,26 @@ async def ariza_kasb(message: Message, state: FSMContext):
         return
 
     data = await state.get_data()
-    await _arizani_yuborish(message, state, data, sinf="", kasb=kasb)
+    await _arizani_yuborish(
+        message,
+        state,
+        data,
+        sinf="",
+        kasb=kasb,
+        savol=(
+            "3️⃣ Qaysi fanni dars berasiz? "
+            f"(masalan: {KASB_MASALALARI}):"
+        ),
+    )
+
+
+@router.message(Command("bekor", "start_over", "cancel"))
+async def ariza_bekor_qilish(message: Message, state: FSMContext):
+    """Ariza to'ldirishdan voz kechish — holat tozalanadi, bot yana ishlaydi."""
+    await state.clear()
+    await message.answer(
+        "Bekor qilindi. Qayta urinish uchun /start buyrug'ini bosing."
+    )
 
 
 async def _arizani_yuborish(
@@ -257,6 +286,7 @@ async def _arizani_yuborish(
     data: dict,
     sinf: str = "",
     kasb: str = "",
+    savol: str = "",
 ):
     telegram_id = message.from_user.id
     rol = data.get("rol", ARIZA_ROL_OQUVCHI)
@@ -270,13 +300,24 @@ async def _arizani_yuborish(
             kasb=kasb,
         )
     except ApiXato as e:
-        await state.clear()
-        xabarlar = {
-            "allaqachon_azo": "Siz allaqachon ro'yxatdan o'tgansiz. /start bosing.",
-            "ariza_kutmoqda": KUTILMOQDA_XABAR,
-            "notogri_telefon": "Telefon raqam formati noto'g'ri. Qaytadan urinib ko'ring.",
-        }
-        await message.answer(xabarlar.get(e.kod, f"Xatolik: {e.detail}"))
+        # Terminal xatolar — holat tozalanadi (yoki ariza allaqon yuborilgan).
+        if e.kod in ("allaqachon_azo", "ariza_kutmoqda"):
+            await state.clear()
+            xabarlar = {
+                "allaqachon_azo": "Siz allaqachon ro'yxatdan o'tgansiz. /start bosing.",
+                "ariza_kutmoqda": KUTILMOQDA_XABAR,
+            }
+            await message.answer(xabarlar[e.kod])
+            return
+
+        # Validatsiya xatosi: holatni TOZALAMAYMIZ — aks holda foydalanuvchi
+        # qayta yozganda bot jim qolib ketardi. Savolni takrorlab, bir xil
+        # maydonni qayta kiritishga ruxsat beramiz.
+        logger.warning("ariza rad etildi (%s): %s", e.kod, e.detail)
+        await message.answer(
+            f"⚠️ {e.detail}\n\n{savol}\n"
+            "(Boshlashdan voz kechish uchun /bekor)"
+        )
         return
 
     await state.clear()

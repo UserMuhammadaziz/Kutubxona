@@ -15,7 +15,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 import config
 from api_client import api
-from handlers import kutubxonachi, qidiruv, shaxsiy, start
+from handlers import kutubxonachi, noma_lum, qidiruv, shaxsiy, start
 
 
 async def main():
@@ -34,6 +34,9 @@ async def main():
     dp.include_router(qidiruv.router)
     dp.include_router(shaxsiy.router)
     dp.include_router(kutubxonachi.router)
+    # Oxirida — boshqa hech narsa javob bermasa, foydalanuvchi hech qachon
+    # jim qolmasin (masalan ariza bosqichida API xatosi yuz berganda).
+    dp.include_router(noma_lum.router)
 
     try:
         await bot.delete_webhook(drop_pending_updates=True)

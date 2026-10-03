@@ -104,6 +104,25 @@ class ArizaYuborishTest(ArizaTestMixin, TestCase):
         self.assertIn("sinf", javob.data["detail"])
         self.assertEqual(Ariza.objects.count(), 0)
 
+    def test_bot_yuboradigan_bo_sh_kasb_buzilmaydi(self):
+        """Bot o'quvchi uchun `kasb: ""` yuboradi (o'qituvchilar uchun maydon) —
+        bunday ariza "kasbni ko'rsating" xatosi bilan rad etilmasligi kerak."""
+        anon = APIClient()
+        javob = anon.post(
+            self.url(),
+            {
+                "telegram_id": 111111,
+                "fish": "Alisher Karimov",
+                "telefon": "+998901234567",
+                "rol": "oquvchi",
+                "sinf": "7-A",
+                "kasb": "",
+            },
+            format="json",
+        )
+        self.assertEqual(javob.status_code, 201, javob.data)
+        self.assertEqual(Ariza.objects.get().kasb, "")
+
     def test_telefon_formati_tekshiriladi(self):
         anon = APIClient()
         javob = anon.post(
@@ -436,6 +455,14 @@ class OqituvchiArizaTest(ArizaTestMixin, TestCase):
         self.assertEqual(javob.status_code, 400)
         self.assertIn("kasb", javob.data["detail"])
         self.assertEqual(Ariza.objects.count(), 0)
+
+    def test_bot_yuboradigan_bo_sh_sinf_buzilmaydi(self):
+        """Bot o'qituvchi uchun `sinf: ""` yuboradi (u so'ramaydi) — bunday
+        ariza "maydan bo'sh" xatosi bilan rad etilmasligi kerak."""
+        javob = self.yubor(sinf="", kasb="Matematika")
+
+        self.assertEqual(javob.status_code, 201, javob.data)
+        self.assertIsNone(Ariza.objects.get().sinf)
 
     def test_uzun_kasb_rad_etiladi(self):
         javob = self.yubor(kasb="x" * 61)
