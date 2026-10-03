@@ -11,6 +11,7 @@ Django REST API bilan ishlash uchun yagona darvoza.
   shuni ApiXato istisnosiga aylantiramiz, handler'lar kodga qarab aniq
   xabar ko'rsatadi.
 """
+import asyncio
 import logging
 
 import aiohttp
@@ -19,9 +20,13 @@ import config
 
 logger = logging.getLogger(__name__)
 
-
 class ApiXato(Exception):
-    """API dan kelgan {"error": kod, "detail": matn} formatidagi xato."""
+    """API dan kelgan {"error": kod, "detail": matn} formatidagi xato.
+
+    Xizmat akkauntiga kirish yoki serverga ulanish xatolari ham shu
+    istisnoga aylantiriladi — aks holda handler'lardagi `except ApiXato`
+    ishlamay, butun oqim jim qolib ketardi (masalan "Kategoriyalar"
+    tugmasi hech narsa bermaydi)."""
 
     def __init__(self, kod: str, detail: str, status: int = 400):
         self.kod = kod
@@ -29,16 +34,19 @@ class ApiXato(Exception):
         self.status = status
         super().__init__(f"{kod}: {detail}")
 
-
 class ApiClient:
     def __init__(self):
         self._session: aiohttp.ClientSession | None = None
         self._access: str | None = None
         self._refresh: str | None = None
 
+    # Server javob bermasa, aiohttp cheksiz kutib qolmasin — aks holda
+    # bitta so'rov butun botni (barcha handler'larni) to'xtatib qo'yadi.
+    SOVOTME_VAQTI = aiohttp.ClientTimeout(total=20)
+
     async def _sess(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
+            self._session = aiohttp.ClientSession(timeout=self.SOVOTME_VAQTI)
         return self._session
 
     async def yopish(self):
@@ -47,9 +55,10 @@ class ApiClient:
 
     async def _login(self):
         if not config.BOT_SERVICE_USERNAME or not config.BOT_SERVICE_PASSWORD:
-            raise RuntimeError(
-                "BOT_SERVICE_USERNAME / BOT_SERVICE_PASSWORD .env da ko'rsatilmagan. "
-                "Django admin orqali rol='kutubxonachi' bilan xizmat akkaunti yarating."
+            raise ApiXato(
+                "xizmat_akkount_yoq",
+                "Bot xizmat akkaunti sozlanmagan (.env da BOT_SERVICE_USERNAME "
+                "va BOT_SERVICE_PASSWORD kerak)",
             )
         sess = await self._sess()
         url = f"{config.API_BASE_URL}/auth/token/"
@@ -57,25 +66,52 @@ class ApiClient:
             "username": config.BOT_SERVICE_USERNAME,
             "password": config.BOT_SERVICE_PASSWORD,
         }
-        async with sess.post(url, json=payload) as r:
-            data = await r.json(content_type=None)
-            if r.status != 200:
-                raise RuntimeError(f"Bot xizmat akkauntiga kirib bo'lmadi: {data}")
-            self._access = data["access"]
-            self._refresh = data["refresh"]
+        try:
+            async with sess.post(url, json=payload) as r:
+                data = await r.json(content_type=None)
+        except (aiohttp.ClientError, asyncio.TimeoutError) as xato:
+            raise ApiXato(
+                "server_ga_ulab_bolmadi", f"Serverga ulanib bo'lmadi: {xato}"
+            ) from xato
+        if r.status != 200:
+            # Bu holatda butun bot ishlamaydi (kategoriya, qidiruv, kitob
+            # kartochkasi...). Foydalanuvchiga tushunarli xabar beramiz va
+            # sababni log'ga yozamiz.
+            logger.error("Bot xizmat akkauntiga kirib bo'lmadi: %s", data)
+            raise ApiXato(
+                "xizmat_akkount_kirish",
+                "Bot serverga kira olmadi. Kutubxonachiga xabar bering "
+                "(bot xizmat akkaunti tekshirilishi kerak)",
+                r.status,
+            )
+        self._access = data["access"]
+        self._refresh = data["refresh"]
 
     async def _tokenni_yangila(self):
+        """Muddati o'tgan access token'ni yangilaydi.
+
+        Refresh token ham ishlamasa (`401`/JSON buzilgan/server o'chgan)
+        to'liq qayta login qilamiz — aks holda keyingi har bir so'rov
+        yana 401 berib, foydalanuvchi hech qanday javob olmay qolardi.
+        """
+        self._access = None
         if not self._refresh:
             await self._login()
             return
         sess = await self._sess()
         url = f"{config.API_BASE_URL}/auth/token/refresh/"
-        async with sess.post(url, json={"refresh": self._refresh}) as r:
-            if r.status != 200:
-                await self._login()
-                return
-            data = await r.json(content_type=None)
-            self._access = data["access"]
+        try:
+            async with sess.post(url, json={"refresh": self._refresh}) as r:
+                if r.status != 200:
+                    await self._login()
+                    return
+                data = await r.json(content_type=None)
+                self._access = data["access"]
+        except ApiXato:
+            raise
+        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError, KeyError) as xato:
+            logger.warning("Token yangilanmadi, qayta login qilinadi: %s", xato)
+            await self._login()
 
     async def _headers(self, auth: bool) -> dict:
         if not auth:
@@ -91,40 +127,52 @@ class ApiClient:
         url = f"{config.API_BASE_URL}{path}"
         headers = await self._headers(auth)
 
-        async with sess.request(
-            method, url, params=params, json=json_data, headers=headers
-        ) as r:
-            try:
-                data = await r.json(content_type=None)
-            except Exception:
-                data = {"error": "server_xatosi", "detail": await r.text()}
-
-            if r.status == 401 and auth and qayta:
-                await self._tokenni_yangila()
-                return await self._so_rov(
-                    method, path, auth=auth, params=params, json_data=json_data, qayta=False
-                )
-
-            if r.status >= 400:
-                if isinstance(data, dict):
-                    kod = data.get("error", "xato")
-                    detail = data.get("detail", str(data))
-                    if isinstance(kod, list):
-                        kod = kod[0] if kod else "xato"
-                    if isinstance(detail, list):
-                        detail = detail[0] if detail else str(detail)
+        try:
+            async with sess.request(
+                method, url, params=params, json=json_data, headers=headers
+            ) as r:
+                # DELETE va ba'zi endpointlar 204 No Content qaytaradi —
+                # JSON yo'q. `r.json()` bundan KeyError/ValueError beradi
+                # va xato bo'lmagan javob "server_xatosi" deb ko'rinardi.
+                if r.status == 204 or r.content_length == 0:
+                    data = {}
                 else:
-                    kod, detail = "xato", str(data)
-                raise ApiXato(kod, detail, r.status)
+                    try:
+                        data = await r.json(content_type=None)
+                    except (ValueError, TypeError):
+                        data = {"error": "server_xatosi", "detail": await r.text()}
 
-            return data
+                if r.status == 401 and auth and qayta:
+                    await self._tokenni_yangila()
+                    return await self._so_rov(
+                        method, path, auth=auth, params=params, json_data=json_data, qayta=False
+                    )
+
+                if r.status >= 400:
+                    if isinstance(data, dict):
+                        kod = data.get("error", "xato")
+                        detail = data.get("detail", str(data))
+                        if isinstance(kod, list):
+                            kod = kod[0] if kod else "xato"
+                        if isinstance(detail, list):
+                            detail = detail[0] if detail else str(detail)
+                    else:
+                        kod, detail = "xato", str(data)
+                    raise ApiXato(kod, detail, r.status)
+
+                return data
+        except ApiXato:
+            raise
+        except (aiohttp.ClientError, asyncio.TimeoutError) as xato:
+            # Server o'chgan / internet uzilgan / javob kelmadi —
+            # foydalanuvchi hech narsa ko'rmasligi o'rniga aniq xabar.
+            raise ApiXato("server_ga_ulab_bolmadi", f"Serverga ulanib bo'lmadi: {xato}") from xato
 
     # ---------- Kartani bog'lash ----------
     async def bind(self, telefon: str, karta_raqami: str, telegram_id: int):
         return await self._so_rov(
             "POST",
             "/readers/bind/",
-            auth=False,
             json_data={
                 "telefon": telefon,
                 "karta_raqami": karta_raqami,
@@ -137,7 +185,6 @@ class ApiClient:
         return await self._so_rov(
             "GET",
             "/applications/status/",
-            auth=False,
             params={"telegram_id": telegram_id},
         )
 
@@ -159,7 +206,6 @@ class ApiClient:
         return await self._so_rov(
             "POST",
             "/applications/",
-            auth=False,
             json_data={
                 "telegram_id": telegram_id,
                 "fish": fish,
@@ -191,35 +237,33 @@ class ApiClient:
         return await self._so_rov(
             "POST",
             "/reservations/",
-            auth=False,
             json_data={"kitob": kitob_id, "telegram_id": telegram_id},
         )
 
     async def navbatlarim(self, telegram_id: int):
         return await self._so_rov(
-            "GET", "/reservations/my/", auth=False, params={"telegram_id": telegram_id}
+            "GET", "/reservations/my/", params={"telegram_id": telegram_id}
         )
 
     async def navbat_javob(self, navbat_id: int, javob: str):
         return await self._so_rov(
             "POST",
             f"/reservations/{navbat_id}/respond/",
-            auth=False,
             json_data={"javob": javob},
         )
 
     async def navbatdan_chiq(self, navbat_id: int):
-        return await self._so_rov("DELETE", f"/reservations/{navbat_id}/", auth=False)
+        return await self._so_rov("DELETE", f"/reservations/{navbat_id}/")
 
     # ---------- Mening kitoblarim / jarimalarim ----------
     async def kitoblarim(self, telegram_id: int):
         return await self._so_rov(
-            "GET", "/loans/my/", auth=False, params={"telegram_id": telegram_id}
+            "GET", "/loans/my/", params={"telegram_id": telegram_id}
         )
 
     async def jarimalarim(self, telegram_id: int):
         return await self._so_rov(
-            "GET", "/fines/my/", auth=False, params={"telegram_id": telegram_id}
+            "GET", "/fines/my/", params={"telegram_id": telegram_id}
         )
 
     # ---------- Kutubxonachi: qaytarib olish (ixtiyoriy) ----------
@@ -235,6 +279,5 @@ class ApiClient:
 
     async def kitobni_qaytar(self, berish_id: int):
         return await self._so_rov("POST", f"/loans/{berish_id}/return/")
-
 
 api = ApiClient()

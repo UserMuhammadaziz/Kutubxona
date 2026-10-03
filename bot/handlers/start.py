@@ -9,6 +9,7 @@ from api_client import ApiXato, api
 from keyboards import (
     ARIZA_ROL_OQITUVCHI,
     ARIZA_ROL_OQUVCHI,
+    ASOSIY_TUGMALAR,
     asosiy_menyu,
     ariza_rol_tugmalari,
     klaviatura_olib_tashla,
@@ -17,6 +18,7 @@ from keyboards import (
     telefon_sorash,
 )
 from states import Ariza
+from utils import x, xabarni_tahrirlash
 
 router = Router(name="start")
 logger = logging.getLogger(__name__)
@@ -42,6 +44,23 @@ ROL_TASDIQLANDI_XABARI = {
 }
 
 
+def _menyu_tugmasi_bosilganmi(text: str | None) -> bool:
+    """Ariza bosqichida pastdagi menyu tugmasi bosildimi?
+
+    Aks holda foydalanuvchi "📚 Kategoriyalar" bosganida u "sinf" yoki
+    "kasb" sifatida yuborilib, ariza behuda bo'lib ketardi."""
+    return (text or "").strip() in ASOSIY_TUGMALAR
+
+
+async def _menyu_tugmasi_javobi(message: Message, savol: str) -> None:
+    await message.answer(
+        f"{savol}\n\n"
+        "⚠️ Pastdagi menyu tugmalarini ariza to'ldirilayotganda bosib "
+        "bo'lmaydi — ular ariza maydoniga matn sifatida tushib ketadi.\n"
+        "Ariza to'ldirishni davom ettiring yoki /bekor bosing."
+    )
+
+
 @router.message(CommandStart())
 async def start(message: Message, state: FSMContext):
     await state.clear()
@@ -57,14 +76,14 @@ async def start(message: Message, state: FSMContext):
         return
     except ApiXato as e:
         if e.kod != "topilmadi":
-            await message.answer(f"Xatolik yuz berdi: {e.detail}")
+            await message.answer(f"Xatolik yuz berdi: {x(e.detail)}")
             return
 
     # Bog'lanmagan — ariza holatini tekshiramiz.
     try:
         holat = await api.ariza_holati(telegram_id)
     except ApiXato as e:
-        await message.answer(f"Xatolik yuz berdi: {e.detail}")
+        await message.answer(f"Xatolik yuz berdi: {x(e.detail)}")
         return
 
     if holat.get("holati") == "kutmoqda":
@@ -134,7 +153,7 @@ async def ariza_rol_tanlandi(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     if callback.message is None:
         return
-    await callback.message.edit_text(rol_tanlash_xabari(rol))
+    await xabarni_tahrirlash(callback, rol_tanlash_xabari(rol))
 
 
 @router.message(Ariza.fish)
@@ -142,6 +161,9 @@ async def ariza_fish(message: Message, state: FSMContext):
     fish = (message.text or "").strip()
     if not fish:
         await message.answer("Iltimos, ism-familiyangizni matn ko'rinishida yozing.")
+        return
+    if _menyu_tugmasi_bosilganmi(fish):
+        await _menyu_tugmasi_javobi(message, "1️⃣ Ism-familiyangizni yozing:")
         return
     if len(fish) > 130:
         await message.answer("Ism-familiya juda uzun (maksimum 130 belgi). Qayta yozing:")
@@ -229,6 +251,11 @@ async def ariza_sinf(message: Message, state: FSMContext):
             f"Iltimos, sinfingizni yozing (masalan: {SINF_MASALALARI}):"
         )
         return
+    if _menyu_tugmasi_bosilganmi(sinf):
+        await _menyu_tugmasi_javobi(
+            message, f"3️⃣ Sinfingizni yozing (masalan: {SINF_MASALALARI}):"
+        )
+        return
     if len(sinf) > 30:
         await message.answer("Sinf nomi juda uzun (maksimum 30 belgi). Qayta yozing:")
         return
@@ -248,10 +275,14 @@ async def ariza_sinf(message: Message, state: FSMContext):
 async def ariza_kasb(message: Message, state: FSMContext):
     """O'qituvchi arizasi uchun o'qitayotgan fanni qabul qiladi."""
     kasb = (message.text or "").strip()
+    savol = f"3️⃣ Qaysi fanni dars berasiz? (masalan: {KASB_MASALALARI}):"
     if not kasb:
         await message.answer(
             f"Iltimos, kasbingizni yozing (masalan: {KASB_MASALALARI}):"
         )
+        return
+    if _menyu_tugmasi_bosilganmi(kasb):
+        await _menyu_tugmasi_javobi(message, savol)
         return
     if len(kasb) > 60:
         await message.answer("Kasb nomi juda uzun (maksimum 60 belgi). Qayta yozing:")
@@ -264,10 +295,7 @@ async def ariza_kasb(message: Message, state: FSMContext):
         data,
         sinf="",
         kasb=kasb,
-        savol=(
-            "3️⃣ Qaysi fanni dars berasiz? "
-            f"(masalan: {KASB_MASALALARI}):"
-        ),
+        savol=savol,
     )
 
 
@@ -315,17 +343,17 @@ async def _arizani_yuborish(
         # maydonni qayta kiritishga ruxsat beramiz.
         logger.warning("ariza rad etildi (%s): %s", e.kod, e.detail)
         await message.answer(
-            f"⚠️ {e.detail}\n\n{savol}\n"
+            f"⚠️ {x(e.detail)}\n\n{savol}\n"
             "(Boshlashdan voz kechish uchun /bekor)"
         )
         return
 
     await state.clear()
-    uchinchi_qator = f"🎓 Sinf: {sinf}" if rol == ARIZA_ROL_OQUVCHI else f"📚 Kasb: {kasb}"
+    uchinchi_qator = f"🎓 Sinf: {x(sinf)}" if rol == ARIZA_ROL_OQUVCHI else f"📚 Kasb: {x(kasb)}"
     await message.answer(
         "✅ Arizangiz yuborildi!\n\n"
-        f"📋 Ism: {data['fish']}\n"
-        f"📞 Telefon: {data['telefon']}\n"
+        f"📋 Ism: {x(data['fish'])}\n"
+        f"📞 Telefon: {x(data['telefon'])}\n"
         f"{uchinchi_qator}\n\n"
         "Kutubxonachi arizangizni tasdiqlagach, /start buyrug'ini bosing va "
         "botdan foydalanasiz. Tasdiqlash yoki rad etish natijasi shu yerga "

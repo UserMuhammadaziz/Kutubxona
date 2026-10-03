@@ -22,7 +22,12 @@ class KitobSerializer(serializers.ModelSerializer):
             "tavsif",
             "qoshilgan_sana",
         ]
-        read_only_fields = ["id", "qoshilgan_sana"]
+        # `holati` kitob holatidan emas, nusxalar (va «asli» berish yozuvi)
+        # holatidan `kitob_holatini_yenila()` orqali hisoblanadi. Shu holatni
+        # qo'lda o'zgartirish mumkin bo'lmasa, kitob ro'yxatida «Mavjud» deb
+        # turib, aslida berilgan bo'lishi yoki keyingi berishda
+        # IntegrityError chiqishi mumkin.
+        read_only_fields = ["id", "qoshilgan_sana", "holati"]
 
     def validate_isbn(self, value):
         if value is None:

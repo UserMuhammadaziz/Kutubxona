@@ -13,8 +13,9 @@ from aiogram.types import CallbackQuery, Message
 
 import config
 from api_client import ApiXato, api
-from keyboards import qaytarish_tasdiq_tugmasi
+from keyboards import ASOSIY_TUGMALAR, qaytarish_tasdiq_tugmasi
 from states import KutubxonachiQaytarish
+from utils import x, xabarni_tahrirlash
 
 router = Router(name="kutubxonachi")
 
@@ -25,16 +26,20 @@ RUXSAT_YUQ = (
 )
 
 
-def _ruxsat_berilganmi(message: Message) -> bool:
+async def _ruxsat_berilganmi(message: Message) -> bool:
+    """Ruxsat yo'q bo'lsa foydalanuvchiga xabar yuboradi (va False qaytaradi).
+
+    Oldin `message.answer(...)` `await`siz chaqirilardi — shuning uchun
+    xabar umuman yuborilmasdi, foydalanuvchi hech narsa ko'rmay qolardi."""
     if config.bot_adminmi(message.from_user.id):
         return True
-    message.answer(RUXSAT_YUQ)
+    await message.answer(RUXSAT_YUQ)
     return False
 
 
 @router.message(Command("qaytar"))
 async def qaytarish_boshla(message: Message, state: FSMContext):
-    if not _ruxsat_berilganmi(message):
+    if not await _ruxsat_berilganmi(message):
         return
     await state.set_state(KutubxonachiQaytarish.inventar)
     await message.answer("Inventar raqamini yuboring (masalan: INV-000412):")
@@ -42,16 +47,23 @@ async def qaytarish_boshla(message: Message, state: FSMContext):
 
 @router.message(KutubxonachiQaytarish.inventar)
 async def inventar_qabul(message: Message, state: FSMContext):
-    if not _ruxsat_berilganmi(message):
+    if not await _ruxsat_berilganmi(message):
         await state.clear()
         return
+
+    matn = (message.text or "").strip()
+    if matn in ASOSIY_TUGMALAR:
+        # Pastdagi menyu tugmasi bosilgan — inventar raqami emas.
+        await message.answer("Iltimos, inventar raqamini yozing (masalan: INV-000412):")
+        return
+
     await state.clear()
-    inv = (message.text or "").strip().upper()
+    inv = matn.upper()
 
     try:
         nusxalar = await api.nusxa_qidir(inv)
     except ApiXato as e:
-        await message.answer(f"Xatolik: {e.detail}")
+        await message.answer(f"Xatolik: {x(e.detail)}")
         return
 
     nusxa = next((n for n in nusxalar if n["inventar_raqami"] == inv), None)
@@ -62,18 +74,18 @@ async def inventar_qabul(message: Message, state: FSMContext):
     try:
         detail = await api.nusxa_detail(nusxa["id"])
     except ApiXato as e:
-        await message.answer(f"Xatolik: {e.detail}")
+        await message.answer(f"Xatolik: {x(e.detail)}")
         return
 
     faol = next(
         (b for b in detail["berish_tarixi"] if not b.get("qaytarilgan_sana")), None
     )
     if not faol:
-        await message.answer(f"«{nusxa['kitob_nomi']}» ({inv}) hozir hech kimda emas.")
+        await message.answer(f"«{x(nusxa['kitob_nomi'])}» ({inv}) hozir hech kimda emas.")
         return
 
     matn = (
-        f"«{nusxa['kitob_nomi']}» ({inv}) — {faol['oquvchi_fish']} da.\n"
+        f"«{x(nusxa['kitob_nomi'])}» ({inv}) — {x(faol['oquvchi_fish'])} da.\n"
         f"Qaytarib olinsinmi?"
     )
     await message.answer(matn, reply_markup=qaytarish_tasdiq_tugmasi(faol["id"]))
@@ -85,7 +97,11 @@ async def qaytarish_tasdiq(callback: CallbackQuery):
         await callback.answer("🔒 Ruxsat yo'q.", show_alert=True)
         return
 
-    berish_id = int(callback.data.split(":")[1])
+    qismlar = callback.data.split(":")
+    if len(qismlar) < 2 or not qismlar[1].isdigit():
+        await callback.answer("Berish topilmadi.", show_alert=True)
+        return
+    berish_id = int(qismlar[1])
 
     try:
         natija = await api.kitobni_qaytar(berish_id)
@@ -99,6 +115,6 @@ async def qaytarish_tasdiq(callback: CallbackQuery):
     if natija.get("navbatga_taklif_ketdimi"):
         matn += "\n📨 Nusxa navbatdagi keyingi o'quvchiga taklif qilindi."
 
-    await callback.message.edit_text(matn)
+    await xabarni_tahrirlash(callback, matn)
     await callback.answer()
     

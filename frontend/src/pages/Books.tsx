@@ -153,8 +153,10 @@ export function Books() {
         tavsif: detail.tavsif ?? '',
         holati: detail.holati ?? 'mavjud',
       })
-      setError(null)
+setError(null)
       setModalOpen(true)
+    }).catch((err) => {
+      toast.error(errorMessage(err))
     })
   }
 

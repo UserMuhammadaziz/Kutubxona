@@ -15,6 +15,14 @@ NAVBATLARIM = "⏳ Navbatlarim"
 JARIMALARIM = "💰 Jarimalarim"
 TELEFON_YUBORISH = "📱 Telefon raqamni yuborish"
 
+# Asosiy menyudagi barcha tugma matnlari. Ariza to'ldirilayotgan paytda
+# foydalanuvchi shu tugmalardan birini bossa, matn "sinf" yoki "kasb"
+# sifatida yuborilmasligi kerak — shuning uchun handler'lar ro'yxatdan
+# foydalanadi (`start.py::_menyu_tugmasi_bosilganmi`).
+ASOSIY_TUGMALAR = frozenset(
+    {KITOB_QIDIRISH, KATEGORIYALAR, MENING_KITOBLARIM, NAVBATLARIM, JARIMALARIM}
+)
+
 
 def asosiy_menyu() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(

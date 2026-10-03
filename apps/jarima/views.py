@@ -1,6 +1,7 @@
 from django.utils.timezone import now
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from config.telegram import telegram_escape, telegram_xabar_yubor
@@ -23,8 +24,11 @@ class JarimaViewSet(viewsets.ModelViewSet):
     http_method_names = ["get", "post"]
 
     def get_permissions(self):
+        # O'quvchining o'z ma'lumotlarini ko'rish ochiq emas:
+        # 	elegram_id ni taxmin qilib, internetdagi istalgan kishi
+        # boshqa o'quvchining berish/jarima ro'yxatini o'qiy olardi.
         if self.action == "meni":
-            return []
+            return [IsAuthenticated()]
         return [IsLibrarian()]
 
     @action(detail=False, methods=["get"], url_path="my")

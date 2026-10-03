@@ -71,11 +71,15 @@ export function Layout() {
   const toggleTheme = useThemeStore((s) => s.toggle)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const location = useLocation()
+  const [oldindanYol, setOldindanYol] = useState(location.pathname)
 
-  // Sahifa almashganda mobil yon panel yopiladi.
-  useEffect(() => {
-    setDrawerOpen(false)
-  }, [location.pathname])
+  // Sahifa almashganda mobil yon panel yopiladi. Effect ichida setState
+  // qilish qo'shimcha render va "set-state-in-effect" ogohlantirishiga
+  // olib keladi, shuning uchun holat render paytida yangilanadi.
+  if (oldindanYol !== location.pathname) {
+    setOldindanYol(location.pathname)
+    if (drawerOpen) setDrawerOpen(false)
+  }
 
   useEffect(() => {
     document.body.style.overflow = drawerOpen ? 'hidden' : ''

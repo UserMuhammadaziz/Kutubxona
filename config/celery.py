@@ -21,6 +21,10 @@ app.conf.beat_schedule = {
         "task": "navbat.tasks.takliflarni_tekshir",
         "schedule": crontab(minute="*/10"),
     },
+    "ochiq-navbatlarni-har-10-daqiqada-tekshir": {
+        "task": "navbat.tasks.ochiq_navbatlarni_tekshir",
+        "schedule": crontab(minute="*/10"),
+    },
     "eslatmalarni-har-kuni-yubor": {
         "task": "berish.tasks.eslatma_yuborish",
         "schedule": crontab(hour=9, minute=0),

@@ -47,10 +47,47 @@ class KitobViewSet(viewsets.ModelViewSet):
         return super().get_queryset()
 
     def perform_destroy(self, instance):
+        # Nusxa, Berish va Navbat `kitob` maydoni PROTECT/CASCADE bilan
+        # bog'langan: shu sababli faol berish yoki navbat bor kitobni
+        # o'chirish `ProtectedError` berib, 500 qaytarardi. Oldindan
+        # tekshirib, foydalanuvchiga tushunarli xato qaytaramiz.
         if instance.nusxalar.exists():
             raise ValidationError(
                 {"error": "nusxa_mavjud", "detail": "Kitobda hali nusxalar bor, o'chirib bo'lmaydi"}
             )
+
+        faol_berishlar = instance.berishlar.filter(qaytarilgan_sana__isnull=True)
+        if faol_berishlar.exists():
+            raise ValidationError(
+                {
+                    "error": "faol_berish_mavjud",
+                    "detail": (
+                        "Kitob hali o'quvchilarda qaytarilmagan. Avval "
+                        "qaytarilishini to'g'rilang, keyin o'chiring."
+                    ),
+                }
+            )
+
+        faol_navbat = instance.navbat.filter(holati__in=NAVBAT_FAQOL)
+        if faol_navbat.exists():
+            raise ValidationError(
+                {
+                    "error": "navbat_mavjud",
+                    "detail": "Kitob uchun faol navbat bor, avval navbatni tozalang.",
+                }
+            )
+
+        # Berish tarihi PROTECT — o'quvchilarda qaytarilgan, lekin tarixi
+        # bor kitobni o'chirish ham ma'lumot butunligini buzadi. Bu yerda
+        # aniq xabar beramiz (aks holda Django "500" qaytarardi).
+        if instance.berishlar.exists():
+            raise ValidationError(
+                {
+                    "error": "berish_tarixi_mavjud",
+                    "detail": "Kitobning berish tarihi bor, uni o'chirib bo'lmaydi.",
+                }
+            )
+
         instance.delete()
 
     @action(detail=False, methods=["get"], url_path="search")

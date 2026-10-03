@@ -4,6 +4,7 @@ import {
   type ButtonHTMLAttributes,
   type HTMLAttributes,
   type InputHTMLAttributes,
+  type Key,
   type ReactNode,
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
@@ -390,20 +391,26 @@ export function ResponsiveList<T>({
   render,
   children,
   empty,
+  getKey,
 }: {
   items: T[]
   render: (item: T) => ReactNode
   children: ReactNode
   empty?: ReactNode
+  getKey?: (item: T, index: number) => Key
 }) {
   if (!items.length && empty) return <>{empty}</>
+  // Ro'yxat qayta tartiblanganda komponent holati buzilmasligi uchun
+  // barqaror kalit ishlatiladi (odatda `id`); kalit topilmasa — indeks.
+  const kalit = (item: T, i: number): Key =>
+    getKey ? getKey(item, i) : ((item as { id?: Key } | null)?.id ?? i)
   return (
     <>
       <div className="hidden md:block">{children}</div>
       <ul className="space-y-2 md:hidden">
         {items.map((item, i) => (
           <li
-            key={i}
+            key={kalit(item, i)}
             className="rounded-xl border border-slate-200 bg-paper p-3 shadow-sm dark:border-slate-700 dark:bg-slate-800"
           >
             {render(item)}

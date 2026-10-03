@@ -11,8 +11,13 @@ from jarima.services import jarimani_hisobla
 from kitob.models import Kitob
 from kitob.services import kitob_holatini_yenila
 from navbat.models import Navbat
-from navbat.services import keyingi_navbatga_taklif_yubor, navbatga_qosh
+from navbat.services import (
+    keyingi_navbatga_taklif_yubor,
+    navbatga_qosh,
+    navbatni_mavjud_nusxa_bilan_ishga_tushir,
+)
 from nusxa.models import Nusxa
+from oquvchi.models import Oquvchi
 from .models import Berish
 
 
@@ -82,6 +87,12 @@ def kitob_ber(nusxa, oquvchi, xodim, kitob=None):
     * `nusxa=None` va `kitob` berilsa — nusxasi yo'q kitob «asli» holatda
       beriladi (bunda `bergan_xodim` bo'sh qoldirilishi mumkin).
     """
+    # O'quvchi qatorini bloklash shart: limit tekshiruvi `count()` bilan
+    # bajariladi va ikki parallel so'rov (kutubxonachi ikki nusxa bir vaqtda
+    # berishi) limitni oshib ketishga olib kelardi — 3 limiti bilan 4 ta
+    # faol berish yaratilishi mumkin edi. `select_for_update` shu qatorni
+    # bloklab, tekshiruv va yozuvni ketma-ketlashtiradi.
+    oquvchi = Oquvchi.objects.select_for_update().get(pk=oquvchi.pk)
     _oq_berish_cheklovlari(oquvchi)
 
     if nusxa is None:
@@ -169,8 +180,18 @@ def _kitob_berildi_xabarini_yubor(berish):
 def kitob_qaytar(berish, xodim):
     """Kitobni qaytarib olish: avval nusxani bo'shatadi (nusxasiz «asli»
     kitobda esa faqat yozuv yopiladi), jarimani hisoblaydi (bor bo'lsa),
-    so'ng navbatdagi keyingi odamga taklif yuboradi (bo'lsa)."""
+    so'ng navbatdagi keyingi odamga taklif yuboradi (bo'lsa).
+
+    Ikkinchi marta qaytarish xatoga aylantiriladi: aks holda qaytarish sanasi
+    yangilanib, jarima qayta hisoblanar va navbatdagi keyingi odamga yana
+    taklif yuborilardi (bitta tugma ikki marta bosilishi yetarli)."""
     berish = Berish.objects.select_for_update().get(pk=berish.pk)
+    if berish.qaytarilgan_sana:
+        _xato(
+            "allaqachon_qaytarilgan",
+            "Bu kitob allaqachon qaytarib olingan",
+            qaytarilgan_sana=str(berish.qaytarilgan_sana),
+        )
     berish.qaytarilgan_sana = now().date()
     berish.olgan_xodim = xodim
     berish.holati = "qaytarilgan"
@@ -189,9 +210,11 @@ def kitob_qaytar(berish, xodim):
         jarima = jarimani_hisobla(berish)
         taklif_ketdi = keyingi_navbatga_taklif_yubor(nusxa.id)
     else:
-        # «Asli» kitob qaytarildi — nusxa yo'q, faqat kitob holati va
-        # navbatni bo'shatamiz (keyingi navbatdagiga taklif yuborilmaydi).
+        # «Asli» kitob qaytarildi — nusxa yo'q, faqat kitob holati
+        # yangilanadi. Navbatdagilar uchun «asli» holda taklif yuboriladi,
+        # aks holda ular navbatda abadi kutib qolardi.
         kitob_holatini_yenila(berish.kitob_id)
         jarima = jarimani_hisobla(berish)
+        taklif_ketdi = navbatni_mavjud_nusxa_bilan_ishga_tushir(berish.kitob_id)
 
     return berish, jarima, taklif_ketdi

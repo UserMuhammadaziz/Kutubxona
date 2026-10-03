@@ -13,6 +13,7 @@ from keyboards import (
     navbatga_turish_tugmasi,
 )
 from states import Qidiruv
+from utils import x, xabarni_tahrirlash
 
 router = Router(name="qidiruv")
 
@@ -66,7 +67,7 @@ async def qidiruv_natija(message: Message, state: FSMContext):
     try:
         natijalar = await api.kitob_qidir(q)
     except ApiXato as e:
-        await message.answer(f"Qidiruvda xatolik: {e.detail}")
+        await message.answer(f"Qidiruvda xatolik: {x(e.detail)}")
         return
 
     if not natijalar:
@@ -75,7 +76,7 @@ async def qidiruv_natija(message: Message, state: FSMContext):
 
     for kitob in natijalar[:KO_RSATILADIGAN_SONI]:
         matn = (
-            f"📖 <b>{kitob['nomi']}</b> — {kitob['muallif']} ({kitob['nashr_yili']})\n"
+            f"📖 <b>{x(kitob['nomi'])}</b> — {x(kitob['muallif'])} ({x(kitob['nashr_yili'])})\n"
             f"Mavjud: {kitob['mavjud_nusxalar']} / {kitob['jami_nusxalar']}"
         )
         await message.answer(matn, reply_markup=kitob_batafsil_tugmasi(kitob["id"]))
@@ -91,7 +92,10 @@ async def kategoriyalar(message: Message):
     try:
         janrlar = await api.kitob_janrlar()
     except ApiXato as e:
-        await message.answer(f"Xatolik: {e.detail}")
+        await message.answer(
+            f"Kategoriyalarni yuklab bo'lmadi: {x(e.detail)}\n\n"
+            "Bir ozdan keyin yana urinib ko'ring yoki /start bosing."
+        )
         return
 
     if not janrlar:
@@ -107,7 +111,7 @@ async def kategoriyalar(message: Message):
 async def _janr_ro_yxat_matn(janr: str, jami: int) -> str:
     label = await _janr_label(janr)
     return (
-        f"📚 <b>{label}</b> — jami <b>{jami}</b> ta kitob.\n\n"
+        f"📚 <b>{x(label)}</b> — jami <b>{jami}</b> ta kitob.\n\n"
         f"Kitob nomini bosing, batafsil ma'lumot chiqadi:\n"
         f"◀️ / ▶️ tugmalari bilan varaqlang."
     )
@@ -121,10 +125,11 @@ async def janrlarga_qaytish(callback: CallbackQuery):
         await callback.answer(e.detail, show_alert=True)
         return
     if not janrlar:
-        await callback.message.edit_text("Hozircha kutubxonada kitoblar yo'q.")
+        await xabarni_tahrirlash(callback, "Hozircha kutubxonada kitoblar yo'q.")
         await callback.answer()
         return
-    await callback.message.edit_text(
+    await xabarni_tahrirlash(
+        callback,
         "📚 Kategoriyani tanlang:",
         reply_markup=janr_tugmalari(janrlar),
     )
@@ -142,12 +147,13 @@ async def kategoriya_tanlandi(callback: CallbackQuery):
         return
 
     if not kitoblar:
-        await callback.message.edit_text("Bu kategoriyada kitob topilmadi.")
+        await xabarni_tahrirlash(callback, "Bu kategoriyada kitob topilmadi.")
         await callback.answer()
         return
 
     matn = await _janr_ro_yxat_matn(janr, jami)
-    await callback.message.edit_text(
+    await xabarni_tahrirlash(
+        callback,
         matn,
         reply_markup=janr_kitob_tugmalari(
             janr,
@@ -168,8 +174,12 @@ async def janr_sahifasi(callback: CallbackQuery):
         await callback.answer()
         return
 
-    janr, sahifa = callback.data.split(":", 2)[1:]
-    sahifa = int(sahifa)
+    qismlar = callback.data.split(":", 2)
+    if len(qismlar) < 3 or not qismlar[2].isdigit():
+        await callback.answer("Sahifa raqami noto'g'ri.", show_alert=True)
+        return
+    janr = qismlar[1]
+    sahifa = int(qismlar[2])
 
     try:
         kitoblar, jami = await _janr_sahifa_kitoblari(janr, sahifa=sahifa)
@@ -182,7 +192,8 @@ async def janr_sahifasi(callback: CallbackQuery):
         return
 
     matn = await _janr_ro_yxat_matn(janr, jami)
-    await callback.message.edit_text(
+    await xabarni_tahrirlash(
+        callback,
         matn,
         reply_markup=janr_kitob_tugmalari(
             janr,
@@ -198,8 +209,12 @@ async def janr_sahifasi(callback: CallbackQuery):
 
 @router.callback_query(F.data.startswith("jbook:"))
 async def janr_kitob_tanlandi(callback: CallbackQuery):
-    _, janr, sahifa, kitob_id = callback.data.split(":")
-    kitob_id = int(kitob_id)
+    qismlar = callback.data.split(":")
+    if len(qismlar) < 4 or not qismlar[3].isdigit():
+        await callback.answer("Kitob topilmadi.", show_alert=True)
+        return
+    janr, sahifa = qismlar[1], qismlar[2]
+    kitob_id = int(qismlar[3])
 
     try:
         kitob = await api.kitob_detail(kitob_id)
@@ -208,7 +223,8 @@ async def janr_kitob_tanlandi(callback: CallbackQuery):
         return
 
     matn = _kitob_batafsil_matn(kitob)
-    await callback.message.edit_text(
+    await xabarni_tahrirlash(
+        callback,
         matn,
         reply_markup=kitob_band_qilish_tugmalari(
             kitob_id, qaytish=f"jpage:{janr}:{sahifa}"
@@ -219,12 +235,20 @@ async def janr_kitob_tanlandi(callback: CallbackQuery):
 
 @router.callback_query(F.data.startswith("kitob:"))
 async def kitob_kartochka(callback: CallbackQuery):
-    kitob_id = int(callback.data.split(":")[1])
+    qismlar = callback.data.split(":")
+    if len(qismlar) < 2 or not qismlar[1].isdigit():
+        await callback.answer("Kitob topilmadi.", show_alert=True)
+        return
+    kitob_id = int(qismlar[1])
 
     try:
         kitob = await api.kitob_detail(kitob_id)
     except ApiXato as e:
         await callback.answer(e.detail, show_alert=True)
+        return
+
+    if callback.message is None:
+        await callback.answer("Xabar eskirgan. Qayta qidiring.", show_alert=True)
         return
 
     matn = _kitob_batafsil_matn(kitob)
@@ -237,17 +261,17 @@ def _kitob_batafsil_matn(kitob: dict) -> str:
     mavjud_nusxa = next((n for n in kitob["nusxalar"] if n["holati"] == "mavjud"), None)
 
     matn = (
-        f"📖 <b>{kitob['nomi']}</b>\n"
-        f"Muallif: {kitob['muallif']}\n"
-        f"Janr: {kitob['janr']}\n"
-        f"Nashriyot: {kitob.get('nashriyot') or '-'} ({kitob['nashr_yili']})"
+        f"📖 <b>{x(kitob['nomi'])}</b>\n"
+        f"Muallif: {x(kitob['muallif'])}\n"
+        f"Janr: {x(kitob['janr'])}\n"
+        f"Nashriyot: {x(kitob.get('nashriyot')) or '-'} ({x(kitob['nashr_yili'])})"
     )
     if kitob.get("tavsif"):
-        matn += f"\n\n{kitob['tavsif']}"
+        matn += f"\n\n{x(kitob['tavsif'])}"
 
     jami = len(kitob["nusxalar"])
     if mavjud_nusxa:
-        javon = mavjud_nusxa.get("javon") or "kutubxonachidan so'rang"
+        javon = x(mavjud_nusxa.get("javon")) or "kutubxonachidan so'rang"
         matn += f"\n\n✅ Kitob mavjud. Kutubxonaga kelib oling (javon: {javon})."
     elif jami:
         matn += "\n\n❌ Hozircha mavjud nusxa yo'q."
@@ -260,8 +284,16 @@ def _kitob_batafsil_matn(kitob: dict) -> str:
 
 @router.callback_query(F.data.startswith("navbat_tur:"))
 async def navbatga_tur(callback: CallbackQuery):
-    kitob_id = int(callback.data.split(":")[1])
+    qismlar = callback.data.split(":")
+    if len(qismlar) < 2 or not qismlar[1].isdigit():
+        await callback.answer("Kitob topilmadi.", show_alert=True)
+        return
+    kitob_id = int(qismlar[1])
     telegram_id = callback.from_user.id
+
+    if callback.message is None:
+        await callback.answer("Xabar eskirgan. Qayta qidiring.", show_alert=True)
+        return
 
     try:
         natija = await api.navbatga_tur(kitob_id, telegram_id)
@@ -271,14 +303,32 @@ async def navbatga_tur(callback: CallbackQuery):
             "oquvchi_bloklangan": "Sizning kartangiz bloklangan.",
             "allaqachon_navbatda": "Siz bu kitobga allaqachon navbatdasiz.",
         }
-        await callback.message.answer(xabarlar.get(e.kod, e.detail))
+        await callback.message.answer(x(xabarlar.get(e.kod, e.detail)))
         await callback.answer()
         return
 
-    await callback.message.answer(
-        f"✅ Kitob band qilindi! Siz navbatda {natija['orin']}-o'rindasiz.\n\n"
-        f"Kutubxonaga keling va kutubxonachidan «{await _kitob_nomi(kitob_id)}» kitobini so'rang."
-    )
+    nomi = await _kitob_nomi(kitob_id)
+
+    # Nusxasi yo'q kitobda navbatga qo'shilmaydi — asli kitob darhol
+    # beriladi. Aks holda foydalanuvchi navbatda turib qolardi va
+    # hech qachon kitob olmaganini sezmasdi.
+    if natija.get("berildi"):
+        berish = natija.get("berish") or {}
+        muddat = berish.get("qaytarish_muddati")
+        qator = f"📖 <b>{x(nomi)}</b>"
+        if muddat:
+            qator += f"\n📅 Qaytarish muddati: {muddat}"
+        await callback.message.answer(
+            f"✅ {qator}\n\n"
+            "Kitobda nusxa yo'q edi, shuning uchun <b>asli kitob</b> sizga "
+            "berildi (band qilindi).\n"
+            "📚 Mening kitoblarim orqali qaytarish muddatini ko'rasiz."
+        )
+    else:
+        await callback.message.answer(
+            f"✅ Kitob band qilindi! Siz navbatda {natija['orin']}-o'rindasiz.\n\n"
+            f"Kutubxonaga keling va kutubxonachidan «{x(nomi)}» kitobini so'rang."
+        )
     await callback.answer()
 
 

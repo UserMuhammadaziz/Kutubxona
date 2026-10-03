@@ -1,12 +1,19 @@
-import { Navigate, Outlet } from 'react-router-dom'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuthStore, isAdmin } from '../store/auth'
 import { Spinner } from './ui'
 
 export function RequireAuth() {
   const status = useAuthStore((s) => s.status)
+  const joylashuv = useLocation()
 
   if (status === 'idle' || status === 'loading') return <Spinner />
-  if (status === 'unauthenticated') return <Navigate to="/login" replace />
+  if (status === 'unauthenticated') {
+    // Foydalanuvchi kirishdan keyin avvalgi sahifaga qaytishi kerak —
+    // aks holda kirish oynasi har doim `/` ga tashlab ketadi va u
+    // kutayotgan sahifa yo'qoladi.
+    const qaytish = `${joylashuv.pathname}${joylashuv.search}`
+    return <Navigate to={`/login?from=${encodeURIComponent(qaytish)}`} replace />
+  }
 
   return <Outlet />
 }

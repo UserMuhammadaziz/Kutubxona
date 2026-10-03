@@ -1,6 +1,7 @@
 from django.utils.timezone import now
-from django.db.models import Count
+from django.db.models import Count, Q
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from berish.models import Berish
@@ -15,9 +16,24 @@ from user.permissions import IsLibrarian
 @permission_classes([IsLibrarian])
 def top_books(request):
     """GET /api/stats/top-books/?limit=10 — eng ko'p berilgan kitoblar reytingi."""
-    limit = int(request.query_params.get("limit", 10))
+    # `int()` xatosi 500 qaytarardi (masalan `?limit=abc`). Noto'g'ri
+    # yoki manfiy qiymat uchun 400 — foydalanuvchi nima qilishini biladi.
+    raw_limit = request.query_params.get("limit", 10)
+    try:
+        limit = int(raw_limit)
+    except (TypeError, ValueError):
+        raise ValidationError({"limit": "Butun son kiritishingiz kerak."})
+    if limit < 1 or limit > 100:
+        raise ValidationError({"limit": "1 dan 100 gacha son kiritishingiz kerak."})
+
+    # Berishlar ikki turda bo'ladi: nusxa orqali (nusxalar__berish) va
+    # nusxasi yo'q kitobni «asli» holda berish (kitob_id to'g'ridan-to'g'ri).
+    # Faqat birinchisini hisoblashda asli berilganlar reytingda yo'q edi.
+    berishlar_soni = Count("nusxalar__berish", distinct=True) + Count(
+        "berishlar", filter=Q(berishlar__nusxa__isnull=True), distinct=True
+    )
     qs = (
-        Kitob.objects.annotate(berishlar_soni=Count("nusxalar__berish"))
+        Kitob.objects.annotate(berishlar_soni=berishlar_soni)
         .order_by("-berishlar_soni")[:limit]
     )
     data = [

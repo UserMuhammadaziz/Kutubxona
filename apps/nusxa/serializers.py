@@ -23,11 +23,13 @@ class NusxaSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
     def validate(self, attrs):
-        # PATCH orqali kutubxonachi faqat tamirda / yoqolgan / mavjud ga
-        # o'zgartira oladi — berilgan / band holatlarini qo'lda qo'yish
-        # /api/loans/ va navbat mantig'iga tegishli, bu yerdan ta'qiqlanadi.
+        # Kutubxonachi faqat tamirda / yoqolgan / mavjud ga o'zgartira
+        # oladi — `berilgan` va `band` holatlari `/api/loans/` hamda
+        # navbat jarayonlari orqali qo'yiladi. Qo'lda qo'yilsa, Berish/
+        # Navbat yozuvlari bilan mos kelmaydi va keyingi berishda
+        # `IntegrityError` (500) chiqadi.
         holati = attrs.get("holati")
-        if self.instance and holati in ("berilgan", "band"):
+        if holati in ("berilgan", "band"):
             raise serializers.ValidationError(
                 {
                     "holati": (

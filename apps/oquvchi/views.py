@@ -42,8 +42,11 @@ class OquvchiViewSet(viewsets.ModelViewSet):
         return OquvchiSerializer
 
     def get_permissions(self):
-        if self.action == "bind":
-            return []
+        # `bind` ochiq emas: telefon + karta raqamini bilgan har kim
+        # internet orqali o'quvchi akkauntini o'z telegram_id'siga qayta
+        # bog'lashi (akkount egallash) mumkin edi. Endi so'rov
+        # autentifikatsiyalangan bo'lishi shart — bot o'z xizmat
+        # akkaunti JWT'si bilan chaqiradi.
         return [IsLibrarian()]
 
     def retrieve(self, request, *args, **kwargs):

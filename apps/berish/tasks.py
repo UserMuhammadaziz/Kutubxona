@@ -19,11 +19,21 @@ def eslatma_yuborish():
       2) yuborish muvaffaqiyatli bo'lgandagina belgi qo'yiladi — Telegram
          yuborilmasa, keyingi kunda qayta urinishadi.
     """
-    nishon_sana = now().date() + timedelta(days=settings.ESLATMA_KUNLAR_OLDIN)
-    qs = Berish.objects.select_related("oquvchi", "nusxa", "kitob").filter(
-        qaytarish_muddati=nishon_sana,
-        qaytarilgan_sana__isnull=True,
-        eslatma_yuborilgan=False,
+    bugun = now().date()
+    nishon_sana = bugun + timedelta(days=settings.ESLATMA_KUNLAR_OLDIN)
+    # Sana ANIQ tengligi bilan emas, oyna (range) bilan izlanadi. Aks holda
+    # celery beat kechiksa yoki server o'sha kuni o'chib qolsa, o'sha kuni
+    # yuborilmagan eslatma butunlay o'tib ketardi: belgi qo'yilmagan bo'lsa
+    # ham, keyingi chaqiruvda nishon_sana boshqacha bo'lgani uchun berish
+    # qayta topilmasdi.
+    qs = (
+        Berish.objects.select_related("oquvchi", "nusxa", "kitob")
+        .filter(
+            qaytarish_muddati__lte=nishon_sana,
+            qaytarish_muddati__gte=nishon_sana - timedelta(days=5),
+            qaytarilgan_sana__isnull=True,
+            eslatma_yuborilgan=False,
+        )
     )
 
     yuborildi = 0
@@ -34,19 +44,29 @@ def eslatma_yuborish():
             # belgi qo'ymay qoldiramiz, kelgusi haftada ham tekshiriladi.
             continue
 
-        qolgan = (berish.qaytarish_muddati - now().date()).days
+        qolgan = (berish.qaytarish_muddati - bugun).days
         if berish.nusxa_id:
             manzil = f"Inventar raqami: {berish.nusxa.inventar_raqami}"
         else:
             manzil = "Nusxasi yo'q — kitob aslida berilgan"
+        if qolgan < 0:
+            # Oyna tufayli kechikkan holat bo'lishi mumkin — "yaqinlashmoqda"
+            # emas, "o'tib ketdi" deb aytamiz.
+            sarlavha = "🔴 <b>Qaytarish muddati o'tib ketdi!</b>"
+            qolgan_matni = (
+                f"Muddati <b>{abs(qolgan)} kun</b> oldin o'tgan — jarima "
+                "belgilanishi mumkin."
+            )
+        else:
+            sarlavha = "⏰ <b>Qaytarish muddati yaqinlashmoqda!</b>"
+            qolgan_matni = f"Qolgan kun: <b>{qolgan}</b>"
         matn = (
-            "⏰ <b>Qaytarish muddati yaqinlashmoqda!</b>\n\n"
+            f"{sarlavha}\n\n"
             f"📖 <b>{telegram_escape(berish.kitob.nomi)}</b>\n"
             f"{manzil}\n"
             f"Qaytarish muddati: <b>{berish.qaytarish_muddati}</b>\n"
-            f"Qolgan kun: <b>{qolgan}</b>\n\n"
-            "Iltimos, vaqtida kutubxonaga qaytaring! Kechikdirilsa jarima "
-            "belgilanishi mumkin."
+            f"{qolgan_matni}\n\n"
+            "Iltimos, vaqtida kutubxonaga qaytaring!"
         )
 
         try:

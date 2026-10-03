@@ -163,7 +163,10 @@ def arizani_tasdiqla(ariza: Ariza):
         # lekin o'quvchi ularni allaqachon to'ldirgan bo'lsa ustidan
         # yozilmaydi (ariza ko'pincha faqat ism/telefon/sinf so'raydi).
         # Faqat o'zgarishi kerak bo'lgan maydonlarni saqlaymiz.
-        if oquvchi.sinf != ariza.sinf and ariza.sinf:
+        # O'qituvchiga sinf yozilmaydi — uning maydoni `kasb` (fan); aks
+        # holda o'qituvchi ham sinfli, ham kasbli bo'lib qolardi va
+        # frontend'da "fan" noto'g'ri ko'rinardi.
+        if ariza.rol != "oqituvchi" and oquvchi.sinf != ariza.sinf and ariza.sinf:
             oquvchi.sinf = ariza.sinf
             yangilangan.append("sinf")
         if ariza.tugilgan_sana and not oquvchi.tugilgan_sana:
@@ -179,7 +182,8 @@ def arizani_tasdiqla(ariza: Ariza):
             fish=ariza.fish,
             telefon=ariza.telefon,
             telegram_id=ariza.telegram_id,
-            sinf=ariza.sinf or "",
+            # O'qituvchining maydoni `kasb` (fan) — u sinfga yozilmaydi.
+            sinf="" if ariza.rol == "oqituvchi" else (ariza.sinf or ""),
             kasb=ariza.kasb or "",
             tugilgan_sana=ariza.tugilgan_sana,
             manzil=ariza.manzil,

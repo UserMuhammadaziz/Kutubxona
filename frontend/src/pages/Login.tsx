@@ -13,8 +13,13 @@ export function Login() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
+  // Foydalanuvchi kirishdan keyin kutayotgan sahifaga qaytadi. Manba
+  // ikkalida bo'lishi mumkin: `?from=` (RequireAuth) yoki `state.from`.
+  const params = new URLSearchParams(location.search)
+  const from =
+    params.get('from') ?? (location.state as { from?: string } | null)?.from ?? '/'
+
   if (status === 'authenticated') {
-    const from = (location.state as { from?: string } | null)?.from ?? '/'
     return <Navigate to={from} replace />
   }
 
@@ -24,7 +29,7 @@ export function Login() {
     setLoading(true)
     try {
       await login(username, password)
-      navigate('/', { replace: true })
+      navigate(from, { replace: true })
     } catch (err) {
       setError(errorMessage(err))
     } finally {

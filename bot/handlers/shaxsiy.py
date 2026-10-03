@@ -9,10 +9,37 @@ from keyboards import (
     navbatdan_chiqish_tugmasi,
     taklif_javob_tugmalari,
 )
+from utils import x, xabarni_tahrirlash
 
 router = Router(name="shaxsiy")
 
 BOGLANMAGAN_XABAR = "Avval /start orqali kartangizni bog'lang."
+
+
+def _xatolar(e: ApiXato) -> str:
+    """`topilmadi` — kartaga bog'lanmagan; boshqasi — server matni."""
+    return BOGLANMAGAN_XABAR if e.kod == "topilmadi" else x(e.detail)
+
+
+def _berish_qatori(b: dict) -> str:
+    """`/loans/my/` bitta yozuvi uchun xabar qatori."""
+    # Nusxasi yo'q kitob "asli" holda berilgan bo'ladi — inventar raqami
+    # bo'sh shuning uchun "INV: " emas, "Asli kitob" ko'rsatiladi.
+    if b.get("asli") or not b.get("inventar_raqami"):
+        manzil = "📕 Asli kitob (nusxasi yo'q)"
+    else:
+        manzil = f"🔖 {x(b['inventar_raqami'])}"
+
+    qator = (
+        f"📖 {x(b['kitob_nomi'])} ({manzil})\n"
+        f"   Qaytarish muddati: {b['qaytarish_muddati']}"
+    )
+    qolgan = b["qolgan_kun"]
+    if qolgan < 0:
+        qator += f"\n   ⚠️ Muddat {abs(qolgan)} kun o'tdi — jarima hisoblanmoqda"
+    else:
+        qator += f"\n   ⏳ Qolgan kun: {qolgan}"
+    return qator
 
 
 @router.message(F.text == MENING_KITOBLARIM)
@@ -21,26 +48,14 @@ async def kitoblarim(message: Message):
     try:
         royxat = await api.kitoblarim(telegram_id)
     except ApiXato as e:
-        await message.answer(BOGLANMAGAN_XABAR if e.kod == "topilmadi" else e.detail)
+        await message.answer(_xatolar(e))
         return
 
     if not royxat:
         await message.answer("Sizda hozir kutubxona kitobi yo'q.")
         return
 
-    qatorlar = []
-    for b in royxat:
-        qator = (
-            f"📖 {b['kitob_nomi']} (INV: {b['inventar_raqami']})\n"
-            f"   Qaytarish muddati: {b['qaytarish_muddati']}"
-        )
-        qolgan = b["qolgan_kun"]
-        if qolgan < 0:
-            qator += f"\n   ⚠️ Muddat {abs(qolgan)} kun o'tdi — jarima hisoblanmoqda"
-        else:
-            qator += f"\n   Qolgan kun: {qolgan}"
-        qatorlar.append(qator)
-
+    qatorlar = [_berish_qatori(b) for b in royxat]
     await message.answer("\n\n".join(qatorlar))
 
 
@@ -50,7 +65,7 @@ async def jarimalarim(message: Message):
     try:
         natija = await api.jarimalarim(telegram_id)
     except ApiXato as e:
-        await message.answer(BOGLANMAGAN_XABAR if e.kod == "topilmadi" else e.detail)
+        await message.answer(_xatolar(e))
         return
 
     jarimalar = natija["jarimalar"]
@@ -59,11 +74,11 @@ async def jarimalarim(message: Message):
         return
 
     qatorlar = [
-        f"📖 {j['kitob_nomi']}: {j['kechikkan_kunlar']} kun kechikish — {j['summa']} so'm"
+        f"📖 {x(j['kitob_nomi'])}: {j['kechikkan_kunlar']} kun kechikish — {x(j['summa'])} so'm"
         for j in jarimalar
     ]
     matn = "\n".join(qatorlar)
-    matn += f"\n\nUmumiy qarz: {natija['umumiy_qarz']} so'm"
+    matn += f"\n\n💰 Umumiy qarz: {natija['umumiy_qarz']} so'm"
     matn += "\n\nTo'lovni kutubxonachiga topshiring."
     await message.answer(matn)
 
@@ -74,53 +89,80 @@ async def navbatlarim(message: Message):
     try:
         royxat = await api.navbatlarim(telegram_id)
     except ApiXato as e:
-        await message.answer(BOGLANMAGAN_XABAR if e.kod == "topilmadi" else e.detail)
+        await message.answer(_xatolar(e))
         return
 
     if not royxat:
         await message.answer("Siz hech qanday navbatda emassiz.")
         return
 
+    chiqarilgan = []
     for n in royxat:
         if n["holati"] == "kutmoqda":
-            matn = f"📖 {n['kitob_nomi']} — navbatda {n['orin']}-o'rindasiz"
-            await message.answer(matn, reply_markup=navbatdan_chiqish_tugmasi(n["id"]))
+            orin = n.get("orin")
+            o_rin = f"{orin}-o'rindasiz" if orin else "navbatdasiz"
+            chiqarilgan.append(
+                (
+                    f"📖 {x(n['kitob_nomi'])} — navbatda {o_rin}",
+                    navbatdan_chiqish_tugmasi(n["id"]),
+                )
+            )
         elif n["holati"] == "taklif_qilindi":
-            matn = f"📖 {n['kitob_nomi']} — sizga taklif yuborilgan, javob bering:"
-            await message.answer(matn, reply_markup=taklif_javob_tugmalari(n["id"]))
+            chiqarilgan.append(
+                (
+                    f"📖 {x(n['kitob_nomi'])} — sizga taklif yuborilgan, javob bering:",
+                    taklif_javob_tugmalari(n["id"]),
+                )
+            )
+
+    if not chiqarilgan:
+        await message.answer("Sizning faol navbatingiz yo'q.")
+        return
+
+    for matn, tugmalar in chiqarilgan:
+        await message.answer(matn, reply_markup=tugmalar)
 
 
 @router.callback_query(F.data.startswith("navbat_chiq:"))
 async def navbatdan_chiq(callback: CallbackQuery):
-    navbat_id = int(callback.data.split(":")[1])
+    qismlar = callback.data.split(":")
+    if len(qismlar) < 2 or not qismlar[1].isdigit():
+        await callback.answer("Navbat topilmadi.", show_alert=True)
+        return
+    navbat_id = int(qismlar[1])
     try:
         await api.navbatdan_chiq(navbat_id)
     except ApiXato as e:
         await callback.answer(e.detail, show_alert=True)
         return
 
-    await callback.message.edit_text("🚪 Navbatdan chiqdingiz.")
+    await xabarni_tahrirlash(callback, "🚪 Navbatdan chiqdingiz.")
     await callback.answer()
 
 
 @router.callback_query(F.data.startswith("navbat_javob:"))
 async def navbat_javob_handler(callback: CallbackQuery):
-    _, navbat_id, javob = callback.data.split(":")
+    qismlar = callback.data.split(":")
+    if len(qismlar) < 3 or not qismlar[1].isdigit():
+        await callback.answer("Bekor qiling.", show_alert=True)
+        return
+    navbat_id, javob = qismlar[1], qismlar[2]
 
     try:
         await api.navbat_javob(int(navbat_id), javob)
     except ApiXato as e:
         if e.kod == "muddat_tugagan":
-            await callback.message.edit_text("⌛ Afsus, javob muddati tugagan.")
+            await xabarni_tahrirlash(callback, "⌛ Afsus, javob muddati tugagan.")
             await callback.answer()
         else:
             await callback.answer(e.detail, show_alert=True)
         return
 
     if javob == "olaman":
-        await callback.message.edit_text(
-            "✅ Nusxa 24 soat siz uchun ushlab turiladi, kutubxonaga kelib oling."
+        await xabarni_tahrirlash(
+            callback,
+            "✅ Nusxa 24 soat siz uchun ushlab turiladi, kutubxonaga kelib oling.",
         )
     else:
-        await callback.message.edit_text("❌ Rad etildingiz. Navbat bekor qilindi.")
+        await xabarni_tahrirlash(callback, "❌ Rad etildingiz. Navbat bekor qilindi.")
     await callback.answer()

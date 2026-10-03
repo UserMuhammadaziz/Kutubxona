@@ -89,10 +89,35 @@ def _botga_xabar_yubor(navbat_id):
 
 
 @transaction.atomic
+def navbatni_mavjud_nusxa_bilan_ishga_tushir(kitob_id):
+    """Kitob navbatida kutayotgan odam bo'lsa, mavjud nusxani (yoki nusxasiz
+    «asli» kitobni) birinchi odamga taklif qiladi.
+
+    Nusxa yo'q bo'lsa ham taklif yuboriladi: berish «asli» ko'rinishida
+    qayd etiladi, shunda navbat o'lik chorakda qolmaydi.
+    """
+    navbat_bormi = (
+        Navbat.objects.select_for_update()
+        .filter(kitob_id=kitob_id, holati="kutmoqda")
+        .exists()
+    )
+    if not navbat_bormi:
+        return False
+
+    nusxa = (
+        Nusxa.objects.select_for_update()
+        .filter(kitob_id=kitob_id, holati="mavjud")
+        .order_by("pk")
+        .first()
+    )
+    return taklif_yubor(kitob_id, nusxa)
+
+
+@transaction.atomic
 def taklif_yubor(kitob_id, nusxa):
     """Navbatdagi eng eski odamga (navbat_sanasi bo'yicha birinchi) shu
     nusxani taklif qiladi. Navbat bo'sh bo'lsa hech narsa qilmay False
-    qaytaradi."""
+    qaytaradi. `nusxa=None` — kitob «asli» holda beriladigan holat."""
     navbat = (
         Navbat.objects.select_for_update()
         .filter(kitob_id=kitob_id, holati="kutmoqda")
@@ -120,8 +145,9 @@ def taklif_yubor(kitob_id, nusxa):
         ]
     )
 
-    nusxa.holati = "band"
-    nusxa.save(update_fields=["holati"])
+    if nusxa:
+        nusxa.holati = "band"
+        nusxa.save(update_fields=["holati"])
 
     transaction.on_commit(lambda: _botga_xabar_yubor(navbat.pk))
     return True
@@ -167,4 +193,4 @@ def taklifni_bekor_qil_va_keyingisiga_ut(navbat, sabab, oquvchi_rozi=False):
     if nusxa:
         nusxa.holati = "mavjud"
         nusxa.save(update_fields=["holati"])
-        taklif_yubor(navbat.kitob_id, nusxa)
+    taklif_yubor(navbat.kitob_id, nusxa)

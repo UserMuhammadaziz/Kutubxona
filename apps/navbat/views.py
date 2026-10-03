@@ -3,6 +3,7 @@ from django.utils.timezone import now
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from berish.serializers import BerishSerializer
@@ -36,8 +37,13 @@ class NavbatViewSet(viewsets.ModelViewSet):
     http_method_names = ["get", "post", "delete"]
 
     def get_permissions(self):
+        # Navbatga turish, javob berish va bekor qilish ochiq emas edi:
+        # `AllowAny` holatda internetdagi istalgan kishi boshqa o'quvchining
+        # navbatini rad etishi, bekor qilishi yoki o'z navbatiga yozishi
+        # mumkin edi. Endi so'rov autentifikatsiyalangan bo'lishi shart —
+        # bot (xizmat akkaunti) va kutubxonachilar paneli shu yerda ishlaydi.
         if self.action in ("create", "meni", "respond", "destroy"):
-            return []
+            return [IsAuthenticated()]
         return [IsLibrarian()]
 
     def create(self, request, *args, **kwargs):

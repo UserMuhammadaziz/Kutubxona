@@ -3,6 +3,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from berish.serializers import BerishSerializer
+from navbat.services import navbatni_mavjud_nusxa_bilan_ishga_tushir
 from user.permissions import IsLibrarian
 from .models import Nusxa
 from .serializers import NusxaSerializer, NusxaYaratishSerializer
@@ -27,6 +28,19 @@ class NusxaViewSet(viewsets.ModelViewSet):
             return NusxaYaratishSerializer
 
         return NusxaSerializer
+
+    def perform_create(self, serializer):
+        nusxa = serializer.save()
+        # Yangi nusxa qo'shilishi — navbatda turgan o'quvchilar uchun
+        # kitob endi mavjud, demak taklif yuborishimiz mumkin.
+        navbatni_mavjud_nusxa_bilan_ishga_tushir(nusxa.kitob_id)
+
+    def perform_update(self, serializer):
+        nusxa = serializer.save()
+        # Nusxa ta'mirdan chiqib "mavjud" holatga o'tsa, navbatni
+        # darhol ishga tushiramiz (navbat o'lik chorakda qolmasin).
+        if nusxa.holati == "mavjud":
+            navbatni_mavjud_nusxa_bilan_ishga_tushir(nusxa.kitob_id)
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
