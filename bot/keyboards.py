@@ -21,6 +21,8 @@ MENYU = "🏠 Menyu"
 MENYU_START = "▶️ Start"
 MENYU_YORDAM = "❓ Yordam"
 YORDAM = MENYU_YORDAM
+# Ariza maydoni yonidagi tugma — `/start` bilan bir xil oqimni ishga tushiradi.
+BOSHLASH = "▶️ Boshlash"
 
 # Asosiy menyudagi barcha tugma matnlari. Ariza to'ldirilayotgan paytda
 # foydalanuvchi shu tugmalardan birini bossa, matn "sinf" yoki "kasb"
@@ -37,6 +39,7 @@ ASOSIY_TUGMALAR = frozenset(
         MENYU,
         MENYU_START,
         MENYU_YORDAM,
+        BOSHLASH,
     }
 )
 
@@ -71,8 +74,33 @@ def telefon_sorash() -> ReplyKeyboardMarkup:
     )
 
 
+def ariza_klaviaturasi(telefon_tugmasi: bool = False) -> ReplyKeyboardMarkup:
+    """Ariza to'ldirilayotganda maydon YONIDAGI doimiy tugmalar.
+
+    Foydalanuvchi ism-familiya, telefon yoki sinf/kasb yozayotgan paytda
+    pastdagi klaviatura bo'sh qolmasin — har doim ikki tugma turishi kerak:
+
+    * `▶️ Boshlash` — arizani tashlab, `/start` oqimini qayta boshlaydi;
+    * `❓ Yordam` — yordam matnini ko'rsatib, **arizani bekor qilmaydi**,
+      savolni o'z holicha qaytaradi (`handlers/navigatsiya.py`).
+
+    `telefon_tugmasi=True` bo'lsa, tepasiga Telegram kontakt yuborish
+    tugmasi qo'shiladi (faqat telefon bosqichida kerak).
+    """
+    qatorlar: list[list[KeyboardButton]] = []
+    if telefon_tugmasi:
+        qatorlar.append([KeyboardButton(text=TELEFON_YUBORISH, request_contact=True)])
+    qatorlar.append(
+        [
+            KeyboardButton(text=BOSHLASH),
+            KeyboardButton(text=MENYU_YORDAM),
+        ]
+    )
+    return ReplyKeyboardMarkup(keyboard=qatorlar, resize_keyboard=True)
+
+
 def klaviatura_olib_tashla() -> ReplyKeyboardRemove:
-    """Telefon raqami qabul qilingach pastdagi tugmalarni yo'q qiladi."""
+    """Ariza yuborilgach pastdagi tugmalarni butunlay yo'q qiladi."""
     return ReplyKeyboardRemove()
 
 

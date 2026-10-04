@@ -1,4 +1,4 @@
-﻿"""Ixtiyoriy (qo'shimcha ball) qism: kutubxonachi botga inventar raqamini
+"""Ixtiyoriy (qo'shimcha ball) qism: kutubxonachi botga inventar raqamini
 yuborib, kitobni qaytarib olishi va band qilingan so'rovlarni tasdiqlashi
 mumkin. `/qaytar` buyrug'i bilan qaytarish, `/bandlar` bilan esa band
 so'rovlari ro'yxati ochiladi.
@@ -9,6 +9,8 @@ ya'ni kutubxonachi huquqiga ega. Bot esa o'z xizmat akkaunti orqali
 ro'yxatidagi chat_id lar uchun ishlaydi (bo'lmasa buyruq butunlay
 o'chiriladi). Band so'rovlarini tasdiqlash veb-panel orqali ham mumkin.
 """
+from datetime import datetime
+
 from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -19,6 +21,7 @@ import branding as b
 from api_client import ApiXato, api
 from keyboards import (
     ASOSIY_TUGMALAR,
+    ariza_klaviaturasi,
     band_tasdiq_tugmalari,
     qaytarish_tasdiq_tugmasi,
 )
@@ -26,6 +29,25 @@ from states import KutubxonachiQaytarish
 from utils import x, xabarni_tahrirlash
 
 router = Router(name="kutubxonachi")
+
+# Inventar raqami so'raladigan xabar. `navigatsiya.py` «❓ Yordam»dan keyin
+# shu savolni qaytaradi, shuning uchun bitta joyda saqlanadi.
+INVENTAR_SAVOLI = "Inventar raqamini yuboring (masalan: INV-000412):"
+
+
+def sana_vaqt(qiymat: str) -> str:
+    """ISO sanani "04.10.2026, 07:02" ko'rinishida qaytaradi.
+
+    Xom qiymat (`2026-10-04T07:02:10Z`) foydalanuvchiga noto'g'ri
+    ko'rinardi. `datetime` vaqt zonasi UTC da bo'lgani uchun mahalliy
+    ko'rinishga o'tkaziladi.
+    """
+    try:
+        d = datetime.fromisoformat(str(qiymat).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return str(qiymat)
+    return d.strftime("%d.%m.%Y, %H:%M")
+
 
 RUXSAT_YUQ = (
     "Bu buyruq faqat kutubxonachilar uchun.\n\n"
@@ -50,7 +72,7 @@ async def qaytarish_boshla(message: Message, state: FSMContext):
     if not await _ruxsat_berilganmi(message):
         return
     await state.set_state(KutubxonachiQaytarish.inventar)
-    await message.answer("Inventar raqamini yuboring (masalan: INV-000412):")
+    await message.answer(INVENTAR_SAVOLI, reply_markup=ariza_klaviaturasi())
 
 
 @router.message(KutubxonachiQaytarish.inventar)
@@ -62,7 +84,7 @@ async def inventar_qabul(message: Message, state: FSMContext):
     matn = (message.text or "").strip()
     if matn in ASOSIY_TUGMALAR:
         # Pastdagi menyu tugmasi bosilgan — inventar raqami emas.
-        await message.answer("Iltimos, inventar raqamini yozing (masalan: INV-000412):")
+        await message.answer(INVENTAR_SAVOLI)
         return
 
     await state.clear()
@@ -93,7 +115,8 @@ async def inventar_qabul(message: Message, state: FSMContext):
         return
 
     matn = (
-        f"«{x(nusxa['kitob_nomi'])}» ({inv}) — {x(faol['oquvchi_fish'])} da.\n"
+        f"«{x(nusxa['kitob_nomi'])}» ({inv})\n"
+        f"Kimda: {x(faol['oquvchi_fish'])}\n"
         f"Qaytarib olinsinmi?"
     )
     await message.answer(matn, reply_markup=qaytarish_tasdiq_tugmasi(faol["id"]))
@@ -165,7 +188,7 @@ async def bandlar_koritaz(message: Message, state: FSMContext):
         f"Kutilmoqda: <b>{len(bandlar)}</b> ta so'rov\n"
         + b.chiziq()
         + "\n\nHar birini tasdiqlang — kitob so'rov qilgan o'quvchiga beriladi "
-        "va unga xabar yuboriladi — yoki rad eting."
+        "va unga xabar yuboriladi, yoki rad eting."
     )
     for r in bandlar[:20]:
         rol = "o'qituvchi" if r.get("oquvchi_rol") == "oqituvchi" else "o'quvchi"
@@ -176,7 +199,7 @@ async def bandlar_koritaz(message: Message, state: FSMContext):
         if r.get("oquvchi_sinf"):
             qator += f" · {x(r['oquvchi_sinf'])}"
         if r.get("so_rov_sanasi"):
-            qator += f"\nSo'rov: {r['so_rov_sanasi'][:16]}"
+            qator += f"\nSo'rov: {sana_vaqt(r['so_rov_sanasi'])}"
         if r.get("izoh"):
             qator += f"\n<i>{x(r['izoh'])}</i>"
         await message.answer(qator, reply_markup=band_tasdiq_tugmalari(r["id"]))
@@ -202,8 +225,8 @@ async def bandni_tasdiqlash(callback: CallbackQuery):
     await xabarni_tahrirlash(
         callback,
         "<b>Tasdiqlandi</b> — kitob so'rov qilgan o'quvchiga berildi.\n\n"
-        f"Kitob: {x(natija.get('kitob_nomi'))}\n"
-        f"O'quvchi: {x(natija.get('oquvchi_fish'))}\n\n"
+        f"Kitob: {x(natija.get('kitob_nomi')) or '—'}\n"
+        f"O'quvchi: {x(natija.get('oquvchi_fish')) or '—'}\n\n"
         "O'quvchiga qaytarish muddati bilan xabar yuborildi.",
     )
     await callback.answer()
@@ -229,8 +252,8 @@ async def bandni_rad_etish(callback: CallbackQuery):
     await xabarni_tahrirlash(
         callback,
         "<b>So'rov rad etildi.</b> Kitob yana boshqalarga berilishi mumkin.\n\n"
-        f"Kitob: {x(natija.get('kitob_nomi'))}\n"
-        "O'quvchiga rad etilganligi va sababi yuborildi.",
+        f"Kitob: {x(natija.get('kitob_nomi')) or '—'}\n"
+        "O'quvchiga rad etilganligi ham, sababi ham yuborildi.",
     )
     await callback.answer()
     

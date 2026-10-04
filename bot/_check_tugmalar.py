@@ -1,4 +1,4 @@
-﻿"""Telegram botning barcha tugmalari va API oqimlarini tekshiruvchi skript.
+"""Telegram botning barcha tugmalari va API oqimlarini tekshiruvchi skript.
 
     python bot/_check_tugmalar.py            # statik tekshiruv (offline)
     python bot/_check_tugmalar.py --live     # + haqiqiy API ga so'rovlar
@@ -18,6 +18,7 @@ tuzilmasini tekshiradi — ayniqsa "Kategoriyalar" tugmasi (`/books/genres/`).
 """
 import asyncio
 import inspect
+import re
 import sys
 from pathlib import Path
 
@@ -656,6 +657,199 @@ async def main() -> int:
     tekshir(
         band_servis.count("transaction.on_commit") >= 2,
         "band xabarlari `transaction.on_commit` orqali yuboriladi",
+    )
+
+    # ------------------------------------------------ 9. menyu tugmalari
+    print()
+    print("=" * 72)
+    print("9. YOZILAYOTGAN MAYDON YONIDAGI MENYU TUGMALARI")
+    print("=" * 72)
+
+    tekshir(
+        kb.BOSHLASH == "▶️ Boshlash",
+        f"Boshlash tugmasi bor: '{kb.BOSHLASH}'",
+    )
+    tekshir(
+        kb.BOSHLASH in kb.ASOSIY_TUGMALAR,
+        "Boshlash `ASOSIY_TUGMALAR` da — ariza maydoniga tushib ketmaydi",
+    )
+
+    klav = kb.ariza_klaviaturasi()
+    matnlar = [b.text for qator in klav.keyboard for b in qator]
+    tekshir(
+        matnlar == [kb.BOSHLASH, kb.MENYU_YORDAM],
+        f"ariza klaviaturasida Boshlash + Yordam bor: {matnlar}",
+    )
+    tekshir(
+        kb.MENYU_YORDAM in matnlar,
+        "Yordam tugmasi maydon yonida turadi",
+    )
+
+    tel_klav = kb.ariza_klaviaturasi(telefon_tugmasi=True)
+    tel_matnlar = [b.text for qator in tel_klav.keyboard for b in qator]
+    tekshir(
+        tel_matnlar[0] == kb.TELEFON_YUBORISH,
+        "telefon bosqichida kontakt tugmasi tepada",
+    )
+    tekshir(
+        kb.BOSHLASH in tel_matnlar and kb.MENYU_YORDAM in tel_matnlar,
+        "telefon bosqichida ham Boshlash + Yordam bor",
+    )
+
+    nav = Path(ROOT / "bot" / "handlers" / "navigatsiya.py").read_text(
+        encoding="utf-8"
+    )
+    tekshir(
+        "F.text == BOSHLASH" in nav,
+        "navigatsiya.py da «Boshlash» tugmasi handler'i bor",
+    )
+    # Muhim: navigatsiya router'i state handler'laridan OLDIN ro'yxatlanishi
+    # kerak, aks holda «Boshlash»/«Yordam» ariza maydoniga matn bo'lib ketadi.
+    main_py = Path(ROOT / "bot" / "main.py").read_text(encoding="utf-8")
+    router_tartibi = re.findall(r"dp\.include_router\((\w+)\.router\)", main_py)
+    tekshir(
+        bool(router_tartibi) and router_tartibi[0] == "navigatsiya",
+        f"navigatsiya router'i birinchi ro'yxatlanadi ({router_tartibi[:2]})",
+    )
+    if "navigatsiya" in router_tartibi and "start" in router_tartibi:
+        tekshir(
+            router_tartibi.index("navigatsiya") < router_tartibi.index("start"),
+            "menyu router'i ariza (start) router'idan oldin — tugma maydonga tushmaydi",
+        )
+    tekshir(
+        "_yordam_ber" in nav,
+        "yordam umumiy yordamchi orqali beriladi (bo'limlar uchun bir xil)",
+    )
+    _yordam_ber_manzili = nav.split("async def _yordam_ber")[1].split("async def boshlash_tugmasi")[0]
+    tekshir(
+        "_arizani_tugatish" not in _yordam_ber_manzili and "state.clear()" not in _yordam_ber_manzili.split("if joriy in YOZISH_BOSQICHLARI")[0],
+        "yordam yozilayotgan ma'lumotni bekor qilmaydi",
+    )
+
+    # Yordam ariza/qidiruv/inventar bosqichida savolni qaytarishi kerak.
+    start_py = Path(ROOT / "bot" / "handlers" / "start.py").read_text(
+        encoding="utf-8"
+    )
+    tekshir(
+        "def joriy_savol(" in start_py,
+        "start.py da joriy savolni qaytaruvchi yordamchi bor",
+    )
+    tekshir(
+        "ariza_klaviaturasi" in start_py,
+        "ariza bosqichlarida maydon yonidagi klaviatura ishlatiladi",
+    )
+    tekshir(
+        "klaviatura_olib_tashla()" not in start_py.split("async def _telefon_qabul")[1].split("async def ariza_sinf")[0],
+        "telefon qabul qilingach klaviatura O'CHIRILMAYDI (menyu saqlanadi)",
+    )
+
+    qidiruv_py = Path(ROOT / "bot" / "handlers" / "qidiruv.py").read_text(
+        encoding="utf-8"
+    )
+    tekshir(
+        "QIDIRUV_SAVOLI" in qidiruv_py and "ariza_klaviaturasi()" in qidiruv_py,
+        "qidiruv maydonida ham Boshlash + Yordam bor",
+    )
+
+    kutubxonachi_py = Path(
+        ROOT / "bot" / "handlers" / "kutubxonachi.py"
+    ).read_text(encoding="utf-8")
+    tekshir(
+        "INVENTAR_SAVOLI" in kutubxonachi_py
+        and "ariza_klaviaturasi()" in kutubxonachi_py,
+        "inventar maydonida ham Boshlash + Yordam bor",
+    )
+
+    # ------------------------------------------------ 10. matn imlosi
+    print()
+    print("=" * 72)
+    print("10. MATN IMLOSI VA KONSISTENTLIGI")
+    print("=" * 72)
+
+    from utils import yordam_matni
+
+    yordam_matni_tekshir = yordam_matni()
+    tekshir(
+        kb.BOSHLASH in yordam_matni_tekshir,
+        "yordam matnida «Boshlash» tugmasi nomi keltirilgan",
+    )
+    tekshir(
+        "bosib bo'lmaydi" not in yordam_matni_tekshir,
+        "yordam matnida eskirgan «bosib bo'lmaydi» yozuvi yo'q",
+    )
+    tekshir(
+        "Bandlarim" in yordam_matni_tekshir,
+        "yordam matnida «Bandlarim» bo'limi ko'rsatilgan",
+    )
+
+    # Butun bot matnlarida kirill harf, tipograf apostrof va begona
+    # yorliq qavslar bo'lmasin.
+    kirill = []
+    tipograf = []
+    begona = []
+    for fayl in sorted((ROOT / "bot").rglob("*.py")):
+        if "__pycache__" in str(fayl) or fayl.name.startswith("_"):
+            continue
+        matn = fayl.read_text(encoding="utf-8-sig")
+        for i, qator in enumerate(matn.splitlines(), 1):
+            if re.search(r"[\u0400-\u04FF]", qator):
+                kirill.append(f"{fayl.name}:{i}")
+            if re.search(r"[\u2018\u2019]", qator):
+                tipograf.append(f"{fayl.name}:{i}")
+            # `「」` (yapon/korel) va `“”` — o'zbek matnida ishlatilmaydi.
+            if re.search(r"[\u300c\u300d\u201c\u201d]", qator):
+                begona.append(f"{fayl.name}:{i}")
+    tekshir(not kirill, f"bot matnlarida kirill harf yo'q ({kirill or 'toza'})")
+    tekshir(
+        not tipograf,
+        f"bot matnlarida tipograf apostrof yo'q ({tipograf or 'toza'})",
+    )
+    tekshir(
+        not begona,
+        f"bot matnlarida begona qavslar yo'q ({begona or 'toza'})",
+    )
+
+    # Noto'g'ri yozuvlar (avval aniqlangan xatolar).
+    NOTO_GRI = [
+        ("kartangizni bog'lang", "shaxsiy.py da eskirgan «kartangizni bog'lang»"),
+        ("Quyidagilar to'g'ri keladi", "start.py da «Quyidagilar» noto'g'ri"),
+        ("ISBN ni", "qidiruv.py da «ISBN ni» (ortiqcha probel)"),
+        ("«Band qilish» ni", "qidiruv.py da «Band qilish» ni (ortiqcha probel)"),
+        ("imtihonga...). ", "qidiruv.py da «imtihonga...). »"),
+        ("band'so'rovini", "qidiruv.py da «band'so'rovini» (bo'sh joy yo'q)"),
+        ("da.\n", "kutubxonachi.py da «X da» egalik qo'shimchasi"),
+        ("yuboriladi — yoki", "kutubxonachi.py da noto'g'ri tire"),
+        ("va sababi yuborildi", "kutubxonachi.py da «rad etilganligi va sababi»"),
+    ]
+    for izoh_matn, izoh in NOTO_GRI:
+        topildi = [
+            fayl.name
+            for fayl in sorted((ROOT / "bot").rglob("*.py"))
+            # `_` bilan boshlanadigan fayllar — tekshiruv skriptlari va
+            # vaqtinchali yordamchilar (ularda qidirilayotgan so'zlar
+            # "noto'g'ri yozuv" sifatida mavjud).
+            if "__pycache__" not in str(fayl)
+            and not fayl.name.startswith("_")
+            and izoh_matn in fayl.read_text(encoding="utf-8-sig")
+        ]
+        tekshir(not topildi, f"{izoh} ({', '.join(topildi) or 'topilmadi'})")
+
+    # Takror yozilgan xato xabarlari (uchala joyda) bitta joyga chiqarilgan.
+    tekshir(
+        qidiruv_py.count("xabarlar = {") == 0
+        and "BAND_XATOLARI" in qidiruv_py
+        and "NAVBAT_XATOLARI" in qidiruv_py,
+        "band/navbat xato xabarlari bitta joydan olinadi (takror yo'q)",
+    )
+
+    # Xom ISO sana foydalanuvchiga ko'rsatilmasin.
+    tekshir(
+        "so_rov_sanasi'][:16]" not in kutubxonachi_py,
+        "xom ISO sana (`[:16]`) ko'rsatilmaydi",
+    )
+    tekshir(
+        "sana_vaqt(" in kutubxonachi_py,
+        "sana `sana_vaqt()` yordamchisi orqali formatlanadi",
     )
 
     if "--live" in sys.argv:

@@ -7,6 +7,7 @@ from api_client import ApiXato, api
 from keyboards import (
     KATEGORIYALAR,
     KITOB_QIDIRISH,
+    ariza_klaviaturasi,
     band_bekor_tugmasi,
     janr_kitob_tugmalari,
     janr_tugmalari,
@@ -28,6 +29,30 @@ JANR_QATORLAR = 10
 JANR_API_SAHIFA_O_LCHAMI = 20
 
 _janr_label_lar = {}
+
+# Band va navbat so'rovlarida keladigan bir xil API xatolari. Uch handler'da
+# takror yozilgan edi — matn bir marta o'zgartirilsa, uchala joy ham
+# yangilanishini kafolatlaymiz.
+BAND_XATOLARI = {
+    "oquvchi_topilmadi": "Avval /start orqali ro'yxatdan o'ting.",
+    "topilmadi": "Avval /start orqali ro'yxatdan o'ting.",
+    "oquvchi_bloklangan": "Sizning kartangiz bloklangan.",
+    "allaqachon_band_qilingan": "Bu kitob boshqa o'quvchi uchun band qilingan.",
+    "allaqachon_berilgan": "Bu kitob allaqachon sizda bor.",
+}
+
+NAVBAT_XATOLARI = {
+    **BAND_XATOLARI,
+    "allaqachon_navbatda": "Siz bu kitobga allaqachon navbatdasiz.",
+    "barcha_nusxalar_berilgan": "Bu kitobning nusxalari hozir berilgan.",
+}
+
+# Kategoriya tanlash xabari ikki handler'da takror yozilgan edi.
+KATEGORIYA_SAVOLI = "📚 Kategoriyani tanlang:"
+
+# Qidiruv maydoni savoli — `navigatsiya.py` «❓ Yordam»dan keyin shu
+# savolni qaytaradi.
+QIDIRUV_SAVOLI = "Kitob nomi, muallif yoki ISBNni yozing:"
 
 
 async def _janr_label(janr_key: str) -> str:
@@ -55,7 +80,12 @@ async def _janr_sahifa_kitoblari(janr: str, sahifa: int):
 @router.message(F.text == KITOB_QIDIRISH)
 async def qidiruv_boshla(message: Message, state: FSMContext):
     await state.set_state(Qidiruv.matn)
-    await message.answer("Kitob nomi, muallif yoki ISBN ni yozing:")
+    await message.answer(
+        QIDIRUV_SAVOLI,
+        # Qidiruv maydoni ham foydalanuvchi yozadigan joy — yonida
+        # «▶️ Boshlash» va «❓ Yordam» tugmalari turishi kerak.
+        reply_markup=ariza_klaviaturasi(),
+    )
 
 
 @router.message(Qidiruv.matn)
@@ -104,10 +134,7 @@ async def kategoriyalar(message: Message):
         await message.answer("Hozircha kutubxonada kitoblar yo'q.")
         return
 
-    await message.answer(
-        "📚 Kategoriyani tanlang:",
-        reply_markup=janr_tugmalari(janrlar),
-    )
+    await message.answer(KATEGORIYA_SAVOLI, reply_markup=janr_tugmalari(janrlar))
 
 
 async def _janr_ro_yxat_matn(janr: str, jami: int) -> str:
@@ -132,7 +159,7 @@ async def janrlarga_qaytish(callback: CallbackQuery):
         return
     await xabarni_tahrirlash(
         callback,
-        "📚 Kategoriyani tanlang:",
+        KATEGORIYA_SAVOLI,
         reply_markup=janr_tugmalari(janrlar),
     )
     await callback.answer()
@@ -305,7 +332,7 @@ def _kitob_batafsil_matn(kitob: dict) -> str:
 
     matn += (
         "\n\n<b>Band qilish</b> — kitobni maxsus maqsadga saqlab qoyish"
-        " (o'qituvchi darsga tayyorlanmoqda, o'quvchi imtihonga...). "
+        " (o'qituvchi darsga, o'quvchi imtihonga tayyorlanmoqda). "
         "Band qilingan kitob boshqalarga berilmaydi: uni faqat kutubxonachi "
         "tasdiqlagandan keyin sizga beriladi va tasdiqlanganligi xabar qilinadi."
     )
@@ -340,14 +367,7 @@ async def band_qilish_sorovi(callback: CallbackQuery):
     try:
         band = await api.band_qil(kitob_id, callback.from_user.id)
     except ApiXato as e:
-        xabarlar = {
-            "oquvchi_topilmadi": "Avval /start orqali ro'yxatdan o'ting.",
-            "topilmadi": "Avval /start orqali ro'yxatdan o'ting.",
-            "oquvchi_bloklangan": "Sizning kartangiz bloklangan.",
-            "allaqachon_band_qilingan": "Bu kitob boshqa o'quvchi uchun band qilingan.",
-            "allaqachon_berilgan": "Bu kitob allaqachon sizda bor.",
-        }
-        await callback.message.answer(x(xabarlar.get(e.kod, e.detail)))
+        await callback.message.answer(x(BAND_XATOLARI.get(e.kod, e.detail)))
         await callback.answer()
         return
 
@@ -368,7 +388,7 @@ async def band_qilish_sorovi(callback: CallbackQuery):
 
 @router.callback_query(F.data.startswith("band_bekor:"))
 async def band_bekor_qilish(callback: CallbackQuery):
-    """O'quvchi o'z band'so'rovini bekor qiladi — kitob yana ochiq bo'ladi."""
+    """O'quvchi o'z band so'rovini bekor qiladi — kitob yana ochiq bo'ladi."""
     qismlar = callback.data.split(":")
     if len(qismlar) < 2 or not qismlar[1].isdigit():
         await callback.answer("So'rov topilmadi.", show_alert=True)
@@ -417,14 +437,7 @@ async def navbat_qoldirish(callback: CallbackQuery):
     try:
         natija = await api.navbatga_tur(kitob_id, telegram_id)
     except ApiXato as e:
-        xabarlar = {
-            "oquvchi_topilmadi": "Avval /start orqali ro'yxatdan o'ting.",
-            "topilmadi": "Avval /start orqali ro'yxatdan o'ting.",
-            "oquvchi_bloklangan": "Sizning kartangiz bloklangan.",
-            "allaqachon_navbatda": "Siz bu kitobga allaqachon navbatdasiz.",
-            "barcha_nusxalar_berilgan": "Bu kitobning nusxalari hozir berilgan.",
-        }
-        await callback.message.answer(x(xabarlar.get(e.kod, e.detail)))
+        await callback.message.answer(x(NAVBAT_XATOLARI.get(e.kod, e.detail)))
         await callback.answer()
         return
 
@@ -448,7 +461,7 @@ async def navbat_qoldirish(callback: CallbackQuery):
             f"Kitob bo'shagan zahoti «{x(nomi)}» kitobini sizga taklif qilinadi. "
             "Navbatni bekor qilish uchun «Navbatlarim» bo'limidan foydalaning.\n"
             "Maxsus maqsadga (dars, imtihon, tadbir) ajratish uchun esa "
-            "«Band qilish» ni ishlating — u tasdiqlash kutiladi."
+            "«Band qilish»ni ishlating — u tasdiqlash kutiladi."
         )
     await callback.answer()
 
@@ -470,14 +483,7 @@ async def _band_so_rovi_yubor(callback: CallbackQuery, kitob_id: int) -> None:
     try:
         band = await api.band_qil(kitob_id, callback.from_user.id)
     except ApiXato as e:
-        xabarlar = {
-            "oquvchi_topilmadi": "Avval /start orqali ro'yxatdan o'ting.",
-            "topilmadi": "Avval /start orqali ro'yxatdan o'ting.",
-            "oquvchi_bloklangan": "Sizning kartangiz bloklangan.",
-            "allaqachon_band_qilingan": "Bu kitob boshqa o'quvchi uchun band qilingan.",
-            "allaqachon_berilgan": "Bu kitob allaqachon sizda bor.",
-        }
-        await callback.message.answer(x(xabarlar.get(e.kod, e.detail)))
+        await callback.message.answer(x(BAND_XATOLARI.get(e.kod, e.detail)))
         await callback.answer()
         return
 

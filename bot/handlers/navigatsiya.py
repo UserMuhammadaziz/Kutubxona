@@ -22,6 +22,7 @@ from aiogram.types import CallbackQuery, Message
 from handlers import kutubxonachi, qidiruv, shaxsiy, start
 from keyboards import (
     BANDLARIM,
+    BOSHLASH,
     JARIMALARIM,
     KATEGORIYALAR,
     KITOB_QIDIRISH,
@@ -30,14 +31,22 @@ from keyboards import (
     MENYU_YORDAM,
     NAVBATLARIM,
     YORDAM,
+    ariza_klaviaturasi,
     menyu_tugmalari,
 )
-from states import Ariza
+from states import Ariza, KutubxonachiQaytarish, Qidiruv
 from utils import x, xabarni_tahrirlash, yordam_matni
 
 router = Router(name="navigatsiya")
 
 ARIZA_BOSQICHLARI = frozenset(Ariza.__all_states__)
+# Foydalanuvchi matn yozayotgan barcha holatlar. Shu holatlarda yordam
+# so'ralsa, ariza/kiritish bekor qilinmaydi — yordam ko'rsatilib, savol
+# o'sha yerga qaytariladi.
+YOZISH_BOSQICHLARI = ARIZA_BOSQICHLARI | {
+    Qidiruv.matn.state,
+    KutubxonachiQaytarish.inventar.state,
+}
 
 
 async def _arizani_tugatish(message: Message, state: FSMContext) -> bool:
@@ -55,6 +64,38 @@ async def _arizani_tugatish(message: Message, state: FSMContext) -> bool:
         "Qayta boshlash uchun /start bosing."
     )
     return True
+
+
+async def _yordam_ber(message: Message, state: FSMContext) -> None:
+    """«❓ Yordam» yoki `/yordam` — yozilayotgan ma'lumotni BUZMAYDI.
+
+    Ariza to'ldirilayotganda yordam so'ralsa, ariza bekor qilinardi —
+    foydalanuvchi bir necha maydon to'ldirib, yordam ko'rmoqchi bo'lganda
+    hammasi yo'qolardi. Endi yordam ko'rsatiladi va aynan shu savol
+    qaytariladi, shuning uchun foydalanuvchi o'z joyida davom eta oladi.
+    """
+    joriy = await state.get_state()
+
+    if joriy in YOZISH_BOSQICHLARI:
+        if joriy == Qidiruv.matn.state:
+            savol = qidiruv.QIDIRUV_SAVOLI
+        elif joriy == KutubxonachiQaytarish.inventar.state:
+            savol = kutubxonachi.INVENTAR_SAVOLI
+        else:
+            savol = start.joriy_savol(joriy, await state.get_data())
+        await message.answer(
+            yordam_matni()
+            + "\n\n<b>Sizning yozumingiz saqlanib qoldi</b> — quyidagi savolga "
+            "javob bering:\n\n"
+            f"{savol}",
+            reply_markup=ariza_klaviaturasi(
+                telefon_tugmasi=joriy == Ariza.telefon.state
+            ),
+        )
+        return
+
+    await state.clear()
+    await message.answer(yordam_matni(), reply_markup=menyu_tugmalari())
 
 
 # ---------------------------------------------------------------- buyruqlar
@@ -83,12 +124,20 @@ async def bandlar_kutubxonachi(message: Message, state: FSMContext):
 @router.message(Command("yordam", "help", "yordamcha"))
 async def yordam_buyrugi(message: Message, state: FSMContext):
     """Bot imkoniyatlarini tushuntiradi (inline «❓ Yordam» bilan bir xil)."""
-    await _arizani_tugatish(message, state)
-    await state.clear()
-    await message.answer(yordam_matni(), reply_markup=menyu_tugmalari())
+    await _yordam_ber(message, state)
 
 
 # ------------------------------------------------------------------- menyu
+@router.message(F.text == BOSHLASH)
+async def boshlash_tugmasi(message: Message, state: FSMContext):
+    """«▶️ Boshlash» — ariza maydoni yonidagi tugma.
+
+    `/start` bilan bir xil: state tozalanadi va oqim qayta boshlanadi.
+    """
+    await state.clear()
+    await start.start(message)
+
+
 @router.message(F.text == MENYU)
 async def menyu_tugmasi(message: Message, state: FSMContext):
     """«🏠 Menyu» — uning ichida Start va Yordam."""
@@ -124,9 +173,7 @@ async def menyu_yordam(callback: CallbackQuery):
 
 @router.message(F.text.in_({MENYU_YORDAM, YORDAM, "Yordam", "/yordam"}))
 async def menyu_yordam_tugmasi(message: Message, state: FSMContext):
-    await _arizani_tugatish(message, state)
-    await state.clear()
-    await message.answer(yordam_matni(), reply_markup=menyu_tugmalari())
+    await _yordam_ber(message, state)
 
 
 @router.message(F.text == KITOB_QIDIRISH)

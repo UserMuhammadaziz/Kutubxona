@@ -20,6 +20,8 @@ from html import escape
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery, Message
 
+from keyboards import BOSHLASH, MENYU, MENYU_YORDAM
+
 logger = logging.getLogger(__name__)
 
 
@@ -84,9 +86,13 @@ def yordam_matni() -> str:
         "<b>Navbatga turish</b> — hozir berilmayotgan kitob uchun navbat\n"
         "   (kitob bo'shagach sizga taklif yuboriladi).\n"
         "<b>Mening kitoblarim</b> — olgan kitoblaringiz va qaytarish muddati.\n"
+        "<b>Bandlarim</b> — band qilgan so'rovlaringiz va ularning holati.\n"
         "<b>Jarimalarim</b> — kechikish uchun to'lanmagan jarimalar.\n\n"
-        "<b>Menyu</b> — asosiy bo'limlarga qaytish.\n"
-        "<b>Yordam</b> — shu matn.\n\n"
-        "Ariza to'ldirilayotganda pastdagi tugmalarni bosib bo'lmaydi — "
-        "shunda /bekor bosing."
+        "<b>Pastdagi tugmalar</b>\n"
+        f"   {BOSHLASH} — arizani bekor qilib, noldan boshlash (/start).\n"
+        f"   {MENYU_YORDAM} — shu yordam matni.\n"
+        f"   {MENYU} — boshqa bo'limlarga o'tish.\n\n"
+        f"Ariza to'ldirilayotganda «{MENYU_YORDAM}» tugmasi maydonni buzmaydi "
+        "— yordam ko'rsatib, javob yoziladigan joyni o'z holicha qaytaradi. "
+        f"«{BOSHLASH}» esa arizani bekor qilib, noldan boshlaydi."
     )

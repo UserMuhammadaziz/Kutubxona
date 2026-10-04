@@ -16,7 +16,7 @@ from utils import x, xabarni_tahrirlash
 
 router = Router(name="shaxsiy")
 
-BOGLANMAGAN_XABAR = "Avval /start orqali kartangizni bog'lang."
+BOGLANMAGAN_XABAR = "Avval /start orqali ro'yxatdan o'ting."
 
 
 def _xatolar(e: ApiXato) -> str:

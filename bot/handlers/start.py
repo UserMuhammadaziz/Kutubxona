@@ -10,12 +10,12 @@ from keyboards import (
     ARIZA_ROL_OQITUVCHI,
     ARIZA_ROL_OQUVCHI,
     ASOSIY_TUGMALAR,
-    asosiy_menyu,
+    ariza_klaviaturasi,
     ariza_rol_tugmalari,
+    asosiy_menyu,
     klaviatura_olib_tashla,
     matndan_telefon_keltirish,
     telefon_keltirish,
-    telefon_sorash,
 )
 from states import Ariza
 from utils import x, xabarni_tahrirlash
@@ -35,13 +35,21 @@ KASB_MASALALARI = "Matematika, Ona tili, Fizika, Tarix"
 # Rolga qarab so'raladigan uchinchi maydon nomi.
 ROL_UCHUNCHI_MAYDON = {
     ARIZA_ROL_OQUVCHI: "Sinfingiz",
-    ARIZA_ROL_OQITUVCHI: "Kasbingiz (o‘qitayotgan fanningiz)",
+    ARIZA_ROL_OQITUVCHI: "Kasbingiz (o'qitayotgan fanningiz)",
 }
 # Tasdiqlangan xabar matni (kalit — rol).
 ROL_TASDIQLANDI_XABARI = {
     ARIZA_ROL_OQUVCHI: "🎓 <b>O'quvchi</b> sifatida a'riza yuborasiz.",
     ARIZA_ROL_OQITUVCHI: "👨‍🏫 <b>O'qituvchi</b> sifatida a'riza yuborasiz.",
 }
+
+# Bosqich savollari. Bitta joyda saqlanadi: bir xil savol bir necha marta
+# yuboriladi (asosiy oqim, uzun matnli qayta kiritish, «❓ Yordam»dan keyin
+# savolni qaytarish) — har birida alohida yozilsa, matnlar ajralib qoladi.
+SAVOL_FISH = "1️⃣ Ism-familiyangizni yozing:"
+SAVOL_TELEFON = "2️⃣ Endi telefon raqamingizni yuboring:"
+SAVOL_SINF = f"3️⃣ Endi sinfingizni yozing (masalan: {SINF_MASALALARI}):"
+SAVOL_KASB = f"3️⃣ Qaysi fanni dars berasiz? (masalan: {KASB_MASALALARI}):"
 
 
 def _menyu_tugmasi_bosilganmi(text: str | None) -> bool:
@@ -52,12 +60,41 @@ def _menyu_tugmasi_bosilganmi(text: str | None) -> bool:
     return (text or "").strip() in ASOSIY_TUGMALAR
 
 
+def joriy_savol(state: str | None, ma_lumot: dict | None = None) -> str:
+    """Ariza bosqichiga mos savol matnini qaytaradi.
+
+    `❓ Yordam` bosilganda ariza bekor qilinmaydi — foydalanuvchiga yordam
+    ko'rsatilib, keyin shu yerda o'sha savol qaytariladi. Shu sababli savol
+    matnlari bitta manbadan (`SAVOL_*`) olinadi.
+    """
+    ma_lumot = ma_lumot or {}
+    if state == Ariza.fish.state:
+        return SAVOL_FISH
+    if state == Ariza.telefon.state:
+        return SAVOL_TELEFON
+    if state == Ariza.kasb.state:
+        return SAVOL_KASB
+    if state == Ariza.sinf.state:
+        return SAVOL_SINF
+    # Bosqich noma'lum bo'lsa ham o'quvchi roli bo'yicha umumiy savol beriladi.
+    if ma_lumot.get("rol") == ARIZA_ROL_OQITUVCHI:
+        return SAVOL_KASB
+    return SAVOL_SINF
+
+
 async def _menyu_tugmasi_javobi(message: Message, savol: str) -> None:
+    """Menyu tugmasi maydon sifatida yuborilsa — maydonga qaytaradi.
+
+    Masalan o'quvchi "📚 Kategoriyalar" bosib, "sinf" o'rniga shu matnni
+    yuborsa, maydon to'ldirilmaydi. Foydalanuvchiga nima qilish kerakligi
+    aytiladi va savol qaytariladi.
+    """
     await message.answer(
         f"{savol}\n\n"
-        "⚠️ Pastdagi menyu tugmalarini ariza to'ldirilayotganda bosib "
-        "bo'lmaydi — ular ariza maydoniga matn sifatida tushib ketadi.\n"
-        "Ariza to'ldirishni davom ettiring yoki /bekor bosing."
+        "⚠️ Pastdagi menyu tugmalaridan birini bosdingiz — ular ariza "
+        "maydoniga matn sifatida tushib ketadi.\n"
+        "Ariza to'ldirishni davom ettiring, yoki qayta boshlash uchun "
+        "«▶️ Boshlash» tugmasini bosing."
     )
 
 
@@ -122,8 +159,7 @@ def rol_tanlash_xabari(rol):
         "Ro'yxatga olish uchun 3 ta ma'lumot kerak:\n"
         "1️⃣ Ism-familiyangiz\n"
         "2️⃣ Telefon raqamingiz\n"
-        f"3️⃣ {ROL_UCHUNCHI_MAYDON[rol]}\n\n"
-        "1️⃣ Ism-familiyangizni yozing:"
+        f"3️⃣ {ROL_UCHUNCHI_MAYDON[rol]}"
     )
 
 
@@ -154,6 +190,13 @@ async def ariza_rol_tanlandi(callback: CallbackQuery, state: FSMContext):
     if callback.message is None:
         return
     await xabarni_tahrirlash(callback, rol_tanlash_xabari(rol))
+    # Savol maydoni yonida doimiy «Boshlash»/«Yordam» tugmalari kerak.
+    # Rol xabari esa inline tugmalar bilan berilgan — o'sha xabar
+    # tahrirlanadi, maydon uchun yangi xabar yuboriladi.
+    await callback.message.answer(
+        SAVOL_FISH,
+        reply_markup=ariza_klaviaturasi(),
+    )
 
 
 @router.message(Ariza.fish)
@@ -163,7 +206,7 @@ async def ariza_fish(message: Message, state: FSMContext):
         await message.answer("Iltimos, ism-familiyangizni matn ko'rinishida yozing.")
         return
     if _menyu_tugmasi_bosilganmi(fish):
-        await _menyu_tugmasi_javobi(message, "1️⃣ Ism-familiyangizni yozing:")
+        await _menyu_tugmasi_javobi(message, SAVOL_FISH)
         return
     if len(fish) > 130:
         await message.answer("Ism-familiya juda uzun (maksimum 130 belgi). Qayta yozing:")
@@ -172,8 +215,8 @@ async def ariza_fish(message: Message, state: FSMContext):
     await state.update_data(fish=fish)
     await state.set_state(Ariza.telefon)
     await message.answer(
-        "2️⃣ Rahmat. Endi telefon raqamingizni yuboring:",
-        reply_markup=telefon_sorash(),
+        f"2️⃣ Rahmat. {SAVOL_TELEFON}",
+        reply_markup=ariza_klaviaturasi(telefon_tugmasi=True),
     )
 
 
@@ -196,7 +239,7 @@ async def ariza_telefon(message: Message, state: FSMContext):
     if not telefon:
         await message.answer(
             "❌ Telefon raqam +998901234567 formatida bo'lishi kerak.\n\n"
-            "Quyidagilar to'g'ri keladi: +998901234567, +998 90 123 45 67.\n"
+            "Quyidagi formatlar to'g'ri keladi: +998901234567, +998 90 123 45 67.\n"
             "📱 Pastdagi tugma orqali qayta yuboring:"
         )
         return
@@ -220,7 +263,11 @@ async def ariza_telefon_matn(message: Message, state: FSMContext):
 
 
 async def _telefon_qabul(message: Message, state: FSMContext, telefon: str):
-    """Raqamni saqlaydi, telefon klaviaturasini olib tashlaydi va keyingi bosqichga o'tadi."""
+    """Raqamni saqlaydi va keyingi bosqichga o'tadi.
+
+    Tugmalar o'chirilmaydi: sinf/kasb yozilayotganda ham maydon yonida
+    `▶️ Boshlash` va `❓ Yordam` turishi kerak (`ariza_klaviaturasi`).
+    """
     data = await state.get_data()
     rol = data.get("rol", ARIZA_ROL_OQUVCHI)
 
@@ -229,17 +276,16 @@ async def _telefon_qabul(message: Message, state: FSMContext, telefon: str):
         await state.set_state(Ariza.kasb)
         await message.answer(
             f"✅ Telefon raqamingiz muvaffaqiyatli tasdiqlandi: {telefon}\n\n"
-            f"3️⃣ Endi kasbingizni yozing — qaysi fanni dars berasiz? "
-            f"(masalan: {KASB_MASALALARI})",
-            reply_markup=klaviatura_olib_tashla(),
+            f"{SAVOL_KASB}",
+            reply_markup=ariza_klaviaturasi(),
         )
         return
 
     await state.set_state(Ariza.sinf)
     await message.answer(
         f"✅ Telefon raqamingiz muvaffaqiyatli tasdiqlandi: {telefon}\n\n"
-        f"3️⃣ Endi sinfingizni yozing (masalan: {SINF_MASALALARI}):",
-        reply_markup=klaviatura_olib_tashla(),
+        f"{SAVOL_SINF}",
+        reply_markup=ariza_klaviaturasi(),
     )
 
 
@@ -247,14 +293,10 @@ async def _telefon_qabul(message: Message, state: FSMContext, telefon: str):
 async def ariza_sinf(message: Message, state: FSMContext):
     sinf = (message.text or "").strip()
     if not sinf:
-        await message.answer(
-            f"Iltimos, sinfingizni yozing (masalan: {SINF_MASALALARI}):"
-        )
+        await message.answer(f"Iltimos:\n\n{SAVOL_SINF}")
         return
     if _menyu_tugmasi_bosilganmi(sinf):
-        await _menyu_tugmasi_javobi(
-            message, f"3️⃣ Sinfingizni yozing (masalan: {SINF_MASALALARI}):"
-        )
+        await _menyu_tugmasi_javobi(message, SAVOL_SINF)
         return
     if len(sinf) > 30:
         await message.answer("Sinf nomi juda uzun (maksimum 30 belgi). Qayta yozing:")
@@ -267,7 +309,7 @@ async def ariza_sinf(message: Message, state: FSMContext):
         data,
         sinf=sinf,
         kasb="",
-        savol=f"3️⃣ Endi sinfingizni yozing (masalan: {SINF_MASALALARI}):",
+        savol=SAVOL_SINF,
     )
 
 
@@ -275,14 +317,11 @@ async def ariza_sinf(message: Message, state: FSMContext):
 async def ariza_kasb(message: Message, state: FSMContext):
     """O'qituvchi arizasi uchun o'qitayotgan fanni qabul qiladi."""
     kasb = (message.text or "").strip()
-    savol = f"3️⃣ Qaysi fanni dars berasiz? (masalan: {KASB_MASALALARI}):"
     if not kasb:
-        await message.answer(
-            f"Iltimos, kasbingizni yozing (masalan: {KASB_MASALALARI}):"
-        )
+        await message.answer(f"Iltimos:\n\n{SAVOL_KASB}")
         return
     if _menyu_tugmasi_bosilganmi(kasb):
-        await _menyu_tugmasi_javobi(message, savol)
+        await _menyu_tugmasi_javobi(message, SAVOL_KASB)
         return
     if len(kasb) > 60:
         await message.answer("Kasb nomi juda uzun (maksimum 60 belgi). Qayta yozing:")
@@ -295,7 +334,7 @@ async def ariza_kasb(message: Message, state: FSMContext):
         data,
         sinf="",
         kasb=kasb,
-        savol=savol,
+        savol=SAVOL_KASB,
     )
 
 
@@ -304,7 +343,9 @@ async def ariza_bekor_qilish(message: Message, state: FSMContext):
     """Ariza to'ldirishdan voz kechish — holat tozalanadi, bot yana ishlaydi."""
     await state.clear()
     await message.answer(
-        "Bekor qilindi. Qayta urinish uchun /start buyrug'ini bosing."
+        "Bekor qilindi. Qayta urinish uchun /start buyrug'ini yoki "
+        "«▶️ Boshlash» tugmasini bosing.",
+        reply_markup=klaviatura_olib_tashla(),
     )
 
 
@@ -357,5 +398,8 @@ async def _arizani_yuborish(
         f"{uchinchi_qator}\n\n"
         "Kutubxonachi arizangizni tasdiqlagach, /start buyrug'ini bosing va "
         "botdan foydalanasiz. Tasdiqlash yoki rad etish natijasi shu yerga "
-        "xabar qilinadi."
+        "xabar qilinadi.",
+        # Tugmalar butunlay o'chirilmaydi: foydalanuvchi kutayotganda
+        # «❓ Yordam» yoki «▶️ Boshlash» tugmalari kerak bo'lishi mumkin.
+        reply_markup=ariza_klaviaturasi(),
     )
