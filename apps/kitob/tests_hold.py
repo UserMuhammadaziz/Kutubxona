@@ -1,4 +1,4 @@
-"""Kitobni band qilish (saqlab qo'yish) oqimi testlari.
+﻿"""Kitobni band qilish (saqlab qo'yish) oqimi testlari.
 
 Talab: o'quvchi/o'qituvchi kitobni band qilgandan keyin u hech kimga
 berilmaydi; faqat kutubxonachi yoki administrator tasdiqlagandan keyin
@@ -11,8 +11,10 @@ so'rov qiluvchiga Berish yozuvi bilan beriladi.
 * `BolimlarAjratishTest` - «O'quvchilar» va «O'qituvchilar» rol filtri.
 """
 from datetime import date
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.exceptions import ValidationError
@@ -457,3 +459,105 @@ class BolimlarAjratishTest(BandTestBase):
 
         self.assertEqual(javob.status_code, 200)
         self.assertEqual([r["fish"] for r in javob.data["results"]], ["Ustoz"])
+
+
+class BandXabarTest(BandTestBase):
+    """Bot «Tasdiqlanganligi xabar qilinadi» deb aytadi — xabar yuborilishi SHART.
+
+    Aks holda yozuv yolg'on bo'ladi: o'quvchi hech qachon natijani bilmaydi.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.xabarlar = []
+        patcher = patch(
+            "kitob.services.telegram_xabar_yubor",
+            side_effect=lambda chat_id, matn, **kw: self.xabarlar.append((chat_id, matn)),
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _commit(self, fn, *args, **kwargs):
+        """`transaction.on_commit` ishlasin — `TestCase` har testni tranzaksiya
+        ichida yumadi, shuning uchun callback'lar bajarilmay qoladi."""
+        with self.captureOnCommitCallbacks(execute=True):
+            return fn(*args, **kwargs)
+
+    def test_tasdiqlanganda_oquvchiga_xabar_yuboriladi(self):
+        band = band_qilish(self.kitob, self.oquvchi)[0]
+
+        self._commit(band_qilishni_tasdiqla, band, self.xodim)
+
+        self.assertEqual(len(self.xabarlar), 1)
+        chat_id, matn = self.xabarlar[0]
+        self.assertEqual(chat_id, self.oquvchi.telegram_id)
+        self.assertIn("tasdiqlandi", matn.lower())
+        self.assertIn(self.kitob.nomi, matn)
+        # qaytarish muddati ko'rsatilishi kerak
+        self.assertIn("Qaytarish muddati", matn)
+
+    def test_rad_etilganda_oquvchiga_xabar_yuboriladi(self):
+        band = band_qilish(self.kitob, self.oquvchi)[0]
+
+        self._commit(band_qilishni_rad_et, band, self.xodim, "Hozircha mavjud emas")
+
+        self.assertEqual(len(self.xabarlar), 1)
+        chat_id, matn = self.xabarlar[0]
+        self.assertEqual(chat_id, self.oquvchi.telegram_id)
+        self.assertIn("rad etildi", matn.lower())
+        self.assertIn(self.kitob.nomi, matn)
+        # kutubxonachining sababi o'quvchiga yetkazilishi kerak
+        self.assertIn("Hozircha mavjud emas", matn)
+
+    def test_xabar_tranzaksiya_rollback_bo_lsa_yuborilmaydi(self):
+        """Xabar `on_commit` orqali yuboriladi — rollback bo'lsa yuborilmasin."""
+        band = band_qilish(self.kitob, self.oquvchi)[0]
+
+        with self.captureOnCommitCallbacks(execute=True) as bekor_qilingan:
+            with self.assertRaises(RuntimeError):
+                with transaction.atomic():
+                    band_qilishni_tasdiqla(band, self.xodim)
+                    raise RuntimeError("rollback")
+
+        self.assertEqual(len(bekor_qilingan), 0)
+        self.assertEqual(self.xabarlar, [])
+        band.refresh_from_db()
+        self.assertEqual(band.holati, "kutmoqda")
+
+    def test_telegram_idsi_yo_q_oquvchiga_xabar_yuborilmaydi(self):
+        """Telegram'ga bog'lanmagan o'quvchi uchun yuborish xatosi chiqmasin."""
+        self.oquvchi.telegram_id = None
+        self.oquvchi.save(update_fields=["telegram_id"])
+        band = band_qilish(self.kitob, self.oquvchi)[0]
+
+        self._commit(band_qilishni_tasdiqla, band, self.xodim)
+
+        self.assertEqual(self.xabarlar, [])
+        band.refresh_from_db()
+        self.assertEqual(band.holati, "tasdiqlandi")
+
+    def test_api_tasdiqlash_xabar_yuboradi(self):
+        """Tasdiqlash API orqali kelganda ham xabar yuborilishi kerak."""
+        band = band_qilish(self.kitob, self.oquvchi)[0]
+        self.kirish()
+
+        javob = self._commit(self.client.post, self.url("holds-approve", band.pk))
+
+        self.assertEqual(javob.status_code, 200)
+        self.assertEqual(len(self.xabarlar), 1)
+        self.assertEqual(javob.data["holati"], "tasdiqlandi")
+
+    def test_api_rad_etish_xabar_yuboradi(self):
+        band = band_qilish(self.kitob, self.oquvchi)[0]
+        self.kirish()
+
+        javob = self._commit(
+            self.client.post,
+            self.url("holds-reject", band.pk),
+            {"izoh": "Nusxa yo'q"},
+            format="json",
+        )
+
+        self.assertEqual(javob.status_code, 200)
+        self.assertEqual(len(self.xabarlar), 1)
+        self.assertIn("Nusxa yo'q", self.xabarlar[0][1])

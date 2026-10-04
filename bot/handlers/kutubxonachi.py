@@ -1,4 +1,4 @@
-"""Ixtiyoriy (qo'shimcha ball) qism: kutubxonachi botga inventar raqamini
+﻿"""Ixtiyoriy (qo'shimcha ball) qism: kutubxonachi botga inventar raqamini
 yuborib, kitobni qaytarib olishi va band qilingan so'rovlarni tasdiqlashi
 mumkin. `/qaytar` buyrug'i bilan qaytarish, `/bandlar` bilan esa band
 so'rovlari ro'yxati ochiladi.
@@ -15,6 +15,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 import config
+import branding as b
 from api_client import ApiXato, api
 from keyboards import (
     ASOSIY_TUGMALAR,
@@ -27,7 +28,7 @@ from utils import x, xabarni_tahrirlash
 router = Router(name="kutubxonachi")
 
 RUXSAT_YUQ = (
-    "🔒 Bu buyruq faqat kutubxonachilar uchun.\n\n"
+    "Bu buyruq faqat kutubxonachilar uchun.\n\n"
     "Agar siz xodim bo'lsangiz, .env faylidagi BOT_ADMIN_CHAT_IDS ga o'z "
     "Telegram ID ni qo'shib, botni qayta ishga tushiring."
 )
@@ -101,7 +102,7 @@ async def inventar_qabul(message: Message, state: FSMContext):
 @router.callback_query(F.data.startswith("qaytar:"))
 async def qaytarish_tasdiq(callback: CallbackQuery):
     if not config.bot_adminmi(callback.from_user.id):
-        await callback.answer("🔒 Ruxsat yo'q.", show_alert=True)
+        await callback.answer("Ruxsat yo'q.", show_alert=True)
         return
 
     qismlar = callback.data.split(":")
@@ -116,11 +117,11 @@ async def qaytarish_tasdiq(callback: CallbackQuery):
         await callback.answer(e.detail, show_alert=True)
         return
 
-    matn = "✅ Kitob qaytarib olindi."
+    matn = "<b>Kitob qaytarib olindi.</b>"
     if natija.get("jarima_summasi"):
-        matn += f"\n⚠️ Jarima yozildi: {natija['jarima_summasi']} so'm"
+        matn += f"\nJarima yozildi: {natija['jarima_summasi']} so'm"
     if natija.get("navbatga_taklif_ketdimi"):
-        matn += "\n📨 Nusxa navbatdagi keyingi o'quvchiga taklif qilindi."
+        matn += "\nNusxa navbatdagi keyingi o'quvchiga taklif qilindi."
 
     # Agar kitob muddatdan oldin qaytarilgan bo'lsa, xabar o'quvchiga
     # allaqachon yuborilgan (apps/berish/services.py ichida, tranzaksiya
@@ -128,7 +129,7 @@ async def qaytarish_tasdiq(callback: CallbackQuery):
     # o'quvchiga bir xil xabar ikki marta borar.
     if natija.get("erken_qaytarildi"):
         matn += (
-            "\n✅ Muddatdan oldin qaytarildi — o'quvchiga xabar yuborildi, "
+            "\nMuddatdan oldin qaytarildi — o'quvchiga xabar yuborildi, "
             "jarima yozilmadi."
         )
 
@@ -153,31 +154,38 @@ async def bandlar_koritaz(message: Message, state: FSMContext):
         return
 
     if not bandlar:
-        await message.answer("✅ Tasdiqlash kutilayotgan band so'rovi yo'q.")
+        await message.answer(
+            f"{b.logo(sarlavha='BAND SO\'ROVLARI')}\n\n"
+            "Tasdiqlash kutilayotgan so'rov yo'q."
+        )
         return
 
     await message.answer(
-        f"🔒 Tasdiqlash kutilmoqda ({len(bandlar)} ta so'rov):\n"
-        "Har birini tasdiqlang (kitob o'quvchiga beriladi) yoki rad eting.",
+        f"{b.logo(sarlavha='BAND SO\'ROVLARI')}\n\n"
+        f"Kutilmoqda: <b>{len(bandlar)}</b> ta so'rov\n"
+        + b.chiziq()
+        + "\n\nHar birini tasdiqlang — kitob so'rov qilgan o'quvchiga beriladi "
+        "va unga xabar yuboriladi — yoki rad eting."
     )
-    for b in bandlar[:20]:
-        rol = "o'qituvchi" if b.get("oquvchi_rol") == "oqituvchi" else "o'quvchi"
+    for r in bandlar[:20]:
+        rol = "o'qituvchi" if r.get("oquvchi_rol") == "oqituvchi" else "o'quvchi"
         qator = (
-            f"📖 <b>{x(b['kitob_nomi'])}</b>\n"
-            f"   So'raydi: {x(b['oquvchi_fish'])} ({rol})"
+            f"<b>{x(r['kitob_nomi'])}</b>\n"
+            f"Sohraydi: {x(r['oquvchi_fish'])} · {rol}"
         )
-        if b.get("oquvchi_sinf"):
-            qator += f", {x(b['oquvchi_sinf'])}"
-        qator += f"\n   📅 So'rov: {b.get('so_rov_sanasi', '-')[:16]}"
-        if b.get("izoh"):
-            qator += f"\n   📝 Sabab: {x(b['izoh'])}"
-        await message.answer(qator, reply_markup=band_tasdiq_tugmalari(b["id"]))
+        if r.get("oquvchi_sinf"):
+            qator += f" · {x(r['oquvchi_sinf'])}"
+        if r.get("so_rov_sanasi"):
+            qator += f"\nSo'rov: {r['so_rov_sanasi'][:16]}"
+        if r.get("izoh"):
+            qator += f"\n<i>{x(r['izoh'])}</i>"
+        await message.answer(qator, reply_markup=band_tasdiq_tugmalari(r["id"]))
 
 
 @router.callback_query(F.data.startswith("band_tasdiq:"))
 async def bandni_tasdiqlash(callback: CallbackQuery):
     if not config.bot_adminmi(callback.from_user.id):
-        await callback.answer("🔒 Ruxsat yo'q.", show_alert=True)
+        await callback.answer("Ruxsat yo'q.", show_alert=True)
         return
 
     qismlar = callback.data.split(":")
@@ -193,10 +201,10 @@ async def bandni_tasdiqlash(callback: CallbackQuery):
 
     await xabarni_tahrirlash(
         callback,
-        "✅ Band tasdiqlandi va kitob so'rov qilgan o'quvchiga berildi.\n"
-        f"   Kitob: {x(natija.get('kitob_nomi'))}, "
-        f"o'quvchi: {x(natija.get('oquvchi_fish'))}.\n"
-        "   O'quvchiga xabar yuborildi.",
+        "<b>Tasdiqlandi</b> — kitob so'rov qilgan o'quvchiga berildi.\n\n"
+        f"Kitob: {x(natija.get('kitob_nomi'))}\n"
+        f"O'quvchi: {x(natija.get('oquvchi_fish'))}\n\n"
+        "O'quvchiga qaytarish muddati bilan xabar yuborildi.",
     )
     await callback.answer()
 
@@ -204,7 +212,7 @@ async def bandni_tasdiqlash(callback: CallbackQuery):
 @router.callback_query(F.data.startswith("band_rad:"))
 async def bandni_rad_etish(callback: CallbackQuery):
     if not config.bot_adminmi(callback.from_user.id):
-        await callback.answer("🔒 Ruxsat yo'q.", show_alert=True)
+        await callback.answer("Ruxsat yo'q.", show_alert=True)
         return
 
     qismlar = callback.data.split(":")
@@ -220,8 +228,9 @@ async def bandni_rad_etish(callback: CallbackQuery):
 
     await xabarni_tahrirlash(
         callback,
-        "❌ So'rov rad etildi. Kitob yana boshqalarga berilishi mumkin.\n"
-        f"   Kitob: {x(natija.get('kitob_nomi'))}.",
+        "<b>So'rov rad etildi.</b> Kitob yana boshqalarga berilishi mumkin.\n\n"
+        f"Kitob: {x(natija.get('kitob_nomi'))}\n"
+        "O'quvchiga rad etilganligi va sababi yuborildi.",
     )
     await callback.answer()
     

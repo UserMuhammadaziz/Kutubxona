@@ -245,21 +245,30 @@ def kitob_band_qilish_tugmalari(
 
 
 def band_bekor_tugmasi(band_id: int) -> InlineKeyboardMarkup:
-    """Mening bandlarim: kutilayotgan so'rovni bekor qilish."""
+    """Mening bandlarim: kutilayotgan so'rovni bekor qilish.
+
+    Tugma matni qisqa va yagona uslubda («Bekor qilish») — avvalgi
+    «🚪 Bandni bekor qilish» emoji bilan aralashib, tor ekranda
+    chiroqsiz ko'rinardi."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🚪 Bandni bekor qilish", callback_data=f"band_bekor:{band_id}")]
+            [InlineKeyboardButton(text="Bekor qilish", callback_data=f"band_bekor:{band_id}")]
         ]
     )
 
 
 def band_tasdiq_tugmalari(band_id: int) -> InlineKeyboardMarkup:
-    """Kutubxonachi: band so'rovini tasdiqlash yoki rad etish."""
+    """Kutubxonachi: band so'rovini tasdiqlash yoki rad etish.
+
+    Ikki tugma bir qatorda, matnlari teng uzunligida («Tasdiqlash» /
+    «Rad etish») — shaklda bir xil ko'rinadi. `Tasdiqlash` kitobni
+    o'quvchiga berishni bildiradi, shuning uchun `(berish)` kabi
+    uzun qo'shimcha olib tashlandi (batafsil matn xabarda bor)."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="✅ Tasdiqlash (berish)", callback_data=f"band_tasdiq:{band_id}"),
-                InlineKeyboardButton(text="❌ Rad etish", callback_data=f"band_rad:{band_id}"),
+                InlineKeyboardButton(text="Tasdiqlash", callback_data=f"band_tasdiq:{band_id}"),
+                InlineKeyboardButton(text="Rad etish", callback_data=f"band_rad:{band_id}"),
             ]
         ]
     )

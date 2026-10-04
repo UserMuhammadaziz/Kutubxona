@@ -2,6 +2,7 @@ from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
+import branding as b
 from api_client import ApiXato, api
 from keyboards import (
     KATEGORIYALAR,
@@ -270,11 +271,11 @@ def _mavjud_nusxa_bormi(kitob: dict) -> bool:
 
 
 def _navbat_mavjud(kitob: dict) -> bool:
-    """«⏳ Navbatga turish» tugmasi ko'rsatilishi kerakmi?
+    """«Navbatga turish» tugmasi ko'rsatilishi kerakmi?
 
     Faqat nusxasi bor, lekin hozir hech qanday mavjud nusxasi yo'q kitoblar
     uchun. Nusxasi umuman yo'q («asli») kitoblarda navbatga turish kitobni
-    darhol berar edi, bunday kitoblar uchun faqat «🔒 Band qilish» ko'rsatiladi."""
+    darhol berar edi, bunday kitoblar uchun faqat «Band qilish» ko'rsatiladi."""
     if not (kitob.get("nusxalar") or []):
         return False
     return not _mavjud_nusxa_bormi(kitob)
@@ -303,10 +304,10 @@ def _kitob_batafsil_matn(kitob: dict) -> str:
         matn += "\n\n⚠️ Bu kitobning kutubxonada nusxasi yo'q, asil kitobni band qilishingiz mumkin."
 
     matn += (
-        "\n\n🔒 <b>Band qilish</b> — kitobni maxsus maqsadga saqlab qoyish"
+        "\n\n<b>Band qilish</b> — kitobni maxsus maqsadga saqlab qoyish"
         " (o'qituvchi darsga tayyorlanmoqda, o'quvchi imtihonga...). "
         "Band qilingan kitob boshqalarga berilmaydi: uni faqat kutubxonachi "
-        "yoki administrator tasdiqlagandan keyin sizga beriladi."
+        "tasdiqlagandan keyin sizga beriladi va tasdiqlanganligi xabar qilinadi."
     )
     # Navbat faqat nusxasi bor, lekin hozir berilmaydigan kitoblar uchun.
     # Nusxasi umuman yo'q kitobda navbatga turish kitobni darhol berar edi,
@@ -321,11 +322,10 @@ def _kitob_batafsil_matn(kitob: dict) -> str:
 
 @router.callback_query(F.data.startswith("band:"))
 async def band_qilish_sorovi(callback: CallbackQuery):
-    """«🔒 Band qilish» — kitobni tasdiqlash kutilayotgan holda saqlab qo'yish.
+    """«Band qilish» — kitobni tasdiqlash kutilayotgan holda saqlab qo'yish.
 
     So'rov yaratilgach kitobni hech kimga berib bo'lmaydi; tasdiqlashni
-    kutubxonachi yoki administrator qiladi va shunda kitob so'rov qilgan
-    o'quvchiga beriladi.
+    kutubxonachi qiladi va shunda kitob so'rov qilgan o'quvchiga beriladi.
     """
     qismlar = callback.data.split(":")
     if len(qismlar) < 2 or not qismlar[1].isdigit():
@@ -352,18 +352,15 @@ async def band_qilish_sorovi(callback: CallbackQuery):
         return
 
     nomi = band.get("kitob_nomi") or await _kitob_nomi(kitob_id)
-    qator = f"📖 <b>{x(nomi)}</b>"
     izoh = band.get("izoh")
-    if izoh:
-        qator += f"\n📝 {x(izoh)}"
 
     await callback.message.answer(
-        f"🔒 {qator}\n\n"
-        "Kitob band qilishga so'rov qilindi.\n"
-        "⏳ Endi uni faqat <b>kutubxonachi yoki administrator</b> tasdiqlaydi — "
-        "tasdiqlangach kitob boshqalarga ham berilmaydi.\n\n"
-        "Tasdiqlanganligi xabar qilinadi. «🔒 Bandlarim» orqali holatni "
-        "kuzatib turishingiz mumkin.",
+        f"{b.logo(sarlavha='BAND QILINDI')}\n\n"
+        f"{b.sarlavha(x(nomi))}\n"
+        + (f"<i>{x(izoh)}</i>\n" if izoh else "")
+        + "So'rov yuborildi.\n\n"
+        "Kutubxonachi tasdiqlagach kitobni hech kimga berilmaydi va sizga "
+        "ham berilmaydi. Tasdiqlanganligi xabar qilinadi.",
         reply_markup=band_bekor_tugmasi(band["id"]),
     )
     await callback.answer()
@@ -392,7 +389,7 @@ async def band_bekor_qilish(callback: CallbackQuery):
 
 @router.callback_query(F.data.startswith("navbat_tur:"))
 async def navbatga_tur(callback: CallbackQuery):
-    """ESKI xabarlardagi «🕐 Band qilish» tugmasi — endi tasdiqlanadigan band.
+    """ESKI xabarlardagi «Band qilish» tugmasi — endi tasdiqlanadigan band.
 
     Bu callback eskida «Band qilish» va «Navbatga turish» tugmalarida birga
     ishlatilardi. Navbat uchun endi alohida `navbat_qoldir:` callback'i bor,
@@ -447,11 +444,11 @@ async def navbat_qoldirish(callback: CallbackQuery):
         )
     else:
         await callback.message.answer(
-            f"✅ Navbatga qo'shildingiz! Siz {natija['orin']}-o'rindasiz.\n\n"
+            f"<b>Navbatga qo'shildingiz!</b> Siz {natija['orin']}-o'rindasiz.\n\n"
             f"Kitob bo'shagan zahoti «{x(nomi)}» kitobini sizga taklif qilinadi. "
-            "Navbatni bekor qilish uchun «⏳ Navbatlarim» bo'limidan foydalaning.\n"
-            "💡 Maxsus maqsadga (dars, imtihon, tadbir) ajratish uchun esa "
-            "«🔒 Band qilish» ni ishlating — u tasdiqlash kutiladi."
+            "Navbatni bekor qilish uchun «Navbatlarim» bo'limidan foydalaning.\n"
+            "Maxsus maqsadga (dars, imtihon, tadbir) ajratish uchun esa "
+            "«Band qilish» ni ishlating — u tasdiqlash kutiladi."
         )
     await callback.answer()
 
@@ -486,12 +483,11 @@ async def _band_so_rovi_yubor(callback: CallbackQuery, kitob_id: int) -> None:
 
     nomi = band.get("kitob_nomi") or await _kitob_nomi(kitob_id)
     await callback.message.answer(
-        f"🔒 <b>{x(nomi)}</b>\n\n"
-        "Kitob band qilishga so'rov qilindi.\n"
-        "⏳ Endi uni faqat <b>kutubxonachi yoki administrator</b> tasdiqlaydi — "
-        "tasdiqlangach kitob boshqalarga ham berilmaydi va sizga ham berilmaydi.\n\n"
-        "Tasdiqlanganligi xabar qilinadi. «🔒 Bandlarim» orqali holatni "
-        "kuzatib turishingiz mumkin.",
+        f"{b.logo(sarlavha='BAND QILINDI')}\n\n"
+        f"{b.sarlavha(x(nomi))}\n"
+        "So'rov yuborildi.\n\n"
+        "Kutubxonachi tasdiqlagach kitobni hech kimga berilmaydi va sizga "
+        "ham berilmaydi. Tasdiqlanganligi xabar qilinadi.",
         reply_markup=band_bekor_tugmasi(band["id"]),
     )
     await callback.answer()

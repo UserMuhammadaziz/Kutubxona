@@ -1,6 +1,7 @@
 from aiogram import F, Router
 from aiogram.types import CallbackQuery, Message
 
+import branding as b
 from api_client import ApiXato, api
 from keyboards import (
     BANDLARIM,
@@ -97,31 +98,42 @@ async def bandlarim(message: Message):
 
     if not royxat:
         await message.answer(
-            "🔒 Siz band qilgan kitob yo'q.\n\n"
-            "Kerakli kitobni topib, kartochkasidagi «🔒 Band qilish» "
-            "tugmasini bosing — so'rov kutubxonachi tasdiqlashiga yuboriladi."
+            f"{b.logo(sarlavha='BANDLARIM')}\n\n"
+            "Hozir band qilgan kitobingiz yo'q.\n\n"
+            "Kerakli kitobni toping va kartochkasidagi «Band qilish» "
+            "tugmasini bosing — so'rov kutubxonachiga yuboriladi va "
+            "tasdiqlanganligi xabar qilinadi."
         )
         return
 
-    holat_matnlari = {
-        "kutmoqda": "⏳ Kutubxonachi tasdiqlashini kutilmoqda",
-        "tasdiqlandi": "✅ Tasdiqlandi, kitob sizga berildi",
-        "rad_etildi": "❌ Rad etildi",
-        "bekor_qilindi": "🚪 Siz bekor qilgansiz",
-    }
+    # Avval kutilayotgan so'rovlar tepada — ularga tugma kerak.
+    tartib = {"kutmoqda": 0, "tasdiqlandi": 1, "rad_etildi": 2, "bekor_qilindi": 3}
+    royxat = sorted(royxat, key=lambda r: (tartib.get(r["holati"], 9), r.get("so_rov_sanasi") or ""))
+    kutilmoqda = sum(1 for r in royxat if r["holati"] == "kutmoqda")
 
-    for b in royxat[:20]:
+    sarlavha_qismi = (
+        f"{b.logo(sarlavha='BANDLARIM')}\n\n"
+        f"Jami: <b>{len(royxat)}</b> ta band so'rovi"
+        + (f" — <b>{kutilmoqda}</b> tasi kutilmoqda" if kutilmoqda else "")
+        + "\n"
+        + b.chiziq()
+    )
+    await message.answer(sarlavha_qismi)
+
+    for r in royxat[:20]:
         qator = (
-            f"📖 <b>{x(b['kitob_nomi'])}</b>\n"
-            f"   {holat_matnlari.get(b['holati'], b['holati'])}"
+            f"<b>{x(r['kitob_nomi'])}</b>\n"
+            f"{b.band_holati(r['holati'])}"
         )
-        if b.get("izoh"):
-            qator += f"\n   📝 {x(b['izoh'])}"
-        if b.get("tasdiqlash_izohi"):
-            qator += f"\n   📝 Xodim izohi: {x(b['tasdiqlash_izohi'])}"
+        if r.get("izoh"):
+            qator += f"\n<i>{x(r['izoh'])}</i>"
+        if r.get("tasdiqlash_izohi"):
+            qator += f"\n<i>Xodim: {x(r['tasdiqlash_izohi'])}</i>"
 
-        if b["holati"] == "kutmoqda":
-            await message.answer(qator, reply_markup=band_bekor_tugmasi(b["id"]))
+        if r["holati"] == "kutmoqda":
+            await message.answer(
+                qator, reply_markup=band_bekor_tugmasi(r["id"])
+            )
         else:
             await message.answer(qator)
 

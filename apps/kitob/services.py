@@ -17,7 +17,11 @@ avtomatik yangilash uni hech qachon tegmaydi.
 from kitob.models import BandQilish, Kitob
 from nusxa.models import Nusxa
 
+from django.conf import settings
+from django.db import transaction
 from django.utils.timezone import now as django_now
+
+from config.telegram import telegram_escape, telegram_xabar_yubor
 
 
 def _faol_asli_berish_bormi(kitob_id):
@@ -176,6 +180,7 @@ def band_qilishni_rad_et(band, xodim, izoh=""):
     band.save(
         update_fields=["holati", "tasdiqlovchi", "tasdiqlash_izohi", "tasdiqlash_sanasi"]
     )
+    transaction.on_commit(lambda: _band_rad_etildi_xabarini_yubor(band))
     return band
 
 
@@ -195,8 +200,6 @@ def band_qilishni_tasdiqla(band, xodim, izoh=""):
     `band_tasdiqlandi=True` bilan chaqiriladi, aks holda band himoyasi
     (boshqa hech kimga berilmasligi) tasdiqlashni o'zi bloklab qo'yardi.
     """
-    from django.db import transaction
-
     from berish.services import kitob_ber_by_kitob
 
     with transaction.atomic():
@@ -228,4 +231,56 @@ def band_qilishni_tasdiqla(band, xodim, izoh=""):
                 "holati", "tasdiqlovchi", "tasdiqlash_izohi", "tasdiqlash_sanasi", "berish",
             ]
         )
+    transaction.on_commit(lambda: _band_tasdiqlandi_xabarini_yubor(band))
     return band, berish
+
+
+# ---------------------------------------------------------------------------
+# Band so'rovi natijalarini o'quvchiga yetkazish
+#
+# Bot xabar qiladi: «Tasdiqlanganligi xabar qilinadi» — shu vaat xabar
+# yuborilishi SHART, aks holda yozuv yolg'on bo'ladi. Xabar tranzaksiya
+# commit bo'lgandan keyin yuboriladi (rollback bo'lsa yuborilmaydi).
+# ---------------------------------------------------------------------------
+
+
+def _band_tasdiqlandi_xabarini_yubor(band):
+    """Band tasdiqlandi: o'quvchiga xabar + qaytarish muddati.
+
+    `band.berish` band bilan bir vaqtda saqlanadi (yuqorida `save()`),
+    shuning uchun `on_commit` ichida mavjud bo'ladi. Xabar yuborilmasa ham
+    tasdiqlash amalga oshgan bo'ladi."""
+    if not band.oquvchi.telegram_id:
+        return
+    berish = band.berish
+    matn = (
+        "◈ <b>KUTUBXONA</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "<b>Band qilish tasdiqlandi</b>\n\n"
+        f"Kitob: <b>{telegram_escape(band.kitob.nomi)}</b>\n"
+    )
+    if berish is not None:
+        matn += (
+            f"Berilgan sana: {berish.berilgan_sana}\n"
+            f"Qaytarish muddati: <b>{berish.qaytarish_muddati}</b>\n\n"
+            f"Iltimos, kitobni {settings.MUDDAT_KUN} kun ichida qaytaring."
+        )
+    else:  # pragma: no cover — himoya; berish har doim yaratiladi
+        matn += "Kitob sizga berishga tayyor. Qaytarish muddati uchun botga yozing."
+    telegram_xabar_yubor(band.oquvchi.telegram_id, matn)
+
+
+def _band_rad_etildi_xabarini_yubor(band):
+    """Band rad etildi: o'quvchiga xabar (+ kutubxonachining izohi, bo'lsa)."""
+    if not band.oquvchi.telegram_id:
+        return
+    matn = (
+        "◈ <b>KUTUBXONA</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "<b>Band qilish rad etildi</b>\n\n"
+        f"Kitob: <b>{telegram_escape(band.kitob.nomi)}</b>\n"
+    )
+    if band.tasdiqlash_izohi:
+        matn += f"\nSabab: {telegram_escape(band.tasdiqlash_izohi)}"
+    matn += "\n\nBoshqa kitob band qilmoqchi bo'lsangiz, qayta urinib ko'ring."
+    telegram_xabar_yubor(band.oquvchi.telegram_id, matn)

@@ -1,4 +1,4 @@
-"""Telegram botning barcha tugmalari va API oqimlarini tekshiruvchi skript.
+﻿"""Telegram botning barcha tugmalari va API oqimlarini tekshiruvchi skript.
 
     python bot/_check_tugmalar.py            # statik tekshiruv (offline)
     python bot/_check_tugmalar.py --live     # + haqiqiy API ga so'rovlar
@@ -550,6 +550,113 @@ async def main() -> int:
             "data?.results" in bandlar_sahifa,
             "frontend «Bandlar» sahifasi `data.results` dan o'qiydi",
         )
+
+    # ---------------------------------------------------------------
+    # 8. BRENDING: emoji o'rniga yagona zamonaviy «logo» uslubi
+    # ---------------------------------------------------------------
+    print()
+    print("=" * 72)
+    print("8. XABAR USLUBI — «LOGO» VA TUGMA MATNLARI")
+    print("=" * 72)
+
+    brend = (BOT_DIR / "branding.py").read_text(encoding="utf-8")
+    tekshir(
+        "def logo(" in brend,
+        "markaziy `branding.logo()` yordamchi funksiya bor",
+    )
+    tekshir(
+        "KUTUBXONA" in brend,
+        "brend nomi (`KUTUBXONA`) bitta joyda belgilangan",
+    )
+    tekshir(
+        "def band_holati(" in brend,
+        "band holatlari uchun yagona yordamchi (`band_holati`) bor",
+    )
+
+    # Band yaratilgan xabarda so'zgani olib tashlangan yozuvlar
+    qidiruv_matni = (BOT_DIR / "handlers" / "qidiruv.py").read_text(encoding="utf-8")
+    tekshir(
+        "kuzatib turishingiz mumkin" not in qidiruv_matni,
+        "«Bandlarim orqali kuzatib turishingiz mumkin» yozuvi olib tashlandi",
+    )
+    tekshir(
+        "kutubxonachi yoki administrator" not in qidiruv_matni,
+        "«kutubxonachi yoki administrator» yozuvi olib tashlandi",
+    )
+    tekshir(
+        qidiruv_matni.count("Tasdiqlanganligi xabar qilinadi") == 2,
+        "band xabarida «Tasdiqlanganligi xabar qilinadi» bor (ikkala joyda)",
+    )
+
+    yordam = (BOT_DIR / "utils.py").read_text(encoding="utf-8")
+    tekshir(
+        "administrator" not in yordam,
+        "yordam matnida «administrator» yo'q",
+    )
+    tekshir(
+        "Holatni «" not in yordam,
+        "yordam matnida «Bandlarim orqali kuzatish» yo'q",
+    )
+
+    # Bandlarim bo'limi va kutubxonachi ro'yxati brendni ishlatadi
+    shaxsiy_matn = (BOT_DIR / "handlers" / "shaxsiy.py").read_text(encoding="utf-8")
+    tekshir(
+        "logo(sarlavha='BANDLARIM')" in shaxsiy_matn,
+        "«Bandlarim» bo'limi `branding.logo()` sarlavhasini ishlatadi",
+    )
+    kutubxonachi_matn = (BOT_DIR / "handlers" / "kutubxonachi.py").read_text(encoding="utf-8")
+    tekshir(
+        "logo(sarlavha=" in kutubxonachi_matn,
+        "kutubxonachi band ro'yxati `branding.logo()` sarlavhasini ishlatadi",
+    )
+
+    # Eski emoji aralash xabarlar qolmasin
+    for fayl, nomi in (
+        (qidiruv_matni, "qidiruv.py"),
+        (shaxsiy_matn, "shaxsiy.py"),
+        (kutubxonachi_matn, "kutubxonachi.py"),
+    ):
+        tekshir(
+            "🔒" not in fayl,
+            f"{nomi} — eski «🔒» emojisi yo'q",
+        )
+
+    # Tugmalar: emoji tozalandi, matnlar qisqa va teng
+    tugmalar = kb.band_tasdiq_tugmalari(7)
+    matnlar = [t.text for t in tugmalar.inline_keyboard[0]]
+    tekshir(
+        matnlar == ["Tasdiqlash", "Rad etish"],
+        f"tasdiqlash tugmalari toza va teng: {matnlar}",
+    )
+    tekshir(
+        all(not m.startswith(("✅", "❌", "🚪", "📖", "🔒")) for m in matnlar),
+        "tasdiqlash tugmalarida emoji yo'q",
+    )
+    bekor = kb.band_bekor_tugmasi(7)
+    bekor_matn = bekor.inline_keyboard[0][0].text
+    tekshir(
+        bekor_matn == "Bekor qilish",
+        f"bekor qilish tugmasi qisqa: '{bekor_matn}'",
+    )
+    tekshir(
+        len(bekor_matn) <= 16,
+        f"bekor tugmasi qisqa ({len(bekor_matn)} belgi, 16 dan ko'p emas)",
+    )
+
+    # Xabar yuborish botga va'da qilingan — API darajasida bajarilishi kerak
+    band_servis = (ROOT / "apps" / "kitob" / "services.py").read_text(encoding="utf-8")
+    tekshir(
+        "_band_tasdiqlandi_xabarini_yubor" in band_servis,
+        "tasdiqlashda o'quvchiga xabar yuboriladi",
+    )
+    tekshir(
+        "_band_rad_etildi_xabarini_yubor" in band_servis,
+        "rad etilganda o'quvchiga xabar yuboriladi",
+    )
+    tekshir(
+        band_servis.count("transaction.on_commit") >= 2,
+        "band xabarlari `transaction.on_commit` orqali yuboriladi",
+    )
 
     if "--live" in sys.argv:
         print()
