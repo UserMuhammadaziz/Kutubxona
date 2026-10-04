@@ -46,12 +46,17 @@ class BerishViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="return")
     def qaytarish(self, request, pk=None):
         berish = self.get_object()
+        # Check if it's an early return (before due date)
+        early_return = berish.qaytarish_muddati and berish.qaytarish_muddati > now().date()
         berish, jarima, taklif_ketdi = services.kitob_qaytar(berish, request.user)
         return Response(
             {
                 "berish": BerishSerializer(berish).data,
                 "jarima_summasi": jarima.summa if jarima else None,
                 "navbatga_taklif_ketdimi": taklif_ketdi,
+                "erken_qaytarildi": early_return,
+                "oquvchi_telegram_id": berish.oquvchi.telegram_id,
+                "kitob_nomi": berish.kitob.nomi,
             }
         )
 
