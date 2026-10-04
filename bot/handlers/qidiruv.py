@@ -7,7 +7,6 @@ from api_client import ApiXato, api
 from keyboards import (
     KATEGORIYALAR,
     KITOB_QIDIRISH,
-    ariza_klaviaturasi,
     band_bekor_tugmasi,
     janr_kitob_tugmalari,
     janr_tugmalari,
@@ -80,12 +79,9 @@ async def _janr_sahifa_kitoblari(janr: str, sahifa: int):
 @router.message(F.text == KITOB_QIDIRISH)
 async def qidiruv_boshla(message: Message, state: FSMContext):
     await state.set_state(Qidiruv.matn)
-    await message.answer(
-        QIDIRUV_SAVOLI,
-        # Qidiruv maydoni ham foydalanuvchi yozadigan joy — yonida
-        # «▶️ Boshlash» va «❓ Yordam» tugmalari turishi kerak.
-        reply_markup=ariza_klaviaturasi(),
-    )
+    # Pastdagi klaviatura endi yo'q: maydon — oddiy matn yozish joyi,
+    # menyu esa standart Telegram «Menu» tugmasi orqali ochiladi.
+    await message.answer(QIDIRUV_SAVOLI)
 
 
 @router.message(Qidiruv.matn)

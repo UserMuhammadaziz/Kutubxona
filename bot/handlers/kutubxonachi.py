@@ -21,7 +21,6 @@ import branding as b
 from api_client import ApiXato, api
 from keyboards import (
     ASOSIY_TUGMALAR,
-    ariza_klaviaturasi,
     band_tasdiq_tugmalari,
     qaytarish_tasdiq_tugmasi,
 )
@@ -72,7 +71,8 @@ async def qaytarish_boshla(message: Message, state: FSMContext):
     if not await _ruxsat_berilganmi(message):
         return
     await state.set_state(KutubxonachiQaytarish.inventar)
-    await message.answer(INVENTAR_SAVOLI, reply_markup=ariza_klaviaturasi())
+    # Inventar raqami oddiy matn — pastdagi klaviatura kerak emas.
+    await message.answer(INVENTAR_SAVOLI)
 
 
 @router.message(KutubxonachiQaytarish.inventar)

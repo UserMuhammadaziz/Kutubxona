@@ -35,7 +35,14 @@ except Exception:
 
 from datetime import datetime  # noqa: E402
 
-from aiogram.types import CallbackQuery, Chat, Message, Update, User  # noqa: E402
+from aiogram.types import (  # noqa: E402
+    CallbackQuery,
+    Chat,
+    Message,
+    ReplyKeyboardRemove,
+    Update,
+    User,
+)
 
 import keyboards as kb  # noqa: E402
 from handlers import (  # noqa: E402
@@ -207,6 +214,7 @@ def barcha_tugmalar() -> dict[str, str]:
                     continue
                 tugmalar[b.callback_data] = f"{manba} · {b.text}"
 
+    yig(kb.menyu_tugmalari(), "menyu_tugmalari")
     yig(kb.ariza_rol_tugmalari(), "ariza_rol_tugmalari")
     yig(kb.kitob_batafsil_tugmasi(1), "kitob_batafsil_tugmasi")
     yig(kb.janr_tugmalari(janrlar), "janr_tugmalari")
@@ -221,6 +229,65 @@ def barcha_tugmalar() -> dict[str, str]:
     yig(kb.navbatdan_chiqish_tugmasi(3), "navbatdan_chiqish_tugmasi")
     yig(kb.qaytarish_tasdiq_tugmasi(9), "qaytarish_tasdiq_tugmasi")
     return tugmalar
+
+
+async def live_menyu_tugmasi_tekshiruv() -> None:
+    """Telegram serveridagi «Menu» tugmasini va buyruqlarni tekshiradi.
+
+    `setChatMenuButton` va `setMyCommands` sozlamalari Telegram serverida
+    saqlanadi — bot qayta ishga tushsa ham yo'qolmaydi. Bu funksiya
+    sozlama faqat kodda emas, **haqiqatan Telegram'da** o'rnatilganini
+    `getChatMenuButton` va `getMyCommands` orqali tasdiqlaydi.
+    """
+    import config
+
+    from aiogram import Bot
+    from aiogram.client.default import DefaultBotProperties
+    from aiogram.enums import ParseMode
+    from aiogram.exceptions import TelegramAPIError
+    from aiogram.types import MenuButtonCommands
+
+    import keyboards as kb
+
+    async def bajar(ish):
+        try:
+            return await ish()
+        except TelegramAPIError as e:
+            tekshir(False, f"Telegram API xatosi: {e}")
+            return None
+
+    bot = Bot(
+        token=config.BOT_TOKEN,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+    )
+    try:
+        await bot.get_me()
+        ornatilgan = await bajar(bot.get_chat_menu_button)
+        buyruqlar = await bajar(bot.get_my_commands)
+    finally:
+        await bot.session.close()
+
+    tekshir(
+        isinstance(ornatilgan, MenuButtonCommands),
+        f"Telegram serveridagi «Menu» tugmasi turi: {type(ornatilgan).__name__}",
+    )
+    tekshir(
+        bool(buyruqlar) and len(buyruqlar) == len(kb.bot_buyruglar()),
+        f"Telegram'da buyruqlar soni: {len(buyruqlar) if buyruqlar else 0}"
+        f" (kutilgan {len(kb.bot_buyruglar())})",
+    )
+    if buyruqlar:
+        kutilgan = {b.command: b.description for b in kb.bot_buyruglar()}
+        tekshir(
+            {b.command for b in buyruqlar} == set(kutilgan),
+            "Telegram'dagi buyruqlar ro'yxati kod bilan bir xil",
+        )
+        farq = [
+            b.command
+            for b in buyruqlar
+            if b.description != kutilgan.get(b.command)
+        ]
+        tekshir(not farq, f"barcha tavsiflar to'gri ({farq or 'mos'})")
 
 
 # ------------------------------------------------------------------- live API
@@ -316,23 +383,92 @@ async def live_tekshiruv() -> None:
     )
     await tekshir_(
         "GET /copies/?inventar_raqami=  [/qaytar]",
-        lambda: api.nusxa_topish("INV-000000"),
+        lambda: api.nusxa_qidir("INV-000000"),
         lambda d: isinstance(d, (list, dict)),
     )
 
     await api.yopish()
 
+    # ------------------------------------------------ Telegram «Menu» tugmasi
+    # Faqat Telegram Bot API ga ulanadigan qism: sozlamaning haqiqatan
+    # Telegram serverida o'rnatilganini va restartdan keyin ham saqlanishini
+    # tekshiradi (bot ishlab turmagan holatda ham).
+    print()
+    print("=" * 72)
+    print("11. LIVE: Telegram «Menu» tugmasi va buyruqlar")
+    print("=" * 72)
+    await live_menyu_tugmasi_tekshiruv()
+
 
 # ---------------------------------------------------------------------- main
 async def main() -> int:
     print("=" * 72)
-    print("1. PASTDAGI MENYU TUGMALARI")
+    print("1. STANDART TELEGRAM «MENU» TUGMASI VA BO'LIM MENYUSI")
     print("=" * 72)
-    menyu = kb.asosiy_menyu()
-    menyu_tugmalari = [b.text for qator in menyu.keyboard for b in qator]
-    tekshir(len(menyu_tugmalari) == 7, f"menyuda {len(menyu_tugmalari)} tugma")
-    for t in menyu_tugmalari:
-        tekshir(await ushlanadimi("message", xabar(t)), t)
+    # Chat ichidagi KATTA tugmalar (ReplyKeyboardMarkup) endi ishlatilmaydi:
+    # menyu — standart Telegram «Menu» tugmasi orqali ochiladi.
+    tekshir(
+        not hasattr(kb, "asosiy_menyu"),
+        "katta pastdagi menyu klaviaturasi (`asosiy_menyu`) yo'q",
+    )
+    tekshir(
+        not hasattr(kb, "ariza_klaviaturasi"),
+        "maydon yonidagi Boshlash/Yordam klaviaturasi (`ariza_klaviaturasi`) yo'q",
+    )
+    tekshir(
+        isinstance(kb.klaviatura_olib_tashla(), ReplyKeyboardRemove),
+        "eski pastdagi klaviatura `ReplyKeyboardRemove` bilan tozalanadi",
+    )
+
+    # Faqat telefon bosqichi uchun kontakt tugmasi qoladi.
+    tel_klav = kb.telefon_sorash()
+    tel_matnlar = [b.text for qator in tel_klav.keyboard for b in qator]
+    tekshir(
+        tel_matnlar == [kb.TELEFON_YUBORISH],
+        f"pastdagi klaviatura faqat kontakt tugmasidan iborat: {tel_matnlar}",
+    )
+    tekshir(
+        all(b.request_contact for q in tel_klav.keyboard for b in q),
+        "kontakt tugmasi `request_contact=True`",
+    )
+
+    # Menyu inline tugmalari — xabar ichida, maydon yonida emas.
+    menyu = kb.menyu_tugmalari()
+    menyu_matlari = [b.text for qator in menyu.inline_keyboard for b in qator]
+    tekshir(
+        len(menyu_matlari) == len(kb.MENYU_INLINE_TUGMALARI),
+        f"menyuda {len(menyu_matlari)} bo'lim tugmasi",
+    )
+    for t in menyu_matlari:
+        tekshir(await ushlanadimi("callback_query", bildirishnoma(
+            dict(kb.MENYU_INLINE_TUGMALARI)[t]
+        )), t)
+
+    # Standart «Menu» tugmasi orqali keladigan buyruqlar — hammasi ushlanishi kerak.
+    for buyruq in kb.bot_buyruglar():
+        tekshir(
+            len(buyruq.command) <= 32
+            and re.fullmatch(r"[a-z0-9_]+", buyruq.command) is not None,
+            f"/{buyruq.command} nomi Telegram qoidasiga mos",
+        )
+        tekshir(
+            1 <= len(buyruq.description) <= 256,
+            f"/{buyruq.command} tavsifi 1-256 belgi ({len(buyruq.description)})",
+        )
+        tekshir(
+            await ushlanadimi("message", xabar(f"/{buyruq.command}")),
+            f"/{buyruq.command} buyrug'i router tomonidan ushlanadi",
+        )
+    # Ro'yxatda takror bo'lmasin (Telegram bir xil buyruqni qabul qilmaydi).
+    buyruq_nomlari = [b.command for b in kb.bot_buyruglar()]
+    tekshir(
+        len(buyruq_nomlari) == len(set(buyruq_nomlari)),
+        "buyruqlar ro'yxatida takror yo'q",
+    )
+    tekshir(
+        len(buyruq_nomlari) <= 100,
+        f"buyruqlar soni 100 dan kam ({len(buyruq_nomlari)})",
+    )
 
     print()
     print("=" * 72)
@@ -373,13 +509,23 @@ async def main() -> int:
     # o'z handler'iga yetishi kerak. Aks holda `/bekor` "ism-familiya" bo'lib
     # ketadi, "📚 Kategoriyalar" esa ariza maydoniga yoziladi.
     kutilayotgan = {
+        "/menu": "menyu_buyrugi",
+        "/yordam": "yordam_buyrugi",
         "/bekor": "bekor",
         "/qaytar": "qaytar",
-        kb.KITOB_QIDIRISH: "menyu_qidirish",
-        kb.KATEGORIYALAR: "menyu_kategoriya",
-        kb.MENING_KITOBLARIM: "menyu_kitoblarim",
-        kb.NAVBATLARIM: "menyu_navbatlarim",
-        kb.JARIMALARIM: "menyu_jarimalarim",
+        "/qidiruv": "qidiruv_buyrugi",
+        "/kategoriyalar": "kategoriyalar_buyrugi",
+        "/kitoblarim": "kitoblarim_buyrugi",
+        "/navbatlarim": "navbatlarim_buyrugi",
+        "/bandlarim": "bandlarim_buyrugi",
+        "/jarimalarim": "jarimalarim_buyrugi",
+        # Eski katta tugmalar matnlari endi menyuni taklif qiladi.
+        kb.KITOB_QIDIRISH: "eski_tugma_matni",
+        kb.KATEGORIYALAR: "eski_tugma_matni",
+        kb.MENING_KITOBLARIM: "eski_tugma_matni",
+        kb.NAVBATLARIM: "eski_tugma_matni",
+        kb.BANDLARIM: "eski_tugma_matni",
+        kb.JARIMALARIM: "eski_tugma_matni",
     }
     holatlar = [
         (None, "holatsiz"),
@@ -414,7 +560,7 @@ async def main() -> int:
 
     print()
     print("=" * 72)
-    print("5. ARIZA BOSQICHIDA MENYU TUGMASI HIMOYASI")
+    print("5. ARIZA BOSQICHIDA ESKI MENYU TUGMASI HIMOYASI")
     print("=" * 72)
     tekshir(
         start._menyu_tugmasi_bosilganmi(kb.KATEGORIYALAR)
@@ -423,8 +569,13 @@ async def main() -> int:
         and start._menyu_tugmasi_bosilganmi(kb.KITOB_QIDIRISH)
         and start._menyu_tugmasi_bosilganmi(kb.MENING_KITOBLARIM)
         and start._menyu_tugmasi_bosilganmi(kb.BANDLARIM)
-        and start._menyu_tugmasi_bosilganmi(kb.MENYU),
-        "barcha menyu tugmalari ariza maydoniga tushmaydi",
+        and start._menyu_tugmasi_bosilganmi(kb.MENYU_YORDAM),
+        "barcha eski menyu tugmalari ariza maydoniga tushmaydi",
+    )
+    tekshir(
+        kb.MENYU_YORDAM in kb.ASOSIY_TUGMALAR
+        and kb.KATEGORIYALAR in kb.ASOSIY_TUGMALAR,
+        "eski tugmalar `ASOSIY_TUGMALAR` da himoyalangan",
     )
     tekshir(
         not start._menyu_tugmasi_bosilganmi("7-A sinf")
@@ -659,53 +810,67 @@ async def main() -> int:
         "band xabarlari `transaction.on_commit` orqali yuboriladi",
     )
 
-    # ------------------------------------------------ 9. menyu tugmalari
+    # ------------------------------------------- 9. standart «Menu» tugmasi
     print()
     print("=" * 72)
-    print("9. YOZILAYOTGAN MAYDON YONIDAGI MENYU TUGMALARI")
+    print("9. STANDART TELEGRAM «MENU» TUGMASI (setChatMenuButton)")
     print("=" * 72)
 
-    tekshir(
-        kb.BOSHLASH == "▶️ Boshlash",
-        f"Boshlash tugmasi bor: '{kb.BOSHLASH}'",
-    )
-    tekshir(
-        kb.BOSHLASH in kb.ASOSIY_TUGMALAR,
-        "Boshlash `ASOSIY_TUGMALAR` da — ariza maydoniga tushib ketmaydi",
-    )
-
-    klav = kb.ariza_klaviaturasi()
-    matnlar = [b.text for qator in klav.keyboard for b in qator]
-    tekshir(
-        matnlar == [kb.BOSHLASH, kb.MENYU_YORDAM],
-        f"ariza klaviaturasida Boshlash + Yordam bor: {matnlar}",
-    )
-    tekshir(
-        kb.MENYU_YORDAM in matnlar,
-        "Yordam tugmasi maydon yonida turadi",
-    )
-
-    tel_klav = kb.ariza_klaviaturasi(telefon_tugmasi=True)
-    tel_matnlar = [b.text for qator in tel_klav.keyboard for b in qator]
-    tekshir(
-        tel_matnlar[0] == kb.TELEFON_YUBORISH,
-        "telefon bosqichida kontakt tugmasi tepada",
-    )
-    tekshir(
-        kb.BOSHLASH in tel_matnlar and kb.MENYU_YORDAM in tel_matnlar,
-        "telefon bosqichida ham Boshlash + Yordam bor",
-    )
-
+    main_py = Path(ROOT / "bot" / "main.py").read_text(encoding="utf-8")
     nav = Path(ROOT / "bot" / "handlers" / "navigatsiya.py").read_text(
         encoding="utf-8"
     )
-    tekshir(
-        "F.text == BOSHLASH" in nav,
-        "navigatsiya.py da «Boshlash» tugmasi handler'i bor",
+    start_py = Path(ROOT / "bot" / "handlers" / "start.py").read_text(
+        encoding="utf-8"
     )
+    qidiruv_py = Path(ROOT / "bot" / "handlers" / "qidiruv.py").read_text(
+        encoding="utf-8"
+    )
+    kutubxonachi_py = Path(
+        ROOT / "bot" / "handlers" / "kutubxonachi.py"
+    ).read_text(encoding="utf-8")
+
+    # Sozlama Telegram serveriga haqiqiy yuborilishi kerak.
+    tekshir(
+        "set_chat_menu_button" in main_py and "MenuButtonCommands" in main_py,
+        "main.py da `setChatMenuButton` + `MenuButtonCommands` chaqiriladi",
+    )
+    tekshir(
+        "set_my_commands" in main_py and "bot_buyruglar()" in main_py,
+        "main.py da `setMyCommands` orqali buyruqlar yuboriladi",
+    )
+    tekshir(
+        "get_chat_menu_button" in main_py and "get_my_commands" in main_py,
+        "main.py da o'rnatilganlik `getChatMenuButton`/`getMyCommands` bilan tekshiriladi",
+    )
+    tekshir(
+        "chat_id" not in main_py.split("set_chat_menu_button")[1][:200].split("\n")[0],
+        "chat_id bermaslik — barcha shaxsiy chatlar uchun standart tugma",
+    )
+    tekshir(
+        "menyu_tugmasini_yoqish(bot)" in main_py
+        and "start_polling" in main_py
+        and main_py.index("menyu_tugmasini_yoqish(bot)") < main_py.index("start_polling"),
+        "sozlama polling'dan OLDIN qo'llanadi",
+    )
+
+    # /menu buyrug'i va bo'limlarning inline callback'lari.
+    tekshir(
+        'Command("menu"' in nav,
+        "navigatsiya.py da `/menu` buyrug'i bor",
+    )
+    tekshir(
+        "menyu:qidiruv" in kb.MENYU_INLINE_TUGMALARI[0][1],
+        "menyudagi birinchi tugma `menyu:qidiruv`",
+    )
+    for matn, _callback in kb.MENYU_INLINE_TUGMALARI:
+        tekshir(
+            await ushlanadimi("callback_query", bildirishnoma(_callback)),
+            f"menyu tugmasi ushlanadi: {matn}",
+        )
+
     # Muhim: navigatsiya router'i state handler'laridan OLDIN ro'yxatlanishi
-    # kerak, aks holda «Boshlash»/«Yordam» ariza maydoniga matn bo'lib ketadi.
-    main_py = Path(ROOT / "bot" / "main.py").read_text(encoding="utf-8")
+    # kerak, aks holda `/bekor` ariza maydoniga matn bo'lib ketadi.
     router_tartibi = re.findall(r"dp\.include_router\((\w+)\.router\)", main_py)
     tekshir(
         bool(router_tartibi) and router_tartibi[0] == "navigatsiya",
@@ -714,50 +879,69 @@ async def main() -> int:
     if "navigatsiya" in router_tartibi and "start" in router_tartibi:
         tekshir(
             router_tartibi.index("navigatsiya") < router_tartibi.index("start"),
-            "menyu router'i ariza (start) router'idan oldin — tugma maydonga tushmaydi",
+            "buyruq router'i ariza (start) router'idan oldin — buyruq maydonga tushmaydi",
         )
+
     tekshir(
         "_yordam_ber" in nav,
         "yordam umumiy yordamchi orqali beriladi (bo'limlar uchun bir xil)",
     )
-    _yordam_ber_manzili = nav.split("async def _yordam_ber")[1].split("async def boshlash_tugmasi")[0]
+    _yordam_ber_manzili = nav.split("async def _yordam_ber")[1].split("async def _menyuni_ochish")[0]
     tekshir(
-        "_arizani_tugatish" not in _yordam_ber_manzili and "state.clear()" not in _yordam_ber_manzili.split("if joriy in YOZISH_BOSQICHLARI")[0],
+        "_arizani_tugatish" not in _yordam_ber_manzili
+        and "state.clear()" not in _yordam_ber_manzili.split("if joriy in YOZISH_BOSQICHLARI")[0],
         "yordam yozilayotgan ma'lumotni bekor qilmaydi",
     )
 
     # Yordam ariza/qidiruv/inventar bosqichida savolni qaytarishi kerak.
-    start_py = Path(ROOT / "bot" / "handlers" / "start.py").read_text(
-        encoding="utf-8"
-    )
     tekshir(
         "def joriy_savol(" in start_py,
         "start.py da joriy savolni qaytaruvchi yordamchi bor",
     )
+
+    # Eski pastdigi klaviaturasiz qolgan joylar bo'lmasin.
+    for nomi, matn in (
+        ("start.py", start_py),
+        ("navigatsiya.py", nav),
+        ("qidiruv.py", qidiruv_py),
+        ("kutubxonachi.py", kutubxonachi_py),
+    ):
+        tekshir(
+            "ariza_klaviaturasi" not in matn and "asosiy_menyu" not in matn,
+            f"{nomi} da o'chirilgan klaviatura ishlatilmaydi",
+        )
+
+    # Telefon bosqichida kontakt tugmasi bor, qabul qilingach esa olib
+    # tashlanadi — maydon yonida ortiqcha tugma qolmasin.
     tekshir(
-        "ariza_klaviaturasi" in start_py,
-        "ariza bosqichlarida maydon yonidagi klaviatura ishlatiladi",
+        "telefon_sorash()" in start_py,
+        "telefon bosqichida kontakt tugmasi beriladi",
     )
     tekshir(
-        "klaviatura_olib_tashla()" not in start_py.split("async def _telefon_qabul")[1].split("async def ariza_sinf")[0],
-        "telefon qabul qilingach klaviatura O'CHIRILMAYDI (menyu saqlanadi)",
+        "telefon_sorash()" in nav,
+        "yordam telefon bosqichida kontakt tugmasini qaytaradi",
+    )
+    _telefon_qabul = start_py.split("async def _telefon_qabul")[1].split("async def ariza_sinf")[0]
+    tekshir(
+        _telefon_qabul.count("klaviatura_olib_tashla()") == 2,
+        "telefon qabul qilingach kontakt klaviaturasini olib tashlaydi (2 ta javob)",
     )
 
-    qidiruv_py = Path(ROOT / "bot" / "handlers" / "qidiruv.py").read_text(
-        encoding="utf-8"
-    )
+    # Eski klaviatura foydalanuvchida qolmasin.
     tekshir(
-        "QIDIRUV_SAVOLI" in qidiruv_py and "ariza_klaviaturasi()" in qidiruv_py,
-        "qidiruv maydonida ham Boshlash + Yordam bor",
+        "klaviatura_olib_tashla()" in start_py.split("async def start(")[1][:900],
+        "/start da eski pastdigi klaviatura tozalanadi",
     )
 
-    kutubxonachi_py = Path(
-        ROOT / "bot" / "handlers" / "kutubxonachi.py"
-    ).read_text(encoding="utf-8")
+    tekshir(
+        "QIDIRUV_SAVOLI" in qidiruv_py
+        and "reply_markup" not in qidiruv_py.split("async def qidiruv_boshla")[1][:400],
+        "qidiruv maydonida ortiqcha klaviatura yo'q",
+    )
     tekshir(
         "INVENTAR_SAVOLI" in kutubxonachi_py
-        and "ariza_klaviaturasi()" in kutubxonachi_py,
-        "inventar maydonida ham Boshlash + Yordam bor",
+        and "ariza_klaviaturasi" not in kutubxonachi_py,
+        "inventar maydonida ortiqcha klaviatura yo'q",
     )
 
     # ------------------------------------------------ 10. matn imlosi
@@ -770,8 +954,17 @@ async def main() -> int:
 
     yordam_matni_tekshir = yordam_matni()
     tekshir(
-        kb.BOSHLASH in yordam_matni_tekshir,
-        "yordam matnida «Boshlash» tugmasi nomi keltirilgan",
+        "/menu" in yordam_matni_tekshir,
+        "yordam matnida `/menu` buyrug'i keltirilgan",
+    )
+    tekshir(
+        "Boshlash" not in yordam_matni_tekshir
+        and "ariza_klaviaturasi" not in yordam_matni_tekshir,
+        "yordam matnida o'chirilgan «Boshlash» tugmasi yo'q",
+    )
+    tekshir(
+        "Pastdagi tugmalar" not in yordam_matni_tekshir,
+        "yordam matnida eskirgan «Pastdaki tugmalar» bo'limi yo'q",
     )
     tekshir(
         "bosib bo'lmaydi" not in yordam_matni_tekshir,

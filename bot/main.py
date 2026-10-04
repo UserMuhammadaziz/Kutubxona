@@ -11,11 +11,13 @@ import logging
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.exceptions import TelegramAPIError
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import ErrorEvent
+from aiogram.types import ErrorEvent, MenuButtonCommands
 
 import config
 from api_client import api
+from keyboards import bot_buyruglar
 from handlers import (
     kutubxonachi,
     navigatsiya,
@@ -51,6 +53,38 @@ async def xatolik_handler(event: ErrorEvent):
         logger.warning("Xatolik xabari yuborilmadi", exc_info=True)
 
 
+async def menyu_tugmasini_yoqish(bot: Bot) -> None:
+    """Standart Telegram «Menu» tugmasini yoqadi va buyruqlarni ro'yxatlaydi.
+
+    `setChatMenuButton` — tugma xabar yozish maydonining PASTKI CHAP
+    burchagida, 📎 yonida paydo bo'ladi (chat ichidagi katta tugmalar
+    o'rniga). `MenuButtonCommands` tanlansa, tugma bosilganda Telegram
+    buyruqlar ro'yxatini ochadi.
+
+    Sozlamalar Telegram serverida saqlanadi, shuning uchun bot qayta
+    ishga tushsa ham yo'qolmaydi. Ammo xavfsizlik uchun har startda
+    qayta yuboriladi (idempotent) va natija `getChatMenuButton` bilan
+    tekshiriladi — "chaqirildi" deb olish o'rniga haqiqatan o'rnatilganini
+    ko'ramiz.
+    """
+    log = logging.getLogger(__name__)
+
+    await bot.set_my_commands(bot_buyruglar())
+    # chat_id bermaslik — barcha shaxsiy chatlar uchun standart sozlamani
+    # o'rnadi (guruhlarda alohida chat_id bilan berilishi mumkin).
+    await bot.set_chat_menu_button(menu_button=MenuButtonCommands())
+
+    # Ro'yxatni qayta o'qib, Telegram haqiqatan saqlaganini tekshiramiz.
+    ornatilgan = await bot.get_chat_menu_button()
+    buyruqlar = await bot.get_my_commands()
+    if not isinstance(ornatilgan, MenuButtonCommands):
+        log.error("«Menu» tugmasi o'rnatilmadi: %r", ornatilgan)
+    log.info(
+        "«Menu» tugmasi yoqilgan, buyruqlar: %d ta",
+        len(buyruqlar),
+    )
+
+
 async def main():
     logging.basicConfig(
         level=logging.INFO,
@@ -81,6 +115,14 @@ async def main():
 
     try:
         await bot.delete_webhook(drop_pending_updates=True)
+        try:
+            await menyu_tugmasini_yoqish(bot)
+        except TelegramAPIError:
+            # Sozlama muhim, lekin botni ishga tushirishdan to'smasin —
+            # bo'lmasa foydalanuvchi hech qanday javob olmay qoladi.
+            logging.getLogger(__name__).exception(
+                "«Menu» tugmasi yoqilmadi, bot baribir ishga tushmoqda"
+            )
         logging.getLogger(__name__).info("Bot ishga tushdi (polling)...")
         await dp.start_polling(bot)
     finally:

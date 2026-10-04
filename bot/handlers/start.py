@@ -10,12 +10,12 @@ from keyboards import (
     ARIZA_ROL_OQITUVCHI,
     ARIZA_ROL_OQUVCHI,
     ASOSIY_TUGMALAR,
-    ariza_klaviaturasi,
     ariza_rol_tugmalari,
-    asosiy_menyu,
     klaviatura_olib_tashla,
     matndan_telefon_keltirish,
+    menyu_tugmalari,
     telefon_keltirish,
+    telefon_sorash,
 )
 from states import Ariza
 from utils import x, xabarni_tahrirlash
@@ -83,18 +83,19 @@ def joriy_savol(state: str | None, ma_lumot: dict | None = None) -> str:
 
 
 async def _menyu_tugmasi_javobi(message: Message, savol: str) -> None:
-    """Menyu tugmasi maydon sifatida yuborilsa — maydonga qaytaradi.
+    """Eski menyu tugmasi matn sifatida yuborilsa — maydonga qaytaradi.
 
-    Masalan o'quvchi "📚 Kategoriyalar" bosib, "sinf" o'rniga shu matnni
-    yuborsa, maydon to'ldirilmaydi. Foydalanuvchiga nima qilish kerakligi
-    aytiladi va savol qaytariladi.
+    Eski versiyalarda pastdagi katta tugmalar mavjud edi. Ular enda
+    ko'rsatilmaydi (menyu — standart «Menu» tugmasi orqali), lekin eski
+    klientlarda yoki eski xabarlarda qolgan bo'lishi mumkin. Bunday matn
+    maydonga tushsa, ariza behuda bo'lib ketardi — shuning uchun qaytarib
+    beramiz.
     """
     await message.answer(
         f"{savol}\n\n"
-        "⚠️ Pastdagi menyu tugmalaridan birini bosdingiz — ular ariza "
-        "maydoniga matn sifatida tushib ketadi.\n"
-        "Ariza to'ldirishni davom ettiring, yoki qayta boshlash uchun "
-        "«▶️ Boshlash» tugmasini bosing."
+        "⚠️ Bu menyu tugmasi eski versiya qoldig'i — u endi ishlatilmaydi.\n"
+        "Ariza to'ldirishni davom ettiring, menyuga o'tish uchun esa "
+        "pastdagi «Menu» tugmasini yoki /menu buyrug'ini ishlating."
     )
 
 
@@ -103,12 +104,23 @@ async def start(message: Message, state: FSMContext):
     await state.clear()
     telegram_id = message.from_user.id
 
+    # Eski versiyalarda pastdagi KATTA tugmalar mavjud edi. Telegram'da
+    # pastdagi klaviatura butun chat bo'ylab saqlanadi — hozirgi menyu esa
+    # standart «Menu» tugmasi orqali ochiladi. Shuning uchun eski
+    # klaviaturani bir marta tozalaymiz (yuborilmasa, foydalanuvchi uni
+    # ko'rib turaveradi).
+    await message.answer(
+        "📎 Endi menyu — xabar yozish maydonining pastki chap burchagidagi "
+        "standart «Menu» tugmasi orqali ochiladi.",
+        reply_markup=klaviatura_olib_tashla(),
+    )
+
     # Bog'langanmi? Oquvchi topilmasa 404 "topilmadi" qaytaradi.
     try:
         await api.kitoblarim(telegram_id)
         await message.answer(
             "Yana xush kelibsiz! 📚 Kerakli bo'limni tanlang:",
-            reply_markup=asosiy_menyu(),
+            reply_markup=menyu_tugmalari(),
         )
         return
     except ApiXato as e:
@@ -190,12 +202,11 @@ async def ariza_rol_tanlandi(callback: CallbackQuery, state: FSMContext):
     if callback.message is None:
         return
     await xabarni_tahrirlash(callback, rol_tanlash_xabari(rol))
-    # Savol maydoni yonida doimiy «Boshlash»/«Yordam» tugmalari kerak.
-    # Rol xabari esa inline tugmalar bilan berilgan — o'sha xabar
-    # tahrirlanadi, maydon uchun yangi xabar yuboriladi.
+    # Rol xabari inline tugmalar bilan berilgan — o'sha xabar
+    # tahrirlanadi, maydon uchun yangi xabar yuboriladi. Pastdagi klaviatura
+    # endi faqat telefon bosqichida (kontakt yuborish) kerak bo'ladi.
     await callback.message.answer(
         SAVOL_FISH,
-        reply_markup=ariza_klaviaturasi(),
     )
 
 
@@ -216,7 +227,7 @@ async def ariza_fish(message: Message, state: FSMContext):
     await state.set_state(Ariza.telefon)
     await message.answer(
         f"2️⃣ Rahmat. {SAVOL_TELEFON}",
-        reply_markup=ariza_klaviaturasi(telefon_tugmasi=True),
+        reply_markup=telefon_sorash(),
     )
 
 
@@ -265,8 +276,10 @@ async def ariza_telefon_matn(message: Message, state: FSMContext):
 async def _telefon_qabul(message: Message, state: FSMContext, telefon: str):
     """Raqamni saqlaydi va keyingi bosqichga o'tadi.
 
-    Tugmalar o'chirilmaydi: sinf/kasb yozilayotganda ham maydon yonida
-    `▶️ Boshlash` va `❓ Yordam` turishi kerak (`ariza_klaviaturasi`).
+    Telefon qabul qilingach, kontakt tugmasi klaviaturasi butunlay
+    olib tashlanadi: qolgan maydonlar (sinf/kasb) — oddiy matn, ya'ni
+    maydon yonida tugma kerak emas. Menyu esa standart «Menu» tugmasi
+    orqali mavjudligini saqlaydi.
     """
     data = await state.get_data()
     rol = data.get("rol", ARIZA_ROL_OQUVCHI)
@@ -277,7 +290,7 @@ async def _telefon_qabul(message: Message, state: FSMContext, telefon: str):
         await message.answer(
             f"✅ Telefon raqamingiz muvaffaqiyatli tasdiqlandi: {telefon}\n\n"
             f"{SAVOL_KASB}",
-            reply_markup=ariza_klaviaturasi(),
+            reply_markup=klaviatura_olib_tashla(),
         )
         return
 
@@ -285,7 +298,7 @@ async def _telefon_qabul(message: Message, state: FSMContext, telefon: str):
     await message.answer(
         f"✅ Telefon raqamingiz muvaffaqiyatli tasdiqlandi: {telefon}\n\n"
         f"{SAVOL_SINF}",
-        reply_markup=ariza_klaviaturasi(),
+        reply_markup=klaviatura_olib_tashla(),
     )
 
 
@@ -343,8 +356,8 @@ async def ariza_bekor_qilish(message: Message, state: FSMContext):
     """Ariza to'ldirishdan voz kechish — holat tozalanadi, bot yana ishlaydi."""
     await state.clear()
     await message.answer(
-        "Bekor qilindi. Qayta urinish uchun /start buyrug'ini yoki "
-        "«▶️ Boshlash» tugmasini bosing.",
+        "Bekor qilindi. Qayta urinish uchun /start yoki /menu buyrug'ini "
+        "ishlating.",
         reply_markup=klaviatura_olib_tashla(),
     )
 
@@ -385,7 +398,7 @@ async def _arizani_yuborish(
         logger.warning("ariza rad etildi (%s): %s", e.kod, e.detail)
         await message.answer(
             f"⚠️ {x(e.detail)}\n\n{savol}\n"
-            "(Boshlashdan voz kechish uchun /bekor)"
+            "(Bekor qilish uchun /bekor)"
         )
         return
 
@@ -399,7 +412,5 @@ async def _arizani_yuborish(
         "Kutubxonachi arizangizni tasdiqlagach, /start buyrug'ini bosing va "
         "botdan foydalanasiz. Tasdiqlash yoki rad etish natijasi shu yerga "
         "xabar qilinadi.",
-        # Tugmalar butunlay o'chirilmaydi: foydalanuvchi kutayotganda
-        # «❓ Yordam» yoki «▶️ Boshlash» tugmalari kerak bo'lishi mumkin.
-        reply_markup=ariza_klaviaturasi(),
+        reply_markup=klaviatura_olib_tashla(),
     )

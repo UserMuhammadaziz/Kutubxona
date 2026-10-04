@@ -20,7 +20,7 @@ from html import escape
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery, Message
 
-from keyboards import BOSHLASH, MENYU, MENYU_YORDAM
+from keyboards import MENYU_YORDAM
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +60,7 @@ async def xabarni_tahrirlash(
             return False
         if "message to edit not found" in str(xato).lower():
             await xabar.answer(
-                "Bu xabar allaqachon eskirgan. Asosiy menyudan qayta bosing."
+                "Bu xabar allaqachon eskirgan. /menu orqali qayta oching."
             )
             return False
         logger.warning("xabar tahrirlanmadi: %s", xato)
@@ -69,7 +69,7 @@ async def xabarni_tahrirlash(
 
 
 def yordam_matni() -> str:
-    """«❓ Yordam» va `/yordam` uchun bot imkoniyatlari matni.
+    """`/yordam` uchun bot imkoniyatlari matni.
 
     Alohida funksiyada saqlanadi: matn ichidagi tugma nomlari (`keyboards.py`)
     ish vaqtida o'zgarishi mumkin — shu sababli ular import qilinadi.
@@ -88,11 +88,16 @@ def yordam_matni() -> str:
         "<b>Mening kitoblarim</b> — olgan kitoblaringiz va qaytarish muddati.\n"
         "<b>Bandlarim</b> — band qilgan so'rovlaringiz va ularning holati.\n"
         "<b>Jarimalarim</b> — kechikish uchun to'lanmagan jarimalar.\n\n"
-        "<b>Pastdagi tugmalar</b>\n"
-        f"   {BOSHLASH} — arizani bekor qilib, noldan boshlash (/start).\n"
+        "<b>Buyruqlar</b>\n"
+        "   /menu — barcha bo'limlarni ochish.\n"
         f"   {MENYU_YORDAM} — shu yordam matni.\n"
-        f"   {MENYU} — boshqa bo'limlarga o'tish.\n\n"
-        f"Ariza to'ldirilayotganda «{MENYU_YORDAM}» tugmasi maydonni buzmaydi "
-        "— yordam ko'rsatib, javob yoziladigan joyni o'z holicha qaytaradi. "
-        f"«{BOSHLASH}» esa arizani bekor qilib, noldan boshlaydi."
+        "   /start — a'riza yuborish yoki qayta boshlash.\n"
+        "   /bekor — joriy amalni bekor qilish.\n\n"
+        "<b>Qo'lda yozish shart emas</b>\n"
+        "   Xabar yozish maydonining pastki chap burchagidagi standart "
+        "«Menu» tugmasi barcha bo'limlarni ochadi — buyruqni xabarning "
+        "o'ziga ham yozishingiz mumkin.\n\n"
+        "Ariza to'ldirilayotganda yordam so'rasangiz, ariza bekor "
+        "qilinmaydi — yordam ko'rsatilib, javob yoziladigan joy o'z "
+        "holicha qaytariladi."
     )
