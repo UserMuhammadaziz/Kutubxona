@@ -230,7 +230,7 @@ async def janr_kitob_tanlandi(callback: CallbackQuery):
         reply_markup=kitob_band_qilish_tugmalari(
             kitob_id,
             qaytish=f"jpage:{janr}:{sahifa}",
-            navbat_mavjud=not _mavjud_nusxa_bormi(kitob),
+            navbat_mavjud=_navbat_mavjud(kitob),
         ),
     )
     await callback.answer()
@@ -258,7 +258,7 @@ async def kitob_kartochka(callback: CallbackQuery):
     await callback.message.answer(
         matn,
         reply_markup=kitob_band_qilish_tugmalari(
-            kitob_id, navbat_mavjud=not _mavjud_nusxa_bormi(kitob)
+            kitob_id, navbat_mavjud=_navbat_mavjud(kitob)
         ),
     )
     await callback.answer()
@@ -267,6 +267,17 @@ async def kitob_kartochka(callback: CallbackQuery):
 def _mavjud_nusxa_bormi(kitob: dict) -> bool:
     """Kitobning kamida bitta `mavjud` nusxasi bormi."""
     return any(n.get("holati") == "mavjud" for n in kitob.get("nusxalar") or [])
+
+
+def _navbat_mavjud(kitob: dict) -> bool:
+    """«⏳ Navbatga turish» tugmasi ko'rsatilishi kerakmi?
+
+    Faqat nusxasi bor, lekin hozir hech qanday mavjud nusxasi yo'q kitoblar
+    uchun. Nusxasi umuman yo'q («asli») kitoblarda navbatga turish kitobni
+    darhol berar edi, bunday kitoblar uchun faqat «🔒 Band qilish» ko'rsatiladi."""
+    if not (kitob.get("nusxalar") or []):
+        return False
+    return not _mavjud_nusxa_bormi(kitob)
 
 
 def _kitob_batafsil_matn(kitob: dict) -> str:
@@ -297,7 +308,10 @@ def _kitob_batafsil_matn(kitob: dict) -> str:
         "Band qilingan kitob boshqalarga berilmaydi: uni faqat kutubxonachi "
         "yoki administrator tasdiqlagandan keyin sizga beriladi."
     )
-    if not mavjud_nusxa:
+    # Navbat faqat nusxasi bor, lekin hozir berilmaydigan kitoblar uchun.
+    # Nusxasi umuman yo'q kitobda navbatga turish kitobni darhol berar edi,
+    # shuning uchun u yerda ko'rsatilmaydi.
+    if _navbat_mavjud(kitob):
         matn += (
             "\n\n⏳ <b>Navbatga turish</b> — hozir berish mumkin bo'lmagan kitob "
             "kutmoqchi bo'lsangiz (avval berilgach sizga taklif yuboriladi)."
@@ -378,16 +392,30 @@ async def band_bekor_qilish(callback: CallbackQuery):
 
 @router.callback_query(F.data.startswith("navbat_tur:"))
 async def navbatga_tur(callback: CallbackQuery):
-    qismlar = callback.data.split(":")
-    if len(qismlar) < 2 or not qismlar[1].isdigit():
-        await callback.answer("Kitob topilmadi.", show_alert=True)
-        return
-    kitob_id = int(qismlar[1])
-    telegram_id = callback.from_user.id
+    """ESKI xabarlardagi «🕐 Band qilish» tugmasi — endi tasdiqlanadigan band.
 
-    if callback.message is None:
-        await callback.answer("Xabar eskirgan. Qayta qidiring.", show_alert=True)
+    Bu callback eskida «Band qilish» va «Navbatga turish» tugmalarida birga
+    ishlatilardi. Navbat uchun endi alohida `navbat_qoldir:` callback'i bor,
+    shuning uchun `navbat_tur:` faqat eski "Band qilish" tugmalariga qolgan
+    va ularni to'g'ri ishlash uchun band so'roviga yo'naltiramiz.
+
+    Oldin shu callback nusxasi yo'q kitobda kitobni DARHOL berar edi —
+    foydalanuvchi «band qildim» deb o'ylab, kitobni olib qoldi."""
+    kitob_id = await _band_kitob_idi(callback)
+    if kitob_id is None:
         return
+    await _band_so_rovi_yubor(callback, kitob_id)
+
+
+@router.callback_query(F.data.startswith("navbat_qoldir:"))
+async def navbat_qoldirish(callback: CallbackQuery):
+    """«⏳ Navbatga turish» — nusxasi bor, hozir berilmaydigan kitob uchun navbat.
+
+    Faqat navbatga o'rin oladi, kitobni hech qachon darhol bermaydi."""
+    kitob_id = await _band_kitob_idi(callback)
+    if kitob_id is None:
+        return
+    telegram_id = callback.from_user.id
 
     try:
         natija = await api.navbatga_tur(kitob_id, telegram_id)
@@ -405,19 +433,16 @@ async def navbatga_tur(callback: CallbackQuery):
 
     nomi = await _kitob_nomi(kitob_id)
 
-    # Nusxasi yo'q kitobda navbatga qo'shilmaydi — asli kitob darhol
-    # beriladi. Aks holda foydalanuvchi navbatda turib qolardi va
-    # hech qachon kitob olmaganini sezmasdi.
     if natija.get("berildi"):
+        # Nusxasi bor kitob bo'shatilsa va shu zahoti navbatdagi odamga
+        # berib bo'lsa. Aks holda oddiy navbat xabari ko'rsatiladi.
         berish = natija.get("berish") or {}
         muddat = berish.get("qaytarish_muddati")
         qator = f"📖 <b>{x(nomi)}</b>"
         if muddat:
             qator += f"\n📅 Qaytarish muddati: {muddat}"
         await callback.message.answer(
-            f"✅ {qator}\n\n"
-            "Kitobda nusxa yo'q edi, shuning uchun <b>asli kitob</b> sizga "
-            "berildi (band qilindi).\n"
+            f"✅ {qator}\n\nKitob navbatdan sizga berildi.\n"
             "📚 Mening kitoblarim orqali qaytarish muddatini ko'rasiz."
         )
     else:
@@ -428,6 +453,47 @@ async def navbatga_tur(callback: CallbackQuery):
             "💡 Maxsus maqsadga (dars, imtihon, tadbir) ajratish uchun esa "
             "«🔒 Band qilish» ni ishlating — u tasdiqlash kutiladi."
         )
+    await callback.answer()
+
+
+async def _band_kitob_idi(callback: CallbackQuery) -> int | None:
+    """Callback ma'lumotidan kitob ID sini oladi (xabar eskirgan bo'lsa None)."""
+    qismlar = callback.data.split(":")
+    if len(qismlar) < 2 or not qismlar[1].isdigit():
+        await callback.answer("Kitob topilmadi.", show_alert=True)
+        return None
+    if callback.message is None:
+        await callback.answer("Xabar eskirgan. Qayta qidiring.", show_alert=True)
+        return None
+    return int(qismlar[1])
+
+
+async def _band_so_rovi_yubor(callback: CallbackQuery, kitob_id: int) -> None:
+    """Tasdiqlanadigan band so'rovini yaratadi (Berish yozuvi OCHILMAYDI)."""
+    try:
+        band = await api.band_qil(kitob_id, callback.from_user.id)
+    except ApiXato as e:
+        xabarlar = {
+            "oquvchi_topilmadi": "Avval /start orqali ro'yxatdan o'ting.",
+            "topilmadi": "Avval /start orqali ro'yxatdan o'ting.",
+            "oquvchi_bloklangan": "Sizning kartangiz bloklangan.",
+            "allaqachon_band_qilingan": "Bu kitob boshqa o'quvchi uchun band qilingan.",
+            "allaqachon_berilgan": "Bu kitob allaqachon sizda bor.",
+        }
+        await callback.message.answer(x(xabarlar.get(e.kod, e.detail)))
+        await callback.answer()
+        return
+
+    nomi = band.get("kitob_nomi") or await _kitob_nomi(kitob_id)
+    await callback.message.answer(
+        f"🔒 <b>{x(nomi)}</b>\n\n"
+        "Kitob band qilishga so'rov qilindi.\n"
+        "⏳ Endi uni faqat <b>kutubxonachi yoki administrator</b> tasdiqlaydi — "
+        "tasdiqlangach kitob boshqalarga ham berilmaydi va sizga ham berilmaydi.\n\n"
+        "Tasdiqlanganligi xabar qilinadi. «🔒 Bandlarim» orqali holatni "
+        "kuzatib turishingiz mumkin.",
+        reply_markup=band_bekor_tugmasi(band["id"]),
+    )
     await callback.answer()
 
 

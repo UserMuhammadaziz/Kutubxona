@@ -122,25 +122,15 @@ async def qaytarish_tasdiq(callback: CallbackQuery):
     if natija.get("navbatga_taklif_ketdimi"):
         matn += "\n📨 Nusxa navbatdagi keyingi o'quvchiga taklif qilindi."
 
-    # Agar kitob muddatdan oldin qaytarilgan bo'lsa, o'quvchiga xabar yuboramiz
+    # Agar kitob muddatdan oldin qaytarilgan bo'lsa, xabar o'quvchiga
+    # allaqachon yuborilgan (apps/berish/services.py ichida, tranzaksiya
+    # commit bo'lganda) — shuning uchun bu yerdan qaytaramiz, aks holda
+    # o'quvchiga bir xil xabar ikki marta borar.
     if natija.get("erken_qaytarildi"):
-        telegram_id = natija.get("oquvchi_telegram_id")
-        kitob_nomi = natija.get("kitob_nomi")
-        if telegram_id:
-            try:
-                await callback.bot.send_message(
-                    chat_id=telegram_id,
-                    text=(
-                        f"📚 Kitob qaytarish haqida xabar:\n\n"
-                        f"📖 <b>{x(kitob_nomi)}</b> kitobi "
-                        f"muddatdan oldin qaytarib olindi.\n"
-                        f"Eslatma: kitobni qaytarish muddati yetib bormagan "
-                        f"holatda kutubxonachi qaytarib oldi."
-                    ),
-                    parse_mode="HTML",
-                )
-            except Exception:
-                pass  # Xabar yuborilmasa ham davom etamiz
+        matn += (
+            "\n✅ Muddatdan oldin qaytarildi — o'quvchiga xabar yuborildi, "
+            "jarima yozilmadi."
+        )
 
     await xabarni_tahrirlash(callback, matn)
     await callback.answer()

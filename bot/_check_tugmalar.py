@@ -22,6 +22,7 @@ import sys
 from pathlib import Path
 
 BOT_DIR = Path(__file__).resolve().parent
+ROOT = BOT_DIR.parent
 sys.path.insert(0, str(BOT_DIR))
 
 # Windows konsolida emoji chiqishi uchun (charmap cp1252 emoji va "o'"ni
@@ -466,14 +467,58 @@ async def main() -> int:
 
     print()
     print("=" * 72)
-    print("7. ASIL KITOB BAND QILINSA (navbat emas) — xabar to'g'ri qismni ko'rsatadi")
+    print("7. NUSXASI YO'Q KITOB — band qilish tasdiqlanadi, darhol berilmaydi")
     print("=" * 72)
     manba = (BOT_DIR / "handlers" / "qidiruv.py").read_text(encoding="utf-8")
-    tekshir("berildi" in manba, "API javobidagi `berildi` maydoni tekshiriladi")
-    tekshir("asli kitob" in manba, "asli berilgan xabari foydalanuvchiga boradi")
+    # Eski xabarlardagi «🕐 Band qilish» tugmasi ham `navbat_tur:` callback'ini
+    # ishlatardi va u nusxasi yo'q kitobda kitobni DARHOL berar edi. Endi
+    # `navbat_tur:` faqat eski "Band qilish" tugmalari uchun qolgan va band
+    # so'rovi yaratadi; haqiqiy navbat esa alohida `navbat_qoldir:` orqali
+    # ishlaydi. Quyidagi tekshiruvlar shu regressiaga qarshi.
+    tekshir(
+        '@router.callback_query(F.data.startswith("navbat_tur:"))' in manba
+        and "_band_so_rovi_yubor(callback, kitob_id)" in manba,
+        "eski `navbat_tur:` tugmasi band so'roviga yo'naltiradi",
+    )
+    tekshir(
+        '@router.callback_query(F.data.startswith("navbat_qoldir:"))' in manba,
+        "haqiqiy navbat uchun alohida `navbat_qoldir:` callback'i bor",
+    )
+    tekshir(
+        "api.navbatga_tur(kitob_id, telegram_id)" in manba,
+        "navbat API chaqirig'i faqat `navbat_qoldir:` handler'ida qolgan",
+    )
+    tekshir(
+        "asli kitob berildi" not in manba,
+        "asli kitob darhol berilishi xabari qoldirilmadi",
+    )
+    # Navbat tugmasi nusxasi yo'q kitoblarda ko'rsatilmasligi kerak.
+    tekshir(
+        "_navbat_mavjud" in manba,
+        "nusxasi yo'q kitob kartasida navbat tugmasi ko'rsatilmaydi",
+    )
+    klav = (BOT_DIR / "keyboards.py").read_text(encoding="utf-8")
+    tekshir(
+        'callback_data=f"navbat_tur:' not in klav,
+        "yangi tugmalarda `navbat_tur:` callback'i qolmaydi",
+    )
+    tekshir(
+        'callback_data=f"band:{kitob_id}"' in klav,
+        "«Band qilish» tugmasi `band:` callback'ini ishlatadi",
+    )
     tekshir(
         "o'rindasiz" in manba,
-        "faqat haqiqiy navbatda 'o'rindasiz' deyiladi",
+        "faqat haqqiqiy navbatda 'o'rindasiz' deyiladi",
+    )
+    # Muddatdan oldin qaytarish xabari — servisda, barcha yo'llar uchun.
+    servis = (ROOT / "apps" / "berish" / "services.py").read_text(encoding="utf-8")
+    tekshir(
+        "_erken_qaytarish_xabarini_yubor" in servis,
+        "muddatdan oldin qaytarishda o'quvchiga xabar yuboriladi",
+    )
+    tekshir(
+        "erken_qaytarish = berish.qaytarish_muddati > berish.qaytarilgan_sana" in servis,
+        "muddatdan oldin qaytarish aniq qaytarish muddatidan aniqlanadi",
     )
 
     if "--live" in sys.argv:

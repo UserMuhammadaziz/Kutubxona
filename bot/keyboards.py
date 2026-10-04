@@ -235,7 +235,7 @@ def kitob_band_qilish_tugmalari(
     ]
     if navbat_mavjud:
         inline_keyboard.append(
-            [InlineKeyboardButton(text="⏳ Navbatga turish", callback_data=f"navbat_tur:{kitob_id}")]
+            [InlineKeyboardButton(text="⏳ Navbatga turish", callback_data=f"navbat_qoldir:{kitob_id}")]
         )
     if qaytish:
         inline_keyboard.append(
@@ -266,9 +266,14 @@ def band_tasdiq_tugmalari(band_id: int) -> InlineKeyboardMarkup:
 
 
 def navbatga_turish_tugmasi(kitob_id: int) -> InlineKeyboardMarkup:
+    """«⏳ Navbatga turish» — navbat uchun **alohida** `navbat_qoldir:` callback'i.
+
+    Eski `navbat_tur:` callback'i «Band qilish» tugmasi bilan bir bo'lib,
+    eski xabarlarda band so'rovi sifatida ishlaydi. Navbat uchun boshqa
+    nom ishlatiladi, shunda eski va yangi tugmalar chalkashmaydi."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="⏳ Navbatga turish", callback_data=f"navbat_tur:{kitob_id}")]
+            [InlineKeyboardButton(text="⏳ Navbatga turish", callback_data=f"navbat_qoldir:{kitob_id}")]
         ]
     )
 

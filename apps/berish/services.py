@@ -207,6 +207,28 @@ def _kitob_berildi_xabarini_yubor(berish):
     telegram_xabar_yubor(oquvchi.telegram_id, matn)
 
 
+def _erken_qaytarish_xabarini_yubor(berish):
+    """Muddatdan oldin qaytarilgan kitob bo'yicha o'quvchiga Telegram xabar.
+
+    Jarima yozilmagan, `holati='qaytarilgan'` yozuvi commit bo'lgan holatda
+    chaqiriladi. Xabar yuborilmasa ham qaytarish amalga oshgan bo'ladi."""
+    oquvchi = berish.oquvchi
+    if not oquvchi.telegram_id:
+        return
+    qolgan = (berish.qaytarish_muddati - berish.qaytarilgan_sana).days
+    matn = (
+        "📗 <b>Kitob muddatdan oldin qaytarib olindi</b>\n\n"
+        f"Kitobingiz: <b>{telegram_escape(berish.kitob.nomi)}</b>\n"
+        f"Berilgan sana: {berish.berilgan_sana}\n"
+        f"Qaytarish muddati: {berish.qaytarish_muddati}\n"
+        f"Qaytarilgan sana: {berish.qaytarilgan_sana}\n\n"
+        f"Muddatga {qolgan} kun qolgan edi. Kitobni vaqtida topshirdingiz uchun "
+        "raxmat! Jarima yozilmadi.\n"
+        "📚 Yana kitob olish uchun «🔎 Kitob qidirish» bo'limidan foydalanishingiz mumkin."
+    )
+    telegram_xabar_yubor(oquvchi.telegram_id, matn)
+
+
 @transaction.atomic
 def kitob_qaytar(berish, xodim):
     """Kitobni qaytarib olish: avval nusxani bo'shatadi (nusxasiz «asli»
@@ -228,6 +250,12 @@ def kitob_qaytar(berish, xodim):
     berish.holati = "qaytarilgan"
     berish.save()
 
+    # Muddatdan oldin qaytarilganini shu yerda aniqlaymiz (keyinroq emas):
+    # qaytarish muddati o'zgarmaydi, lekin o'quvchiga xabar yuborish kerakligi
+    # faqat muddatdan kelib chiqadi. Jarima yozilgan holatlar "muddatdan
+    # oldin" hisoblanmaydi, chunki ular kechikkan qaytarishlar.
+    erken_qaytarish = berish.qaytarish_muddati > berish.qaytarilgan_sana
+
     taklif_ketdi = False
     if berish.nusxa_id:
         nusxa = Nusxa.objects.select_for_update().get(pk=berish.nusxa_id)
@@ -247,5 +275,13 @@ def kitob_qaytar(berish, xodim):
         kitob_holatini_yenila(berish.kitob_id)
         jarima = jarimani_hisobla(berish)
         taklif_ketdi = navbatni_mavjud_nusxa_bilan_ishga_tushir(berish.kitob_id)
+
+    # Muddatdan oldin qaytarilgan bo'lsa, o'quvchiga xabar yuboriladi.
+    # Xabar tranzaksiya commit bo'lgandan keyin yuboriladi (Telegram so'rovi
+    # tranzaksiyani ushlab turmasligi kerak) va bu yerda emas, servisda —
+    # shunda kitobni web paneldan ham, Telegram botidan ham qaytarilganda
+    # xabar bir xil ishlaydi.
+    if erken_qaytarish:
+        transaction.on_commit(lambda: _erken_qaytarish_xabarini_yubor(berish))
 
     return berish, jarima, taklif_ketdi

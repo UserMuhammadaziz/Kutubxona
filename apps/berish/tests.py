@@ -5,7 +5,8 @@ Muammo: `kitob_ber()` faqat `Nusxa.holati`ni `berilgan`ga o'zgartirardi,
 «Mavjud» deb ko'rinib turar edi. Endi kitob holati nusxalar holatidan
 avtomatik hisoblanadi (`kitob.services.kitob_holatini_yenila`).
 """
-from datetime import date
+from datetime import date, timedelta
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -272,3 +273,103 @@ class BerishSerializerTest(KitobHolatiTestBase):
         self.assertFalse(ma_lumot["asli"])
         self.assertEqual(ma_lumot["inventar_raqami"], "INV-1")
         self.assertFalse(BerishMeniSerializer(berish).data["asli"])
+
+
+class ErkenQaytarishXabariTest(KitobHolatiTestBase):
+    """Muddatdan oldin qaytarilganda o'quvchiga Telegram xabar yuborilishi.
+
+    Xabar servisin ichida yuboriladi, shuning uchun kitobni web paneldan
+    ham, Telegram botidan ham qaytarilganda bir xil ishlaydi."""
+
+    def setUp(self):
+        super().setUp()
+        self.yuborilgan = []
+
+        def _ushlang(telegram_id, matn, **_kwargs):
+            self.yuborilgan.append((telegram_id, matn))
+            return True
+
+        self.patch = mock.patch("berish.services.telegram_xabar_yubor", side_effect=_ushlang)
+        self.patch.start()
+        self.addCleanup(self.patch.stop)
+
+    def _berish(self, muddat_kun_later):
+        berish = kitob_ber_by_kitob(self.kitob, self.oquvchi, self.xodim)
+        Berish.objects.filter(pk=berish.pk).update(
+            qaytarish_muddati=date.today() + timedelta(days=muddat_kun_later)
+        )
+        berish.refresh_from_db()
+        return berish
+
+    def _qaytar(self, berish):
+        """`kitob_qaytar()` ni transaction.on_commit ishlaydigan holda bajaradi."""
+        with self.captureOnCommitCallbacks(execute=True):
+            return kitob_qaytar(berish, self.xodim)
+
+    def _erken_xabarlar(self):
+        return [m for _, m in self.yuborilgan if "muddatdan oldin" in m.lower()]
+
+    def test_muddatdan_oldingina_qaytarilsa_xabar_yuboriladi(self):
+        berish = self._berish(5)
+
+        self._qaytar(berish)
+
+        self.assertEqual(
+            len(self._erken_xabarlar()),
+            1,
+            f"muddatdan oldin qaytarishda bitta xabar kutilgan edi, kelgan: {self.yuborilgan}",
+        )
+        telegram_id, _ = self.yuborilgan[-1]
+        self.assertEqual(telegram_id, self.oquvchi.telegram_id)
+
+    def test_xabar_kitob_nomini_oz_chig_tadi(self):
+        berish = self._berish(5)
+
+        self._qaytar(berish)
+
+        self.assertIn(self.kitob.nomi, self._erken_xabarlar()[0])
+
+    def test_muddatda_qaytarilsa_xabar_yuborilmaydi(self):
+        berish = self._berish(0)
+
+        self._qaytar(berish)
+
+        self.assertEqual(
+            self._erken_xabarlar(),
+            [],
+            "muddat kuni qaytarilganda 'muddatdan oldin' xabari yuborilmasligi kerak",
+        )
+
+    def test_muddatdan_kech_qaytarilsa_xabar_yuborilmaydi(self):
+        berish = self._berish(-3)
+
+        self._qaytar(berish)
+
+        self.assertEqual(
+            self._erken_xabarlar(),
+            [],
+            "kechikkan qaytarishda 'muddatdan oldin' xabari yuborilmasligi kerak",
+        )
+
+    def test_telegram_idsiz_oquvchiga_xabar_yuborilmaydi(self):
+        berish = self._berish(5)
+        Oquvchi.objects.filter(pk=self.oquvchi.pk).update(telegram_id=None)
+        berish.refresh_from_db()
+
+        self._qaytar(berish)
+
+        self.assertEqual(self._erken_xabarlar(), [], "telegram_id yo'q o'quvchiga xabar yuborilmasligi kerak")
+
+    def test_ikkinchi_marta_qaytarilsa_xabar_yuborilmaydi(self):
+        berish = self._berish(5)
+        self._qaytar(berish)
+        self.yuborilgan.clear()
+
+        with self.assertRaises(ValidationError), self.captureOnCommitCallbacks(execute=True):
+            kitob_qaytar(berish, self.xodim)
+
+        self.assertEqual(
+            self._erken_xabarlar(),
+            [],
+            "takroriy qaytarishda xabar yuborilmasligi kerak",
+        )
