@@ -118,14 +118,20 @@ export function Bandlar() {
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
           <div className="flex gap-2">
             <Input
-              placeholder="Kitob ID yoki nomi..."
+              placeholder="Kitob ID bo'yicha..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value)
+                setPage(1)
+              }}
               className="w-64"
             />
             <Select
               value={holati}
-              onChange={(e) => setHolati(e.target.value as BandHolati | '')}
+              onChange={(e) => {
+                setHolati(e.target.value as BandHolati | '')
+                setPage(1)
+              }}
               className="w-48"
             >
               <option value="">Barcha holatlar</option>

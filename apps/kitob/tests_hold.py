@@ -350,7 +350,76 @@ class BandApiTest(BandTestBase):
         javob = self.client.get(self.url("holds-list"))
 
         self.assertEqual(javob.status_code, 200)
-        self.assertEqual(len(javob.data), 1)
+        self.assertEqual(len(javob.data["results"]), 1)
+
+    def test_ro_yxat_paginated_shaklda_qaytadi(self):
+        """Frontend ro'yxatni `{count, results}` shaklda kutadi.
+
+        Avval endpoint oddiy list qaytarardi, frontend esa `data.results`
+        o'qigani uchun «Bandlar» sahifasi doim bo'sh ko'rinardi."""
+        band_qilish(self.kitob, self.oquvchi)
+        self.kirish()
+
+        javob = self.client.get(self.url("holds-list"))
+
+        self.assertEqual(javob.status_code, 200)
+        self.assertIsInstance(javob.data, dict)
+        self.assertIn("count", javob.data)
+        self.assertIn("results", javob.data)
+        self.assertEqual(javob.data["count"], 1)
+        self.assertEqual(javob.data["results"][0]["kitob_nomi"], self.kitob.nomi)
+
+    def test_kitob_id_bilan_saralanadi(self):
+        band_qilish(self.kitob, self.oquvchi)
+        boshqa_kitob = Kitob.objects.create(
+            nomi="Boshqa kitob", muallif="M", janr="badiiy", nashr_yili=2020
+        )
+        band_qilish(boshqa_kitob, self.oquvchi)
+        self.kirish()
+
+        javob = self.client.get(self.url("holds-list"), {"kitob": self.kitob.id})
+
+        self.assertEqual(javob.status_code, 200)
+        self.assertEqual(javob.data["count"], 1)
+        self.assertEqual(javob.data["results"][0]["kitob_nomi"], self.kitob.nomi)
+
+    def test_kitob_maydoni_raqam_bo_lmasa_xato_qaytarmaydi(self):
+        """Qidiruv maydoniga nom yozilsa 500 chiqmasligi kerak."""
+        band_qilish(self.kitob, self.oquvchi)
+        self.kirish()
+
+        javob = self.client.get(self.url("holds-list"), {"kitob": "Alpomish"})
+
+        self.assertEqual(javob.status_code, 200)
+        self.assertEqual(javob.data["count"], 1)
+
+    def test_holati_bilan_saralanadi(self):
+        band_qilish(self.kitob, self.oquvchi)
+        self.kirish()
+
+        javob = self.client.get(self.url("holds-list"), {"holati": "kutmoqda"})
+
+        self.assertEqual(javob.status_code, 200)
+        self.assertEqual(javob.data["count"], 1)
+
+    def test_boshqa_holat_boya_ro_yxat_bosh(self):
+        band_qilish(self.kitob, self.oquvchi)
+        self.kirish()
+
+        javob = self.client.get(self.url("holds-list"), {"holati": "rad_etildi"})
+
+        self.assertEqual(javob.status_code, 200)
+        self.assertEqual(javob.data["count"], 0)
+        self.assertEqual(javob.data["results"], [])
+
+    def test_sahifalash_parametri_ishlaydi(self):
+        band_qilish(self.kitob, self.oquvchi)
+        self.kirish()
+
+        javob = self.client.get(self.url("holds-list"), {"page": 1})
+
+        self.assertEqual(javob.status_code, 200)
+        self.assertEqual(javob.data["count"], 1)
 
     def test_oddiy_foydalanuvchi_ro_yxatni_kura_olmaydi(self):
         band_qilish(self.kitob, self.oquvchi)[0]

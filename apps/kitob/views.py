@@ -141,7 +141,7 @@ class KitobViewSet(viewsets.ModelViewSet):
         return Response(BandQilishSerializer(band).data if band else None)
 
 
-class BandQilishViewSet(viewsets.ViewSet):
+class BandQilishViewSet(viewsets.GenericViewSet):
     """Kitobni band qilish (saqlab qo'yish) so'rovlari.
 
     POST   /api/holds/                 -> band qilish so'rovi (bot yoki panel)
@@ -150,6 +150,11 @@ class BandQilishViewSet(viewsets.ViewSet):
     POST   /api/holds/{id}/approve/    -> tasdiqlash: kitobni so'rovchiga berish
     POST   /api/holds/{id}/reject/     -> rad etish
     POST   /api/holds/{id}/cancel/     -> o'quvchi o'z so'rovini bekor qiladi
+
+    `GenericViewSet` `paginate_queryset()` va `get_paginated_response()`
+    metodlarini beradi — frontend ro'yxatni `{count, next, previous, results}`
+    shaklida kutadi (boshqa sahifalar kabi), shuning uchun oddiy `ViewSet`
+    emas, shu sinfdan meros olindi.
     """
 
     queryset = BandQilish.objects.select_related(
@@ -172,12 +177,17 @@ class BandQilishViewSet(viewsets.ViewSet):
         if holati:
             qs = qs.filter(holati=holati)
         kitob = self.request.query_params.get("kitob")
-        if kitob:
-            qs = qs.filter(kitob_id=kitob)
+        # `kitob_id` butun sona o'giriladi: qidiruv maydoniga nom yozilsa
+        # ValueError -> 500 chiqmasligi kerak, filtr esa bo'sh qoldiriladi.
+        if kitob and kitob.isdigit():
+            qs = qs.filter(kitob_id=int(kitob))
         return qs
 
     def list(self, request):
         qs = self.get_queryset()
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            return self.get_paginated_response(BandQilishSerializer(page, many=True).data)
         return Response(BandQilishSerializer(qs, many=True).data)
 
     def create(self, request):

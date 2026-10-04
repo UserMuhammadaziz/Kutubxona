@@ -303,8 +303,13 @@ class ApiClient:
 
     async def bandlar(self, holati: str = "kutmoqda"):
         """GET /holds/?holati= — kutubxonachi uchun ro'yxat (botda ruxsat
-        BOt_ADMIN_CHAT_IDS orqali tekshiriladi)."""
-        return await self._so_rov("GET", "/holds/", params={"holati": holati})
+        BOT_ADMIN_CHAT_IDS orqali tekshiriladi).
+
+        `/holds/` endi pagination qiladi (`{count, results}`, frontend shu
+        shaklda kutadi), shuning uchun botga kerakli `results` listi
+        ajratib beriladi — xuddi `nusxa_qidir()` kabi."""
+        data = await self._so_rov("GET", "/holds/", params={"holati": holati})
+        return data.get("results", []) if isinstance(data, dict) else data
 
     async def bandni_tasdiqla(self, band_id: int, izoh: str = ""):
         return await self._so_rov(

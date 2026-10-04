@@ -521,6 +521,36 @@ async def main() -> int:
         "muddatdan oldin qaytarish aniq qaytarish muddatidan aniqlanadi",
     )
 
+    # `/api/holds/` pagination qiladi (frontend `data.results` o'qiydi), shuning
+    # uchun bot ro'yxatni `results` dan ajratishi SHART — aks holda `/bandlar`
+    # dict ustida `len()` va slicing ishlatib xato beradi.
+    mijoz = (BOT_DIR / "api_client.py").read_text(encoding="utf-8")
+    bandlar_dagi = mijoz.split("async def bandlar(")[1].split("async def")[0]
+    tekshir(
+        'data.get("results", [])' in bandlar_dagi,
+        "bot `bandlar()` paginated javobdan `results` listini ajratadi",
+    )
+    xodim = (BOT_DIR / "handlers" / "kutubxonachi.py").read_text(encoding="utf-8")
+    koritaz = xodim.split("async def bandlar_koritaz")[1].split("async def")[0]
+    tekshir(
+        "bandlar[:20]" in koritaz,
+        "`/bandlar` ro'yxatni list sifatida kesib ko'rsatadi",
+    )
+
+    # Frontend `data.results` kutadi — backend pagination qilishi SHART.
+    bandlar_view = (ROOT / "apps" / "kitob" / "views.py").read_text(encoding="utf-8")
+    tekshir(
+        "paginate_queryset" in bandlar_view.split("class BandQilishViewSet")[1],
+        "backend `BandQilishViewSet` pagination qiladi (frontend `results` kutadi)",
+    )
+    frontend = ROOT / "frontend" / "src" / "pages" / "Bandlar.tsx"
+    if frontend.exists():
+        bandlar_sahifa = frontend.read_text(encoding="utf-8")
+        tekshir(
+            "data?.results" in bandlar_sahifa,
+            "frontend «Bandlar» sahifasi `data.results` dan o'qiydi",
+        )
+
     if "--live" in sys.argv:
         print()
         print("=" * 72)
