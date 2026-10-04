@@ -23,6 +23,7 @@ from rest_framework.test import APIClient
 from berish.models import Berish
 from berish.services import kitob_ber
 from kitob.models import BandQilish, Kitob
+from kitob.serializers import BandQilishSerializer
 from kitob.services import (
     band_qilish,
     band_qilishni_bekor_qil,
@@ -459,6 +460,59 @@ class BolimlarAjratishTest(BandTestBase):
 
         self.assertEqual(javob.status_code, 200)
         self.assertEqual([r["fish"] for r in javob.data["results"]], ["Ustoz"])
+
+
+class BandTasdiqlovchiTest(BandTestBase):
+    """«Tasdiqlovchi» ustuni haqiqiy ismni ko'rsatishi kerak.
+
+    Loyihada xodimlar `User.full_name` bilan saqlanadi; `first_name`/`last_name`
+    bo'sh. Serializer avval `tasdiqlovchi.get_full_name()` ishlatardi, bu
+    `AbstractUser` metodi bo'sh `first_name last_name` yig'indisi qaytaradi —
+    natijada ustun doim bo'sh ko'rinardi.
+    """
+
+    def test_tasdiqlashdan_keyin_tasdiqlovchi_ismi_korunadi(self):
+        self.xodim.full_name = "Alisher Karimov"
+        self.xodim.save(update_fields=["full_name"])
+        band = band_qilish(self.kitob, self.oquvchi)[0]
+
+        band_qilishni_tasdiqla(band, self.xodim)
+
+        band.refresh_from_db()
+        ma_lumot = BandQilishSerializer(band).data
+        self.assertEqual(ma_lumot["tasdiqlovchi_fish"], "Alisher Karimov")
+
+    def test_tasdiqlanmagan_so_rovda_tasdiqlovchi_bosh(self):
+        band = band_qilish(self.kitob, self.oquvchi)[0]
+
+        ma_lumot = BandQilishSerializer(band).data
+
+        self.assertEqual(ma_lumot["tasdiqlovchi_fish"], "")
+
+    def test_api_royxatda_tasdiqlovchi_ismi_keladi(self):
+        self.xodim.full_name = "Alisher Karimov"
+        self.xodim.save(update_fields=["full_name"])
+        band = band_qilish(self.kitob, self.oquvchi)[0]
+        band_qilishni_tasdiqla(band, self.xodim)
+        self.kirish()
+
+        javob = self.client.get(self.url("holds-list"), {"holati": "tasdiqlandi"})
+
+        self.assertEqual(javob.status_code, 200)
+        self.assertEqual(javob.data["count"], 1)
+        self.assertEqual(javob.data["results"][0]["tasdiqlovchi_fish"], "Alisher Karimov")
+
+    def test_full_name_bosh_bo_lsa_username_ko_rsatiladi(self):
+        """`full_name` bo'sh bo'lsa ham ustun bo'sh qolmasligi kerak."""
+        self.xodim.full_name = ""
+        self.xodim.save(update_fields=["full_name"])
+        band = band_qilish(self.kitob, self.oquvchi)[0]
+
+        band_qilishni_tasdiqla(band, self.xodim)
+
+        band.refresh_from_db()
+        ma_lumot = BandQilishSerializer(band).data
+        self.assertEqual(ma_lumot["tasdiqlovchi_fish"], "kutubxonachi")
 
 
 class BandXabarTest(BandTestBase):

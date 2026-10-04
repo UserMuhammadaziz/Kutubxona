@@ -106,9 +106,20 @@ class BandQilishSerializer(serializers.ModelSerializer):
     oquvchi_fish = serializers.CharField(source="oquvchi.fish", read_only=True)
     oquvchi_rol = serializers.CharField(source="oquvchi.rol", read_only=True)
     oquvchi_sinf = serializers.SerializerMethodField()
-    tasdiqlovchi_fish = serializers.CharField(
-        source="tasdiqlovchi.get_full_name", read_only=True, default=""
-    )
+    tasdiqlovchi_fish = serializers.SerializerMethodField()
+
+    def get_tasdiqlovchi_fish(self, obj):
+        """Tasdiqlovchi xodimning to'liq ismi.
+
+        Loyihada xodimlar `User.full_name` maydoni bilan saqlanadi
+        (`apps/user/models.py`), `first_name`/`last_name` esa bo'sh qoldirilgan.
+        Shu sababli `get_full_name()` har doim bo'sh string qaytarardi va
+        jadvaldagi «Tasdiqlovchi» ustuni hech qachon ism ko'rsatmasdi.
+        """
+        xodim = obj.tasdiqlovchi
+        if not xodim:
+            return ""
+        return xodim.full_name or xodim.username
 
     class Meta:
         model = BandQilish
