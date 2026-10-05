@@ -14,6 +14,7 @@ from keyboards import (
     klaviatura_olib_tashla,
     matndan_telefon_keltirish,
     menyu_tugmalari,
+    asosiy_tugmalar_klaviaturasi,
     telefon_keltirish,
     telefon_sorash,
 )
@@ -119,8 +120,8 @@ async def start(message: Message, state: FSMContext):
     try:
         await api.kitoblarim(telegram_id)
         await message.answer(
-            "Yana xush kelibsiz! 📚 Kerakli bo'limni tanlang:",
-            reply_markup=menyu_tugmalari(),
+            "Yana xush kelibsiz! Kerakli bo'limni tanlang:",
+            reply_markup=asosiy_tugmalar_klaviaturasi(),
         )
         return
     except ApiXato as e:
@@ -356,9 +357,9 @@ async def ariza_bekor_qilish(message: Message, state: FSMContext):
     """Ariza to'ldirishdan voz kechish — holat tozalanadi, bot yana ishlaydi."""
     await state.clear()
     await message.answer(
-        "Bekor qilindi. Qayta urinish uchun /start yoki /menu buyrug'ini "
+        "Bekor qilindi. Qayta urinish uchun /start buyrug'ini "
         "ishlating.",
-        reply_markup=klaviatura_olib_tashla(),
+        reply_markup=asosiy_tugmalar_klaviaturasi(),
     )
 
 

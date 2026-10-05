@@ -17,7 +17,7 @@ from aiogram.types import ErrorEvent, MenuButtonCommands
 
 import config
 from api_client import api
-from keyboards import bot_buyruglar
+from keyboards import bot_buyruglar, asosiy_tugmalar_klaviaturasi
 from handlers import (
     kutubxonachi,
     navigatsiya,

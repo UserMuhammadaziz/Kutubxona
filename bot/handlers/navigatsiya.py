@@ -26,6 +26,7 @@ from aiogram.types import CallbackQuery, Message
 from handlers import kutubxonachi, qidiruv, shaxsiy, start
 from keyboards import (
     ASOSIY_TUGMALAR,
+    asosiy_tugmalar_klaviaturasi,
     menyu_tugmalari,
     telefon_sorash,
 )
@@ -92,7 +93,7 @@ async def _yordam_ber(message: Message, state: FSMContext) -> None:
         return
 
     await state.clear()
-    await message.answer(yordam_matni(), reply_markup=menyu_tugmalari())
+    await message.answer(yordam_matni(), reply_markup=asosiy_tugmalar_klaviaturasi())
 
 
 async def _menyuni_ochish(message: Message, state: FSMContext) -> None:
@@ -104,9 +105,8 @@ async def _menyuni_ochish(message: Message, state: FSMContext) -> None:
     await _arizani_tugatish(message, state)
     await state.clear()
     await message.answer(
-        "🏠 <b>Menyu</b>\n\nQuyidagi bo'limlardan birini tanlang "
-        "(yoki /bekor bilan bekor qiling):",
-        reply_markup=menyu_tugmalari(),
+        "Quyidagi bo'limlardan birini tanlang:",
+        reply_markup=asosiy_tugmalar_klaviaturasi(),
     )
 
 
@@ -234,8 +234,6 @@ async def eski_tugma_matni(message: Message, state: FSMContext):
     await _arizani_tugatish(message, state)
     await state.clear()
     await message.answer(
-        "ℹ️ Bu tugmalar endi ko'rsatilmaydi — menyu endi pastdagi standart "
-        "«Menu» tugmasi orqali ochiladi.\n\n"
         "Quyidagi bo'limlardan birini tanlang:",
-        reply_markup=menyu_tugmalari(),
+        reply_markup=asosiy_tugmalar_klaviaturasi(),
     )

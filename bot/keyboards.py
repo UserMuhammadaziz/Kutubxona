@@ -40,30 +40,34 @@ ASOSIY_TUGMALAR = frozenset(
 )
 
 # Standart Telegram «Menu» tugmasi bosilganda ochiladigan menyu. Bu INLINE
-# tugmalar — ular xabar ichida, maydon yonida emas ko'rinadi.
+# tugmalar — endi faqat yordam ko'rinadi.
 MENYU_INLINE_TUGMALARI = [
-    (KITOB_QIDIRISH, "menyu:qidiruv"),
-    (KATEGORIYALAR, "menyu:kategoriya"),
-    (MENING_KITOBLARIM, "menyu:kitoblarim"),
-    (NAVBATLARIM, "menyu:navbatlarim"),
-    (BANDLARIM, "menyu:bandlarim"),
-    (JARIMALARIM, "menyu:jarimalarim"),
     (MENYU_YORDAM, "menyu:yordam"),
 ]
 
 
 def menyu_tugmalari() -> InlineKeyboardMarkup:
-    """Menyu — inline tugmalar (xabar ichida).
-
-    Standart Telegram «Menu» tugmasi (`📎` yonidagi) foydalanuvchiga
-    buyruqlar ro'yxatini ochadi; undan `/menu` tanlanganda shu menyu
-    ko'rinadi.
-    """
+    """Menyu — inline tugmalar (xabar ichida)."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=matn, callback_data=callback)]
             for matn, callback in MENYU_INLINE_TUGMALARI
         ]
+    )
+
+
+def asosiy_tugmalar_klaviaturasi() -> ReplyKeyboardMarkup:
+    """Asosiy bo'limlar pastdagi ReplyKeyboardMarkup ko'rinishida."""
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=KITOB_QIDIRISH), KeyboardButton(text=KATEGORIYALAR)],
+            [
+                KeyboardButton(text=MENING_KITOBLARIM),
+                KeyboardButton(text=NAVBATLARIM),
+            ],
+            [KeyboardButton(text=BANDLARIM), KeyboardButton(text=JARIMALARIM)],
+        ],
+        resize_keyboard=True,
     )
 
 
@@ -93,26 +97,12 @@ def klaviatura_olib_tashla() -> ReplyKeyboardRemove:
 
 
 def bot_buyruglar() -> list[BotCommand]:
-    """Standart «Menu» tugmasi ro'yxatida ko'rinadigan buyruqlar.
+    """Standart ��Menu�� tugmasi ro'yxatida ko'rinadigan buyruqlar.
 
-    `setMyCommands` orqali Telegram'ga yuboriladi; bosilganda buyruq xabar
-    sifatida yuboriladi va `handlers/navigatsiya.py` dagi filtrlar uni
-    ushlaydi.
-
-    Telegram qoidalari: nom 1–32 belgi, `a-z 0-9 _`; tavsif 1–256 belgi.
+    Endi faqat yordam buyrug'i qoladi.
     """
     return [
-        BotCommand(command="menu", description="Barcha bo'limlarni ochish"),
-        BotCommand(command="qidiruv", description="Kitob nomi, muallif yoki ISBN bo'yicha qidirish"),
-        BotCommand(command="kategoriyalar", description="Janr bo'yicha kitoblar"),
-        BotCommand(command="kitoblarim", description="Olgan kitoblarim va qaytarish muddati"),
-        BotCommand(command="navbatlarim", description="Navbatga turgan kitoblarim"),
-        BotCommand(command="bandlarim", description="Band qilgan so'rovlarim va ularning holati"),
-        BotCommand(command="jarimalarim", description="Kechikish uchun to'lanmagan jarimalar"),
         BotCommand(command="yordam", description="Bot imkoniyatlari va buyruqlar"),
-        BotCommand(command="bekor", description="Joriy amalni bekor qilish"),
-        BotCommand(command="qaytar", description="Kutubxonachi: kitobni qaytarish"),
-        BotCommand(command="bandlar", description="Kutubxonachi: band so'rovlarini tasdiqlash"),
     ]
 
 
