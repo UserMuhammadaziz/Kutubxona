@@ -20,7 +20,12 @@ from html import escape
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery, Message
 
-from keyboards import MENYU_YORDAM
+from keyboards import (
+    KATEGORIYALAR,
+    KITOB_QIDIRISH,
+    MENING_KITOBLARIM,
+    MENYU_YORDAM,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +65,8 @@ async def xabarni_tahrirlash(
             return False
         if "message to edit not found" in str(xato).lower():
             await xabar.answer(
-                "Bu xabar allaqachon eskirgan. /menu orqali qayta oching."
+                "Bu xabar allaqachon eskirgan. Bo'limni qayta ochish uchun "
+                "pastdigi tugmalardan foydalaning yoki /start bosing."
             )
             return False
         logger.warning("xabar tahrirlanmadi: %s", xato)
@@ -88,15 +94,14 @@ def yordam_matni() -> str:
         "<b>Mening kitoblarim</b> — olgan kitoblaringiz va qaytarish muddati.\n"
         "<b>Bandlarim</b> — band qilgan so'rovlaringiz va ularning holati.\n"
         "<b>Jarimalarim</b> — kechikish uchun to'lanmagan jarimalar.\n\n"
+        "<b>Qayerdan boshlash</b>\n"
+        "   Barcha bo'limlar xabar yozish maydonining OSTIDAGI katta "
+        "tugmalarda: "
+        f"{KITOB_QIDIRISH}, {KATEGORIYALAR}, {MENING_KITOBLARIM} va boshqalar.\n"
+        f"   {MENYU_YORDAM} — shu yordam matni.\n\n"
         "<b>Buyruqlar</b>\n"
-        "   /menu — barcha bo'limlarni ochish.\n"
-        f"   {MENYU_YORDAM} — shu yordam matni.\n"
-        "   /start — a'riza yuborish yoki qayta boshlash.\n"
-        "   /bekor — joriy amalni bekor qilish.\n\n"
-        "<b>Qo'lda yozish shart emas</b>\n"
-        "   Xabar yozish maydonining pastki chap burchagidagi standart "
-        "«Menu» tugmasi barcha bo'limlarni ochadi — buyruqni xabarning "
-        "o'ziga ham yozishingiz mumkin.\n\n"
+        "   /start — menyuni ochish yoki arizani qayta boshlash.\n"
+        "   /bekor — joriy amalni bekor qilish (ariza, qidiruv).\n\n"
         "Ariza to'ldirilayotganda yordam so'rasangiz, ariza bekor "
         "qilinmaydi — yordam ko'rsatilib, javob yoziladigan joy o'z "
         "holicha qaytariladi."

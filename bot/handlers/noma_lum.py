@@ -13,6 +13,8 @@ from aiogram import Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
+from keyboards import asosiy_tugmalar_klaviaturasi
+
 router = Router(name="noma_lum")
 
 
@@ -23,12 +25,16 @@ async def noma_lum_xabar(message: Message, state: FSMContext):
     if holat:
         await message.answer(
             "🤔 Kutilgan ma'lumotni tushunmadim.\n\n"
-            "Ariza to'ldirayotgan bo'lsangiz, savolga matn ko'rinishida javob "
-            "bering yoki qayta boshlash uchun /bekor bosing."
+            "Savolga matn ko'rinishida javob bering yoki qayta boshlash uchun "
+            "/bekor bosing."
         )
         return
 
+    # Pastdigi klaviatura hamma joyda kerak: foydalanuvchi bu yerga
+    # begona xabar yuborgani uchun kelgan — klaviatura ko'rinmasa, u
+    # bo'limlarni topa olmasdi.
     await message.answer(
         "🤖 Men faqat tanlangan bo'limlar bo'yicha ishlayman.\n"
-        "Boshlash uchun /start buyrug'ini bosing."
+        "Quyidagi bo'limlardan birini tanlang yoki /start buyrug'ini bosing.",
+        reply_markup=asosiy_tugmalar_klaviaturasi(),
     )

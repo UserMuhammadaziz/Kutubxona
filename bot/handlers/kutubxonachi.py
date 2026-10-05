@@ -38,9 +38,9 @@ def sana_vaqt(qiymat: str) -> str:
     """ISO sanani "04.10.2026, 07:02" ko'rinishida qaytaradi.
 
     Xom qiymat (`2026-10-04T07:02:10Z`) foydalanuvchiga noto'g'ri
-    ko'rinardi. `datetime` vaqt zonasi UTC da bo'lgani uchun mahalliy
-    ko'rinishga o'tkaziladi.
-    """
+    ko'rinardi. Vaqt zonasi o'zgartirilmaydi — server qanday yuborsa
+    o'shanday ko'rsatiladi (mahalliy vaqtni taxmin qilish ko'proq
+    chalkashlik keltiradi)."""
     try:
         d = datetime.fromisoformat(str(qiymat).replace("Z", "+00:00"))
     except (TypeError, ValueError):
@@ -81,14 +81,14 @@ async def inventar_qabul(message: Message, state: FSMContext):
         await state.clear()
         return
 
-    matn = (message.text or "").strip()
-    if matn in ASOSIY_TUGMALAR:
-        # Pastdagi menyu tugmasi bosilgan — inventar raqami emas.
+    kirish = (message.text or "").strip()
+    if kirish in ASOSIY_TUGMALAR:
+        # Pastdigi menyu tugmasi bosilgan — inventar raqami emas.
         await message.answer(INVENTAR_SAVOLI)
         return
 
     await state.clear()
-    inv = matn.upper()
+    inv = kirish.upper()
 
     try:
         nusxalar = await api.nusxa_qidir(inv)
@@ -96,7 +96,7 @@ async def inventar_qabul(message: Message, state: FSMContext):
         await message.answer(f"Xatolik: {x(e.detail)}")
         return
 
-    nusxa = next((n for n in nusxalar if n["inventar_raqami"] == inv), None)
+    nusxa = next((n for n in nusxalar if n.get("inventar_raqami") == inv), None)
     if not nusxa:
         await message.answer("Bu inventar raqami bilan nusxa topilmadi.")
         return
@@ -108,18 +108,25 @@ async def inventar_qabul(message: Message, state: FSMContext):
         return
 
     faol = next(
-        (b for b in detail["berish_tarixi"] if not b.get("qaytarilgan_sana")), None
+        (
+            berish
+            for berish in (detail.get("berish_tarixi") or [])
+            if not berish.get("qaytarilgan_sana")
+        ),
+        None,
     )
-    if not faol:
-        await message.answer(f"«{x(nusxa['kitob_nomi'])}» ({inv}) hozir hech kimda emas.")
+    if not faol or not faol.get("id"):
+        await message.answer(
+            f"«{x(nusxa.get('kitob_nomi'))}» ({inv}) hozir hech kimda emas."
+        )
         return
 
-    matn = (
-        f"«{x(nusxa['kitob_nomi'])}» ({inv})\n"
-        f"Kimda: {x(faol['oquvchi_fish'])}\n"
-        f"Qaytarib olinsinmi?"
+    await message.answer(
+        f"«{x(nusxa.get('kitob_nomi'))}» ({inv})\n"
+        f"Kimda: {x(faol.get('oquvchi_fish'))}\n"
+        "Qaytarib olinsinmi?",
+        reply_markup=qaytarish_tasdiq_tugmasi(faol["id"]),
     )
-    await message.answer(matn, reply_markup=qaytarish_tasdiq_tugmasi(faol["id"]))
 
 
 @router.callback_query(F.data.startswith("qaytar:"))
@@ -193,8 +200,8 @@ async def bandlar_koritaz(message: Message, state: FSMContext):
     for r in bandlar[:20]:
         rol = "o'qituvchi" if r.get("oquvchi_rol") == "oqituvchi" else "o'quvchi"
         qator = (
-            f"<b>{x(r['kitob_nomi'])}</b>\n"
-            f"Sohraydi: {x(r['oquvchi_fish'])} · {rol}"
+            f"<b>{x(r.get('kitob_nomi'))}</b>\n"
+            f"Sohraydi: {x(r.get('oquvchi_fish'))} · {rol}"
         )
         if r.get("oquvchi_sinf"):
             qator += f" · {x(r['oquvchi_sinf'])}"
@@ -202,7 +209,11 @@ async def bandlar_koritaz(message: Message, state: FSMContext):
             qator += f"\nSo'rov: {sana_vaqt(r['so_rov_sanasi'])}"
         if r.get("izoh"):
             qator += f"\n<i>{x(r['izoh'])}</i>"
-        await message.answer(qator, reply_markup=band_tasdiq_tugmalari(r["id"]))
+        band_id = r.get("id")
+        await message.answer(
+            qator,
+            reply_markup=band_tasdiq_tugmalari(band_id) if band_id else None,
+        )
 
 
 @router.callback_query(F.data.startswith("band_tasdiq:"))

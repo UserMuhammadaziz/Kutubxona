@@ -1,23 +1,31 @@
+import logging
+
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 import branding as b
 from api_client import ApiXato, api
+from handlers import shaxsiy
 from keyboards import (
+    ASOSIY_TUGMALAR,
+    BANDLARIM,
+    JARIMALARIM,
     KATEGORIYALAR,
     KITOB_QIDIRISH,
+    MENING_KITOBLARIM,
+    NAVBATLARIM,
     band_bekor_tugmasi,
     janr_kitob_tugmalari,
     janr_tugmalari,
     kitob_batafsil_tugmasi,
     kitob_band_qilish_tugmalari,
-    navbatga_turish_tugmasi,
 )
 from states import Qidiruv
 from utils import x, xabarni_tahrirlash
 
 router = Router(name="qidiruv")
+logger = logging.getLogger(__name__)
 
 KO_RSATILADIGAN_SONI = 10
 
@@ -54,22 +62,47 @@ KATEGORIYA_SAVOLI = "📚 Kategoriyani tanlang:"
 QIDIRUV_SAVOLI = "Kitob nomi, muallif yoki ISBNni yozing:"
 
 
+async def _menyu_tugmasi_bo_lsa(message: Message, matn: str) -> None:
+    """Qidiruv maydoniga bo'lim tugmasi matni keldi — shu bo'limni ochamiz.
+
+    Bo'lim tugmalari matn yuboradi, shuning uchun ular qidiruv so'ziga
+    tushmasligi SHART. Holat allaqach tozalandi (`qidiruv_natija` boshida),
+    keyin foydalanuvchi «Kitob qidirish»ni qayta bosmasdan boshqa bo'limga
+    o'tishi mumkin."""
+    if matn == KATEGORIYALAR:
+        await kategoriyalar(message)
+        return
+
+    bo_limlar = {
+        MENING_KITOBLARIM: shaxsiy.kitoblarim,
+        NAVBATLARIM: shaxsiy.navbatlarim,
+        BANDLARIM: shaxsiy.bandlarim,
+        JARIMALARIM: shaxsiy.jarimalarim,
+    }
+    funksiya = bo_limlar.get(matn)
+    if funksiya:
+        await funksiya(message)
+
+
 async def _janr_label(janr_key: str) -> str:
     """Janr kalitini chiroyli nomiga aylantiradi (genres API dan, bir marta)."""
     if janr_key not in _janr_label_lar:
         try:
             janrlar = await api.kitob_janrlar()
             _janr_label_lar.update({j["key"]: j["label"] for j in janrlar})
-        except Exception:
-            pass
+        except ApiXato:
+            # Kalit nomi o'zi chiqadigan zaxira sifatida qoladi.
+            logger.warning("Janr nomlari yuklanmadi, kalit ishlatiladi")
     return _janr_label_lar.get(janr_key, janr_key)
 
 
 async def _janr_sahifa_kitoblari(janr: str, sahifa: int):
-    """sahifa (10 tadan) ni API sahifasi/offset ga moslab olib qaytaradi.
-    Kitoblarni birdaniga 20 tadan qaytaradigan API'dan 10 tadan ko'rsatish
-    uchun kerak bo'lgan sahifani hisoblaydi."""
-    nisbat = JANR_API_SAHIFA_O_LCHAMI // JANR_QATORLAR  # 20 // 10 = 2
+    """Bot sahifasi (10 ta kitob) ni API sahifalari (20 ta) ga moslaydi.
+
+    `nisbat` nolga bo'lishidan himoya qilinadi: aks holda
+    `JANR_QATORLAR > JANR_API_SAHIFA_O_LCHAMI` bo'lganda `ZeroDivisionError`
+    chiqar va butun janr bo'limi ishlamay qolardi."""
+    nisbat = max(1, JANR_API_SAHIFA_O_LCHAMI // JANR_QATORLAR)
     api_sahifa = (sahifa - 1) // nisbat + 1
     boshi = ((sahifa - 1) % nisbat) * JANR_QATORLAR
     kitoblar, jami = await api.kitoblar_janr_boicha(janr, page=api_sahifa)
@@ -78,16 +111,28 @@ async def _janr_sahifa_kitoblari(janr: str, sahifa: int):
 
 @router.message(F.text == KITOB_QIDIRISH)
 async def qidiruv_boshla(message: Message, state: FSMContext):
+    """Pastdigi «Kitob qidirish» tugmasi (yoki `/qidiruv` buyrug'i).
+
+    Tugma allaqach qidiruv holatida bosilsa, foydalanuvchi «Kitob qidirish»
+    so'zini qidirib topmaydi — shuning uchun savolni qayta ko'rsatamiz."""
+    if await state.get_state() == Qidiruv.matn.state:
+        await message.answer(QIDIRUV_SAVOLI)
+        return
+
     await state.set_state(Qidiruv.matn)
-    # Pastdagi klaviatura endi yo'q: maydon — oddiy matn yozish joyi,
-    # menyu esa standart Telegram «Menu» tugmasi orqali ochiladi.
     await message.answer(QIDIRUV_SAVOLI)
 
 
 @router.message(Qidiruv.matn)
 async def qidiruv_natija(message: Message, state: FSMContext):
-    await state.clear()
     q = (message.text or "").strip()
+    await state.clear()
+
+    # Bo'lim tugmalari ham matn yuboradi — ular qidiruv so'zi EMAS.
+    if q in ASOSIY_TUGMALAR:
+        await _menyu_tugmasi_bo_lsa(message, q)
+        return
+
     if not q:
         await message.answer("Iltimos, qidiruv so'zini kiriting.")
         return
@@ -104,14 +149,19 @@ async def qidiruv_natija(message: Message, state: FSMContext):
 
     for kitob in natijalar[:KO_RSATILADIGAN_SONI]:
         matn = (
-            f"📖 <b>{x(kitob['nomi'])}</b> — {x(kitob['muallif'])} ({x(kitob['nashr_yili'])})\n"
-            f"Mavjud: {kitob['mavjud_nusxalar']} / {kitob['jami_nusxalar']}"
+            f"📖 <b>{x(kitob.get('nomi'))}</b> — {x(kitob.get('muallif'))} "
+            f"({x(kitob.get('nashr_yili'))})\n"
+            f"Mavjud: {kitob.get('mavjud_nusxalar') or 0} / "
+            f"{kitob.get('jami_nusxalar') or 0}"
         )
-        await message.answer(matn, reply_markup=kitob_batafsil_tugmasi(kitob["id"]))
+        await message.answer(
+            matn, reply_markup=kitob_batafsil_tugmasi(kitob["id"])
+        )
 
     if len(natijalar) > KO_RSATILADIGAN_SONI:
         await message.answer(
-            f"Jami {len(natijalar)} ta natija topildi. Aniqroq so'rov bilan qayta izlang."
+            f"Jami {len(natijalar)} ta natija topildi. "
+            "Aniqroq so'rov bilan qayta izlang."
         )
 
 
@@ -306,25 +356,30 @@ def _navbat_mavjud(kitob: dict) -> bool:
 
 def _kitob_batafsil_matn(kitob: dict) -> str:
     """Kitob kartochkasi matni — batafsil ma'lumot + nusxa/asil holati."""
-    mavjud_nusxa = next((n for n in kitob["nusxalar"] if n["holati"] == "mavjud"), None)
+    nusxalar = kitob.get("nusxalar") or []
+    mavjud_nusxa = next((n for n in nusxalar if n.get("holati") == "mavjud"), None)
 
     matn = (
-        f"📖 <b>{x(kitob['nomi'])}</b>\n"
-        f"Muallif: {x(kitob['muallif'])}\n"
-        f"Janr: {x(kitob['janr'])}\n"
-        f"Nashriyot: {x(kitob.get('nashriyot')) or '-'} ({x(kitob['nashr_yili'])})"
+        f"📖 <b>{x(kitob.get('nomi'))}</b>\n"
+        f"Muallif: {x(kitob.get('muallif'))}\n"
+        f"Janr: {x(kitob.get('janr'))}\n"
+        f"Nashriyot: {x(kitob.get('nashriyot')) or '-'} "
+        f"({x(kitob.get('nashr_yili'))})"
     )
     if kitob.get("tavsif"):
         matn += f"\n\n{x(kitob['tavsif'])}"
 
-    jami = len(kitob["nusxalar"])
+    jami = len(nusxalar)
     if mavjud_nusxa:
         javon = x(mavjud_nusxa.get("javon")) or "kutubxonachidan so'rang"
         matn += f"\n\n✅ Kitob mavjud. Kutubxonaga kelib oling (javon: {javon})."
     elif jami:
         matn += "\n\n❌ Hozircha mavjud nusxa yo'q."
     else:
-        matn += "\n\n⚠️ Bu kitobning kutubxonada nusxasi yo'q, asil kitobni band qilishingiz mumkin."
+        matn += (
+            "\n\n⚠️ Bu kitobning kutubxonada nusxasi yo'q, "
+            "asil kitobni band qilishingiz mumkin."
+        )
 
     matn += (
         "\n\n<b>Band qilish</b> — kitobni maxsus maqsadga saqlab qoyish"
@@ -369,6 +424,7 @@ async def band_qilish_sorovi(callback: CallbackQuery):
 
     nomi = band.get("kitob_nomi") or await _kitob_nomi(kitob_id)
     izoh = band.get("izoh")
+    band_id = band.get("id")
 
     await callback.message.answer(
         f"{b.logo(sarlavha='BAND QILINDI')}\n\n"
@@ -377,7 +433,9 @@ async def band_qilish_sorovi(callback: CallbackQuery):
         + "So'rov yuborildi.\n\n"
         "Kutubxonachi tasdiqlagach kitobni hech kimga berilmaydi va sizga "
         "ham berilmaydi. Tasdiqlanganligi xabar qilinadi.",
-        reply_markup=band_bekor_tugmasi(band["id"]),
+        # Server javobda `id` qaytarmasa, bekor tugmasi kerak emas —
+        # `/bandlarim` orqali so'rovni ko'rib, u yerda bekor qilish mumkin.
+        reply_markup=band_bekor_tugmasi(band_id) if band_id else None,
     )
     await callback.answer()
 
@@ -428,6 +486,7 @@ async def navbat_qoldirish(callback: CallbackQuery):
     kitob_id = await _band_kitob_idi(callback)
     if kitob_id is None:
         return
+    assert callback.message is not None  # `_band_kitob_idi` tekshirgan
     telegram_id = callback.from_user.id
 
     try:
@@ -452,8 +511,12 @@ async def navbat_qoldirish(callback: CallbackQuery):
             "📚 Mening kitoblarim orqali qaytarish muddatini ko'rasiz."
         )
     else:
+        # `orin` serverda bo'lmasligi mumkin (natijada maydon yo'q) —
+        # `KeyError` o'rniga oddiy "navbatdasiz" yoziladi.
+        orin = natija.get("orin")
+        o_rin = f"{orin}-o'rindasiz" if orin else "navbatdasiz"
         await callback.message.answer(
-            f"<b>Navbatga qo'shildingiz!</b> Siz {natija['orin']}-o'rindasiz.\n\n"
+            f"<b>Navbatga qo'shildingiz!</b> Siz {o_rin}.\n\n"
             f"Kitob bo'shagan zahoti «{x(nomi)}» kitobini sizga taklif qilinadi. "
             "Navbatni bekor qilish uchun «Navbatlarim» bo'limidan foydalaning.\n"
             "Maxsus maqsadga (dars, imtihon, tadbir) ajratish uchun esa "
@@ -484,13 +547,14 @@ async def _band_so_rovi_yubor(callback: CallbackQuery, kitob_id: int) -> None:
         return
 
     nomi = band.get("kitob_nomi") or await _kitob_nomi(kitob_id)
+    band_id = band.get("id")
     await callback.message.answer(
         f"{b.logo(sarlavha='BAND QILINDI')}\n\n"
         f"{b.sarlavha(x(nomi))}\n"
         "So'rov yuborildi.\n\n"
         "Kutubxonachi tasdiqlagach kitobni hech kimga berilmaydi va sizga "
         "ham berilmaydi. Tasdiqlanganligi xabar qilinadi.",
-        reply_markup=band_bekor_tugmasi(band["id"]),
+        reply_markup=band_bekor_tugmasi(band_id) if band_id else None,
     )
     await callback.answer()
 

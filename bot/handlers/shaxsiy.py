@@ -25,7 +25,10 @@ def _xatolar(e: ApiXato) -> str:
 
 
 def _berish_qatori(b: dict) -> str:
-    """`/loans/my/` bitta yozuvi uchun xabar qatori."""
+    """`/loans/my/` bitta yozuvi uchun xabar qatori.
+
+    Barcha maydonlar `.get()` bilan olinadi: server bitta maydonni
+    qaytarmasa (`KeyError`) butun bo'lim ishlamay qolardi."""
     # Nusxasi yo'q kitob "asli" holda berilgan bo'ladi — inventar raqami
     # bo'sh shuning uchun "INV: " emas, "Asli kitob" ko'rsatiladi.
     if b.get("asli") or not b.get("inventar_raqami"):
@@ -33,12 +36,13 @@ def _berish_qatori(b: dict) -> str:
     else:
         manzil = f"🔖 {x(b['inventar_raqami'])}"
 
-    qator = (
-        f"📖 {x(b['kitob_nomi'])} ({manzil})\n"
-        f"   Qaytarish muddati: {b['qaytarish_muddati']}"
-    )
-    qolgan = b["qolgan_kun"]
-    if qolgan < 0:
+    muddat = b.get("qaytarish_muddati") or "—"
+    qator = f"📖 {x(b.get('kitob_nomi'))} ({manzil})\n   Qaytarish muddati: {muddat}"
+
+    qolgan = b.get("qolgan_kun")
+    if qolgan is None:
+        pass  # muddat hisoblanmagan — qo'shimcha qator kerak emas
+    elif qolgan < 0:
         qator += f"\n   ⚠️ Muddat {abs(qolgan)} kun o'tdi — jarima hisoblanmoqda"
     else:
         qator += f"\n   ⏳ Qolgan kun: {qolgan}"
@@ -71,17 +75,18 @@ async def jarimalarim(message: Message):
         await message.answer(_xatolar(e))
         return
 
-    jarimalar = natija["jarimalar"]
+    jarimalar = natija.get("jarimalar") or []
     if not jarimalar:
         await message.answer("Sizda to'lanmagan jarima yo'q. 🎉")
         return
 
     qatorlar = [
-        f"📖 {x(j['kitob_nomi'])}: {j['kechikkan_kunlar']} kun kechikish — {x(j['summa'])} so'm"
+        f"📖 {x(j.get('kitob_nomi'))}: {j.get('kechikkan_kunlar') or 0} kun "
+        f"kechikish — {x(j.get('summa'))} so'm"
         for j in jarimalar
     ]
     matn = "\n".join(qatorlar)
-    matn += f"\n\n💰 Umumiy qarz: {natija['umumiy_qarz']} so'm"
+    matn += f"\n\n💰 Umumiy qarz: {x(natija.get('umumiy_qarz')) or 0} so'm"
     matn += "\n\nTo'lovni kutubxonachiga topshiring."
     await message.answer(matn)
 
@@ -108,8 +113,11 @@ async def bandlarim(message: Message):
 
     # Avval kutilayotgan so'rovlar tepada — ularga tugma kerak.
     tartib = {"kutmoqda": 0, "tasdiqlandi": 1, "rad_etildi": 2, "bekor_qilindi": 3}
-    royxat = sorted(royxat, key=lambda r: (tartib.get(r["holati"], 9), r.get("so_rov_sanasi") or ""))
-    kutilmoqda = sum(1 for r in royxat if r["holati"] == "kutmoqda")
+    royxat = sorted(
+        royxat,
+        key=lambda r: (tartib.get(r.get("holati"), 9), r.get("so_rov_sanasi") or ""),
+    )
+    kutilmoqda = sum(1 for r in royxat if r.get("holati") == "kutmoqda")
 
     sarlavha_qismi = (
         f"{b.logo(sarlavha='BANDLARIM')}\n\n"
@@ -122,17 +130,18 @@ async def bandlarim(message: Message):
 
     for r in royxat[:20]:
         qator = (
-            f"<b>{x(r['kitob_nomi'])}</b>\n"
-            f"{b.band_holati(r['holati'])}"
+            f"<b>{x(r.get('kitob_nomi'))}</b>\n"
+            f"{b.band_holati(r.get('holati'))}"
         )
         if r.get("izoh"):
             qator += f"\n<i>{x(r['izoh'])}</i>"
         if r.get("tasdiqlash_izohi"):
             qator += f"\n<i>Xodim: {x(r['tasdiqlash_izohi'])}</i>"
 
-        if r["holati"] == "kutmoqda":
+        band_id = r.get("id")
+        if r.get("holati") == "kutmoqda" and band_id:
             await message.answer(
-                qator, reply_markup=band_bekor_tugmasi(r["id"])
+                qator, reply_markup=band_bekor_tugmasi(band_id)
             )
         else:
             await message.answer(qator)
@@ -153,20 +162,23 @@ async def navbatlarim(message: Message):
 
     chiqarilgan = []
     for n in royxat:
-        if n["holati"] == "kutmoqda":
+        holati = n.get("holati")
+        navbat_id = n.get("id")
+        if holati == "kutmoqda" and navbat_id:
             orin = n.get("orin")
             o_rin = f"{orin}-o'rindasiz" if orin else "navbatdasiz"
             chiqarilgan.append(
                 (
-                    f"📖 {x(n['kitob_nomi'])} — navbatda {o_rin}",
-                    navbatdan_chiqish_tugmasi(n["id"]),
+                    f"📖 {x(n.get('kitob_nomi'))} — navbatda {o_rin}",
+                    navbatdan_chiqish_tugmasi(navbat_id),
                 )
             )
-        elif n["holati"] == "taklif_qilindi":
+        elif holati == "taklif_qilindi" and navbat_id:
             chiqarilgan.append(
                 (
-                    f"📖 {x(n['kitob_nomi'])} — sizga taklif yuborilgan, javob bering:",
-                    taklif_javob_tugmalari(n["id"]),
+                    f"📖 {x(n.get('kitob_nomi'))} — sizga taklif yuborilgan, "
+                    "javob bering:",
+                    taklif_javob_tugmalari(navbat_id),
                 )
             )
 

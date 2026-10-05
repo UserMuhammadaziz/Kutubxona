@@ -12,6 +12,7 @@ Django REST API bilan ishlash uchun yagona darvoza.
   xabar ko'rsatadi.
 """
 import asyncio
+import json
 import logging
 
 import aiohttp
@@ -68,24 +69,37 @@ class ApiClient:
         }
         try:
             async with sess.post(url, json=payload) as r:
-                data = await r.json(content_type=None)
+                status = r.status
+                # Matnni avval o'qiymiz: JSON bo'lmasa ham xato matni
+                # saqlanib qoladi (ikkinchi marta `r.text()` o'qib bo'lmaydi).
+                qom = await r.text()
         except (aiohttp.ClientError, asyncio.TimeoutError) as xato:
             raise ApiXato(
                 "server_ga_ulab_bolmadi", f"Serverga ulanib bo'lmadi: {xato}"
             ) from xato
-        if r.status != 200:
+
+        if status != 200:
             # Bu holatda butun bot ishlamaydi (kategoriya, qidiruv, kitob
             # kartochkasi...). Foydalanuvchiga tushunarli xabar beramiz va
             # sababni log'ga yozamiz.
-            logger.error("Bot xizmat akkauntiga kirib bo'lmadi: %s", data)
+            logger.error("Bot xizmat akkauntiga kirib bo'lmadi: %s %s", status, qom)
             raise ApiXato(
                 "xizmat_akkount_kirish",
                 "Bot serverga kira olmadi. Kutubxonachiga xabar bering "
                 "(bot xizmat akkaunti tekshirilishi kerak)",
-                r.status,
+                status,
             )
-        self._access = data["access"]
-        self._refresh = data["refresh"]
+
+        try:
+            data = json.loads(qom)
+            self._access = data["access"]
+            self._refresh = data["refresh"]
+        except (ValueError, KeyError, TypeError) as xato:
+            logger.error("Token javobi kutilmagan ko'rinishda: %s", xato)
+            raise ApiXato(
+                "server_ga_ulab_bolmadi",
+                "Server javobi noto'g'ri. Kutubxonachiga xabar bering.",
+            ) from xato
 
     async def _tokenni_yangila(self):
         """Muddati o'tgan access token'ni yangilaydi.
@@ -105,7 +119,7 @@ class ApiClient:
                 if r.status != 200:
                     await self._login()
                     return
-                data = await r.json(content_type=None)
+                data = json.loads(await r.text())
                 self._access = data["access"]
         except ApiXato:
             raise
@@ -134,13 +148,19 @@ class ApiClient:
                 # DELETE va ba'zi endpointlar 204 No Content qaytaradi —
                 # JSON yo'q. `r.json()` bundan KeyError/ValueError beradi
                 # va xato bo'lmagan javob "server_xatosi" deb ko'rinardi.
-                if r.status == 204 or r.content_length == 0:
+                #
+                # Tanavli javoblarda (`Transfer-Encoding: chunked`)
+                # `content_length` None bo'ladi — shuning uchun haqiqiy
+                # tanani o'qib, bo'sh ekanini keyin tekshiramiz.
+                qom = await r.text()
+
+                if r.status == 204 or not qom.strip():
                     data = {}
                 else:
                     try:
-                        data = await r.json(content_type=None)
-                    except (ValueError, TypeError):
-                        data = {"error": "server_xatosi", "detail": await r.text()}
+                        data = json.loads(qom)
+                    except ValueError:
+                        data = {"error": "server_xatosi", "detail": qom[:500]}
 
                 if r.status == 401 and auth and qayta:
                     await self._tokenni_yangila()

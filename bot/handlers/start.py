@@ -11,10 +11,9 @@ from keyboards import (
     ARIZA_ROL_OQUVCHI,
     ASOSIY_TUGMALAR,
     ariza_rol_tugmalari,
+    asosiy_tugmalar_klaviaturasi,
     klaviatura_olib_tashla,
     matndan_telefon_keltirish,
-    menyu_tugmalari,
-    asosiy_tugmalar_klaviaturasi,
     telefon_keltirish,
     telefon_sorash,
 )
@@ -54,10 +53,11 @@ SAVOL_KASB = f"3️⃣ Qaysi fanni dars berasiz? (masalan: {KASB_MASALALARI}):"
 
 
 def _menyu_tugmasi_bosilganmi(text: str | None) -> bool:
-    """Ariza bosqichida pastdagi menyu tugmasi bosildimi?
+    """Ariza bosqichida pastdigi menyu tugmasi bosildimi?
 
-    Aks holda foydalanuvchi "📚 Kategoriyalar" bosganida u "sinf" yoki
-    "kasb" sifatida yuborilib, ariza behuda bo'lib ketardi."""
+    Tugmalar endi pastdigi klaviaturada ko'rinadi va ular matn yuboradi.
+    Agarhimoya qo'yilmasa, "Mening kitoblarim" bosilganda u "sinf" yoki
+    "kasb" sifatida qabul qilinib, ariza behuda bo'lib ketardi."""
     return (text or "").strip() in ASOSIY_TUGMALAR
 
 
@@ -77,26 +77,24 @@ def joriy_savol(state: str | None, ma_lumot: dict | None = None) -> str:
         return SAVOL_KASB
     if state == Ariza.sinf.state:
         return SAVOL_SINF
-    # Bosqich noma'lum bo'lsa ham o'quvchi roli bo'yicha umumiy savol beriladi.
+    # Bosqich noma'lum bo'lsa ham oquvchi roli bo'yicha umumiy savol beriladi.
     if ma_lumot.get("rol") == ARIZA_ROL_OQITUVCHI:
         return SAVOL_KASB
     return SAVOL_SINF
 
 
 async def _menyu_tugmasi_javobi(message: Message, savol: str) -> None:
-    """Eski menyu tugmasi matn sifatida yuborilsa — maydonga qaytaradi.
+    """Ariza maydoniga menyu tugmasi matni keldi — maydonga qaytaradi.
 
-    Eski versiyalarda pastdagi katta tugmalar mavjud edi. Ular enda
-    ko'rsatilmaydi (menyu — standart «Menu» tugmasi orqali), lekin eski
-    klientlarda yoki eski xabarlarda qolgan bo'lishi mumkin. Bunday matn
+    Pastdigi tugmalar bosqichga qarab ko'rinmasligi kerak, lekin eski
+    xabarda yoki eski klientda ular ko'rinib turishi mumkin. Bunday matn
     maydonga tushsa, ariza behuda bo'lib ketardi — shuning uchun qaytarib
     beramiz.
     """
     await message.answer(
         f"{savol}\n\n"
-        "⚠️ Bu menyu tugmasi eski versiya qoldig'i — u endi ishlatilmaydi.\n"
-        "Ariza to'ldirishni davom ettiring, menyuga o'tish uchun esa "
-        "pastdagi «Menu» tugmasini yoki /menu buyrug'ini ishlating."
+        "Iltimos, shu savolga javobni matn ko'rinishida yozing.\n"
+        "Ariza to'ldirishni to'xtatmoqchimisan? /bekor bosing."
     )
 
 
@@ -105,29 +103,19 @@ async def start(message: Message, state: FSMContext):
     await state.clear()
     telegram_id = message.from_user.id
 
-    # Eski versiyalarda pastdagi KATTA tugmalar mavjud edi. Telegram'da
-    # pastdagi klaviatura butun chat bo'ylab saqlanadi — hozirgi menyu esa
-    # standart «Menu» tugmasi orqali ochiladi. Shuning uchun eski
-    # klaviaturani bir marta tozalaymiz (yuborilmasa, foydalanuvchi uni
-    # ko'rib turaveradi).
-    await message.answer(
-        "📎 Endi menyu — xabar yozish maydonining pastki chap burchagidagi "
-        "standart «Menu» tugmasi orqali ochiladi.",
-        reply_markup=klaviatura_olib_tashla(),
-    )
-
     # Bog'langanmi? Oquvchi topilmasa 404 "topilmadi" qaytaradi.
     try:
         await api.kitoblarim(telegram_id)
+    except ApiXato as e:
+        if e.kod != "topilmadi":
+            await message.answer(f"Xatolik yuz berdi: {x(e.detail)}")
+            return
+    else:
         await message.answer(
             "Yana xush kelibsiz! Kerakli bo'limni tanlang:",
             reply_markup=asosiy_tugmalar_klaviaturasi(),
         )
         return
-    except ApiXato as e:
-        if e.kod != "topilmadi":
-            await message.answer(f"Xatolik yuz berdi: {x(e.detail)}")
-            return
 
     # Bog'lanmagan — ariza holatini tekshiramiz.
     try:
@@ -136,15 +124,16 @@ async def start(message: Message, state: FSMContext):
         await message.answer(f"Xatolik yuz berdi: {x(e.detail)}")
         return
 
-    if holat.get("holati") == "kutmoqda":
+    holati = holat.get("holati")
+    if holati == "kutmoqda":
         await message.answer(KUTILMOQDA_XABAR)
         return
 
-    if holat.get("holati") == "bekor":
+    if holati == "bekor":
         izoh = holat.get("izoh") or "Sabab ko'rsatilmagan"
         await message.answer(
             "❌ Oldingi arizangiz rad etilgan.\n"
-            f"📝 Sabab: {izoh}\n\n"
+            f"📝 Sabab: {x(izoh)}\n\n"
             "Qayta urinib ko'rishni xohlaysizmi?"
         )
 
@@ -262,7 +251,15 @@ async def ariza_telefon(message: Message, state: FSMContext):
 @router.message(Ariza.telefon)
 async def ariza_telefon_matn(message: Message, state: FSMContext):
     """Tugmani bosmasdan, raqamni oddiy matn ko'rinishida yuborish."""
-    telefon = matndan_telefon_keltirish(message.text or "")
+    matn = (message.text or "").strip()
+
+    # Telefon bosqichida ham menyu tugmasi bosilishi mumkin (eski xabar yoki
+    # navbatdagi klaviatura). U raqam emas — savolga qaytarib beramiz.
+    if _menyu_tugmasi_bosilganmi(matn):
+        await _menyu_tugmasi_javobi(message, SAVOL_TELEFON)
+        return
+
+    telefon = matndan_telefon_keltirish(matn)
     if not telefon:
         await message.answer(
             "Iltimos, pastdagi tugma orqali telefon raqamingizni yuboring.\n"
@@ -407,8 +404,8 @@ async def _arizani_yuborish(
     uchinchi_qator = f"🎓 Sinf: {x(sinf)}" if rol == ARIZA_ROL_OQUVCHI else f"📚 Kasb: {x(kasb)}"
     await message.answer(
         "✅ Arizangiz yuborildi!\n\n"
-        f"📋 Ism: {x(data['fish'])}\n"
-        f"📞 Telefon: {x(data['telefon'])}\n"
+        f"📋 Ism: {x(data.get('fish'))}\n"
+        f"📞 Telefon: {x(data.get('telefon'))}\n"
         f"{uchinchi_qator}\n\n"
         "Kutubxonachi arizangizni tasdiqlagach, /start buyrug'ini bosing va "
         "botdan foydalanasiz. Tasdiqlash yoki rad etish natijasi shu yerga "

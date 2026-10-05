@@ -8,15 +8,19 @@ Nega alohida router:
     sifatida qabul qilinardi (ba'zan esa ariza yuborilib ketardi) — va
     `/bekor` ham "ism-familiya" bo'lib ketardi.
 
-    Shu sababli barcha buyruqlar (`/menu`, `/bekor`, `/qaytar`, bo'lim
-    buyruqlari) shu router'da joylashtiriladi va `main.py` da BIRINCHI
-    ro'yxatga olinadi. Bu yerda state tozalanadi, so'ng kerakli
-    handler'ga murojaat qilinadi — oqimning o'z mantig'i o'z o'rnida
-    saqlanadi.
+    Shu sababli barcha buyruqlar (`/bekor`, `/qaytar`, bo'lim buyruqlari)
+    shu router'da joylashtiriladi va `main.py` da BIRINCHI ro'yxatga
+    olinadi. Bu yerda state tozalanadi, so'ng kerakli handler'ga murojaat
+    qilinadi — oqimning o'z mantig'i o'z o'rnida saqlanadi.
 
-Menyu endi chat ichidagi KATTA tugmalarda emas: standart Telegram «Menu»
-tugmasi orqali ochiladi (`main.py::menyu_tugmasini_yoqish`), bo'limlar esa
-`/menu` dan keyingi inline tugmalarda ko'rinadi.
+Menyu tuzilishi:
+    * Bo'limlar — xabar yozish maydonining OSTIDAGI katta tugmalar
+      (`keyboards.asosiy_tugmalar_klaviaturasi`). Ular matn yuboradi, shuning
+      uchun `qidiruv.py` / `shaxsiy.py` dagi `F.text == ...` filtrlari
+      ushlaydi. Bu router'da ularga **qarshi umumiy filtr yo'q** — aks holda
+      bu router birinchi bo'lib turgani uchun barcha tugmalar yutilib,
+      hech qanday bo'lim ishlamay qolardi.
+    * `/yordam` — ham pastdagi tugma, ham standart «Menu» buyrug'i.
 """
 from aiogram import F, Router
 from aiogram.filters import Command
@@ -25,9 +29,8 @@ from aiogram.types import CallbackQuery, Message
 
 from handlers import kutubxonachi, qidiruv, shaxsiy, start
 from keyboards import (
-    ASOSIY_TUGMALAR,
+    MENYU_YORDAM,
     asosiy_tugmalar_klaviaturasi,
-    menyu_tugmalari,
     telefon_sorash,
 )
 from states import Ariza, KutubxonachiQaytarish, Qidiruv
@@ -79,16 +82,29 @@ async def _yordam_ber(message: Message, state: FSMContext) -> None:
             savol = kutubxonachi.INVENTAR_SAVOLI
         else:
             savol = start.joriy_savol(joriy, await state.get_data())
+
+        if joriy == Ariza.telefon.state:
+            # Telefon bosqichida kontakt tugmasi kerak.
+            klaviatura = telefon_sorash()
+        elif joriy in ARIZA_BOSQICHLARI:
+            # Ariza maydonlarida (ism, sinf, kasb) bo'lim tugmalari kerak
+            # emas: ular matn yuboradi va maydonga tushib, arizani behuda
+            # qilardi. `start.py` o'z himoyasini qiladi, lekin klaviatura
+            # ko'rinmasligi ham to'g'ri — foydalanuvchi faqat savolga
+            # javob yozadi.
+            klaviatura = None
+        else:
+            # Qidiruv/inventar maydonida bo'lim tugmalari foydali: yangi
+            # bo'limga o'tish arizani bekor qilmaydi (`_arizani_tugatish`
+            # faqat ARIZA bosqichlariga taalluq).
+            klaviatura = asosiy_tugmalar_klaviaturasi()
+
         await message.answer(
             yordam_matni()
             + "\n\n<b>Sizning yozuingiz saqlanib qoldi</b> — quyidagi savolga "
             "javob bering:\n\n"
             f"{savol}",
-            # Faqat telefon bosqichida kontakt tugmasi kerak — qolgan
-            # hollarda pastdagi klaviatura bo'sh qoladi.
-            reply_markup=(
-                telefon_sorash() if joriy == Ariza.telefon.state else None
-            ),
+            reply_markup=klaviatura,
         )
         return
 
@@ -97,10 +113,11 @@ async def _yordam_ber(message: Message, state: FSMContext) -> None:
 
 
 async def _menyuni_ochish(message: Message, state: FSMContext) -> None:
-    """Menyu — barcha bo'limlarning inline tugmalari.
+    """Menyu — pastdigi katta tugmalarni ko'rsatadi.
 
-    Standart Telegram «Menu» tugmasi buyruqlar ro'yxatini ochadi; undan
-    `/menu` tanlanganda shu oynaga chiroyli bo'lim menyusi ko'rinadi.
+    Bo'limlar endi inline emas, pastdagi klaviatura bo'lib chiqadi: ular
+    eng tez-tez bosiladigan joyda turishi kerak (bosilganda matn keladi,
+    `qidiruv.py` / `shaxsiy.py` filtrlari ushlaydi).
     """
     await _arizani_tugatish(message, state)
     await state.clear()
@@ -141,13 +158,20 @@ async def yordam_buyrugi(message: Message, state: FSMContext):
 
 @router.message(Command("menu", "menyu", "bo'limlar"))
 async def menyu_buyrugi(message: Message, state: FSMContext):
-    """`/menu` — standart «Menu» tugmasidan keyingi bo'limlar menyusi."""
+    """`/menu` — pastdigi bo'lim tugmalarini ko'rsatadi.
+
+    `/menu` «Menu» tugmasi ro'yxatiga qo'yilmaydi (u yerda faqat `/start` va
+    `/yordam` bor), lekin qo'lda yozilishi va eski xabarlardagi havolalar
+    uchun ishlayveradi.
+    """
     await _menyuni_ochish(message, state)
 
 
 # ------------------------------------------------------- bo'lim buyruqlari
-# Standart «Menu» tugmasi orqali keladigan buyruqlar. Ularning matnlari
-# `keyboards.bot_buyruglar()` ro'yxatiga mos kelishi kerak.
+# Bo'limlarning buyruq ko'rinishi. Pastdagi klaviatura tugmalari ham shu
+# funksiyalarni ishga tushiradi (matn keladi -> `F.text == ...` filtrlari),
+# shuning uchun bu yerdagi handler'lar buyruq bilan kelganda ham, tugma
+# bilan kelganda ham bir xil natija beradi.
 @router.message(Command("qidiruv", "qidrov"))
 async def qidiruv_buyrugi(message: Message, state: FSMContext):
     await _arizani_tugatish(message, state)
@@ -191,13 +215,14 @@ async def jarimalarim_buyrugi(message: Message, state: FSMContext):
 
 
 # ------------------------------------------------------- menyu: callback'lar
-# Inline menyudagi bo'lim tugmalari — xabar ichida, maydon yonida emas.
-# Har biri `Command` versiyasi bilan bir xil oqimni ishga tushiradi.
+# Eski xabarlardagi inline menyu tugmalari. Ularga endi yangi tugma qo'shilmaydi
+# (bo'limlar pastdagi klaviaturada), lekin eski xabarda qolgan tugmalar
+# ishlashida davom etadi — aks holda "eskirgan" degan xato chiqardi.
 @router.callback_query(F.data.startswith("menyu:"))
 async def menyu_bolimi(callback: CallbackQuery, state: FSMContext):
     """Menyu ichidagi bo'lim tugmasi."""
     if callback.message is None:
-        await callback.answer("Xabar eskirgan. /menu yozing.", show_alert=True)
+        await callback.answer("Xabar eskirgan. /start yozing.", show_alert=True)
         return
 
     bolim = (callback.data or "").partition(":")[2]
@@ -225,15 +250,16 @@ async def menyu_bolimi(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-# Eski versiyalarda pastdiki katta tugmalardan yuborilgan matnlar —
-# endi o'sha tugmalar yo'q, lekin eski xabar/eski klient qolgan bo'lishi
-# mumkin. Bo'lim funksiyalari Command handler'lari bilan bir xil.
-@router.message(F.text.in_(ASOSIY_TUGMALAR))
-async def eski_tugma_matni(message: Message, state: FSMContext):
-    """Eski katta tugma matni kelsa — menyu taklif qiladi."""
-    await _arizani_tugatish(message, state)
-    await state.clear()
-    await message.answer(
-        "Quyidagi bo'limlardan birini tanlang:",
-        reply_markup=asosiy_tugmalar_klaviaturasi(),
-    )
+# ------------------------------------------------------- pastdagi «Yordam»
+# Bu router `main.py` da BIRRINCHI ro'yxatga olindi. Shu sababli bu yerda
+# faqat `/yordam` buyrug'iga tegishli filtr qo'yiladi.
+#
+# ESKI `F.text.in_(ASOSIY_TUGMALAR)` filtri SHU YERDA turardi va u barcha
+# bo'lim tugmalarini yutib qo'yardi: foydalanuvchi "Kitob qidirish"ni b bosgan
+# taqdirda ham faqat menyu qaytib kelardi — hech qanday bo'lim ishlamaydi.
+# Bo'lim tugmalari endi pastdagi klaviatura orqali ishlaydi va ularni
+# `qidiruv.py` / `shaxsiy.py` dagi `F.text == ...` filtrlari ushlaydi.
+@router.message(F.text == MENYU_YORDAM)
+async def yordam_tugmasi(message: Message, state: FSMContext):
+    """Pastdagi «❓ Yordam» tugmasi — `/yordam` bilan bir xil ish qiladi."""
+    await _yordam_ber(message, state)

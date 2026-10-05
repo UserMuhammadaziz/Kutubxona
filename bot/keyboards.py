@@ -19,14 +19,15 @@ TELEFON_YUBORISH = "📱 Telefon raqamni yuborish"
 
 MENYU_YORDAM = "❓ Yordam"
 
-# Chat ichidagi KATTA tugmalar (ReplyKeyboardMarkup) endi ishlatilmaydi:
-# menyu — standart Telegram «Menu» tugmasi orqali ochiladi (xabar yozish
-# maydonining pastki chap burchagida, 📎 yonida). Bu o'zgaruvchilar faqat
-# menyuning inline tugmalari va buyruqlar ro'yxati uchun matn manbai.
+# Pastdigi KATTA tugmalar (ReplyKeyboardMarkup) — botning asosiy menyusi.
+# Ularning matni shu o'zgaruvchilardan olinadi: `handlers/qidiruv.py`,
+# `handlers/shaxsiy.py` va `handlers/navigatsiya.py` shu matnlarni filtr
+# sifatida ishlatadi (`F.text == KITOB_QIDIRISH`).
 #
-# `ASOSIY_TUGMALAR` esa himoya uchun saqlanadi: eski klientlarda katta
-# klaviatura ko'rinib tursa, foydalanuvchi ularni ariza maydoniga yozib
-# yubormasligi kerak (`start.py::_menyu_tugmasi_bosilganmi`).
+# `ASOSIY_TUGMALAR` shu matnlar to'plamidir. U ikki joyda himoya uchun
+# ishlatiladi: ariza bosqichida foydalanuvchi menyu tugmasini bosib, uni
+# maydonga yozib yubormasligi kerak (`start.py::_menyu_tugmasi_bosilganmi`),
+# `kutubxonachi.py` esa inventar raqami o'rniga kelganini tekshiradi.
 ASOSIY_TUGMALAR = frozenset(
     {
         KITOB_QIDIRISH,
@@ -39,25 +40,25 @@ ASOSIY_TUGMALAR = frozenset(
     }
 )
 
-# Standart Telegram «Menu» tugmasi bosilganda ochiladigan menyu. Bu INLINE
-# tugmalar — endi faqat yordam ko'rinadi.
-MENYU_INLINE_TUGMALARI = [
-    (MENYU_YORDAM, "menyu:yordam"),
-]
-
-
 def menyu_tugmalari() -> InlineKeyboardMarkup:
-    """Menyu — inline tugmalar (xabar ichida)."""
+    """Yordam tugmasi — xabar ichida (inline)."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text=matn, callback_data=callback)]
-            for matn, callback in MENYU_INLINE_TUGMALARI
+            [InlineKeyboardButton(text=MENYU_YORDAM, callback_data="menyu:yordam")]
         ]
     )
 
 
 def asosiy_tugmalar_klaviaturasi() -> ReplyKeyboardMarkup:
-    """Asosiy bo'limlar pastdagi ReplyKeyboardMarkup ko'rinishida."""
+    """Asosiy menyu — xabar yozish maydonining OSTIDAGI katta tugmalar.
+
+    Bu Telegram'da eng ko'p bosiladigan joy, shuning uchun bo'limlar shu
+    yerga qo'yildi. Avval ular «Menu» tugmasi orqali ochiladigan inline
+    tugmalar edi — uch bosish talab qilardi.
+
+    `Yordam` tugmasi oxirgi qatorda, keng (to'liq qator) — u boshqa
+    bo'limlardan farqli qaror (yordam so'rash), shuning uchun ajratilgan.
+    """
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text=KITOB_QIDIRISH), KeyboardButton(text=KATEGORIYALAR)],
@@ -66,6 +67,7 @@ def asosiy_tugmalar_klaviaturasi() -> ReplyKeyboardMarkup:
                 KeyboardButton(text=NAVBATLARIM),
             ],
             [KeyboardButton(text=BANDLARIM), KeyboardButton(text=JARIMALARIM)],
+            [KeyboardButton(text=MENYU_YORDAM)],
         ],
         resize_keyboard=True,
     )
@@ -88,20 +90,26 @@ def telefon_sorash() -> ReplyKeyboardMarkup:
 def klaviatura_olib_tashla() -> ReplyKeyboardRemove:
     """Pastdagi klaviaturani butunlay yo'q qiladi.
 
-    Telegram'da pastdagi klaviatura butun chat bo'ylab saqlanadi — bot
-    `ReplyKeyboardRemove()` yubormasa, foydalanuvchi eski KATTA tugmalarni
-    ko'rib turaveradi. Menyu endi standart «Menu» tugmasi orqali ochilgani
-    uchun eski klaviatura `/start` va `/menu` da bir marta tozalanadi.
+    Telefon bosqichida `telefon_sorash()` klaviaturasini olib tashlash uchun
+    ishlatiladi — aks holda kontakt tugmasi butun chat bo'ylab qolib ketadi.
     """
     return ReplyKeyboardRemove()
 
 
 def bot_buyruglar() -> list[BotCommand]:
-    """Standart ��Menu�� tugmasi ro'yxatida ko'rinadigan buyruqlar.
+    """Standart Telegram «Menu» tugmasi ro'yxatidagi buyruqlar.
 
-    Endi faqat yordam buyrug'i qoladi.
+    Ataka faqat ikki ta: `/start` va `/yordam`. Boshqa bo'limlar uchun
+    buyruqlar kerak emas — ular pastdagi katta tugmalarda (`/start` dan
+    keyin chiqadi).
+
+    Boshqa buyruqlar (`/bekor`, `/qaytar`, `/bandlar`, ...) ataka MENYU
+    ro'yxatiga qo'yilmaydi, lekin `handlers/navigatsiya.py` da ishlayveradi:
+    ular arrizа to'ldirilayotganda matn sifatida qabul qilinmasligi uchun
+    handler'lari shu router'da BIRINCHI turadi.
     """
     return [
+        BotCommand(command="start", description="Botni qayta boshlash / menyu"),
         BotCommand(command="yordam", description="Bot imkoniyatlari va buyruqlar"),
     ]
 

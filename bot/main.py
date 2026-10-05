@@ -17,7 +17,7 @@ from aiogram.types import ErrorEvent, MenuButtonCommands
 
 import config
 from api_client import api
-from keyboards import bot_buyruglar, asosiy_tugmalar_klaviaturasi
+from keyboards import bot_buyruglar
 from handlers import (
     kutubxonachi,
     navigatsiya,
@@ -44,11 +44,22 @@ async def xatolik_handler(event: ErrorEvent):
         "Xatoni bekor qilish uchun /bekor bosing."
     )
     try:
-        if event.update.callback_query:
-            await event.update.callback_query.answer("⚠️ Xatolik yuz berdi.", show_alert=True)
-            await event.update.callback_query.message.answer(xabar)
+        update = event.update
+        if update.callback_query:
+            await update.callback_query.answer(
+                "⚠️ Xatolik yuz berdi.", show_alert=True
+            )
+            # `message` None bo'lishi mumkin (inline xabar o'chirilgan) —
+            # `.answer` chaqirilsa AttributeError chiqar, u ham ushbu
+            # try/except ichida ushlanadi, lekin foydalanuvchi hech narsa
+            # ko'rmaydi. Shuning uchun oldin tekshiramiz.
+            if update.callback_query.message:
+                await update.callback_query.message.answer(xabar)
+        elif update.message:
+            await update.message.answer(xabar)
         else:
-            await event.update.message.answer(xabar)
+            # Inline_query, poll va boshqa update turlari — javob yo'q.
+            logger.debug("Javob beriladigan xabar yo'q: %s", type(update).__name__)
     except Exception:
         logger.warning("Xatolik xabari yuborilmadi", exc_info=True)
 

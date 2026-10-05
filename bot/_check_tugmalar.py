@@ -39,6 +39,7 @@ from aiogram.types import (  # noqa: E402
     CallbackQuery,
     Chat,
     Message,
+    ReplyKeyboardMarkup,
     ReplyKeyboardRemove,
     Update,
     User,
@@ -406,43 +407,76 @@ async def main() -> int:
     print("1. STANDART TELEGRAM «MENU» TUGMASI VA BO'LIM MENYUSI")
     print("=" * 72)
     # Chat ichidagi KATTA tugmalar (ReplyKeyboardMarkup) endi ishlatilmaydi:
-    # menyu — standart Telegram «Menu» tugmasi orqali ochiladi.
+    # Bo'limlar xabar yozish maydonining OSTIDAGI katta tugmalarda
+    # (ReplyKeyboardMarkup / KeyboardButton) — inline emas.
+    klav = kb.asosiy_tugmalar_klaviaturasi()
     tekshir(
-        not hasattr(kb, "asosiy_menyu"),
-        "katta pastdagi menyu klaviaturasi (`asosiy_menyu`) yo'q",
+        isinstance(klav, ReplyKeyboardMarkup),
+        "asosiy menyu — ReplyKeyboardMarkup (pastdagi katta tugmalar)",
+    )
+    klav_matnlar = [b.text for qator in klav.keyboard for b in qator]
+    kutilgan_matnlar = [
+        kb.KITOB_QIDIRISH,
+        kb.KATEGORIYALAR,
+        kb.MENING_KITOBLARIM,
+        kb.NAVBATLARIM,
+        kb.BANDLARIM,
+        kb.JARIMALARIM,
+        kb.MENYU_YORDAM,
+    ]
+    tekshir(
+        klav_matnlar == kutilgan_matnlar,
+        f"pastdigi klaviaturada 7 ta tugma bor ({len(klav_matnlar)} ta)",
     )
     tekshir(
-        not hasattr(kb, "ariza_klaviaturasi"),
-        "maydon yonidagi Boshlash/Yordam klaviaturasi (`ariza_klaviaturasi`) yo'q",
+        set(klav_matnlar) == set(kb.ASOSIY_TUGMALAR),
+        "klaviatura matnlari `ASOSIY_TUGMALAR` bilan bir xil",
     )
     tekshir(
-        isinstance(kb.klaviatura_olib_tashla(), ReplyKeyboardRemove),
-        "eski pastdagi klaviatura `ReplyKeyboardRemove` bilan tozalanadi",
+        klav.resize_keyboard is True,
+        "`resize_keyboard=True` (klaviatura ekranni to'ldirmasin)",
+    )
+    tekshir(
+        not any(b.request_contact for q in klav.keyboard for b in q),
+        "bo'lim tugmalari kontakt so'ramaydi",
     )
 
-    # Faqat telefon bosqichi uchun kontakt tugmasi qoladi.
+    # Telefon bosqichi uchun alohida kontakt tugmasi.
     tel_klav = kb.telefon_sorash()
     tel_matnlar = [b.text for qator in tel_klav.keyboard for b in qator]
     tekshir(
         tel_matnlar == [kb.TELEFON_YUBORISH],
-        f"pastdagi klaviatura faqat kontakt tugmasidan iborat: {tel_matnlar}",
+        f"telefon klaviaturasi faqat kontakt tugmasidan iborat: {tel_matnlar}",
     )
     tekshir(
         all(b.request_contact for q in tel_klav.keyboard for b in q),
         "kontakt tugmasi `request_contact=True`",
     )
+    tekshir(
+        isinstance(kb.klaviatura_olib_tashla(), ReplyKeyboardRemove),
+        "kontakt klaviaturasini `ReplyKeyboardRemove` bilan olib tashlash mumkin",
+    )
 
-    # Menyu inline tugmalari — xabar ichida, maydon yonida emas.
+    # Eski xabarlardagi inline «Yordam» tugmasi — orqaga moslik uchun.
     menyu = kb.menyu_tugmalari()
     menyu_matlari = [b.text for qator in menyu.inline_keyboard for b in qator]
     tekshir(
-        len(menyu_matlari) == len(kb.MENYU_INLINE_TUGMALARI),
-        f"menyuda {len(menyu_matlari)} bo'lim tugmasi",
+        menyu_matlari == [kb.MENYU_YORDAM],
+        f"inline menyuda faqat Yordam bor: {menyu_matlari}",
     )
-    for t in menyu_matlari:
-        tekshir(await ushlanadimi("callback_query", bildirishnoma(
-            dict(kb.MENYU_INLINE_TUGMALARI)[t]
-        )), t)
+    tekshir(
+        await ushlanadimi("callback_query", bildirishnoma("menyu:yordam")),
+        "inline «Yordam» tugmasi ushlanadi",
+    )
+# Eski arxitekturaga qarshi himoya: inline «bo'lim menyusi» qaytmagan.
+    tekshir(
+        not hasattr(kb, "MENYU_INLINE_TUGMALARI"),
+        "eski `MENYU_INLINE_TUGMALARI` ro'yxati yo'q",
+    )
+    tekshir(
+        not hasattr(kb, "asosiy_menyu") and not hasattr(kb, "ariza_klaviaturasi"),
+        "eski `asosiy_menyu`/`ariza_klaviaturasi` klaviaturasi yo'q",
+    )
 
     # Standart «Menu» tugmasi orqali keladigan buyruqlar — hammasi ushlanishi kerak.
     for buyruq in kb.bot_buyruglar():
@@ -503,7 +537,7 @@ async def main() -> int:
 
     print()
     print("=" * 72)
-    print("4. FSM STATE ICHIDA BUYRUQ VA MENYU TUGMASI")
+    print("4. FSM STATE ICHIDA BUYRUQ VA TUGMA (har biri o'z handler'iga)")
     print("=" * 72)
     # Buyruqlar va menyu tugmalari qaysi state'da bo'lishidan qat'i nazar
     # o'z handler'iga yetishi kerak. Aks holda `/bekor` "ism-familiya" bo'lib
@@ -519,13 +553,14 @@ async def main() -> int:
         "/navbatlarim": "navbatlarim_buyrugi",
         "/bandlarim": "bandlarim_buyrugi",
         "/jarimalarim": "jarimalarim_buyrugi",
-        # Eski katta tugmalar matnlari endi menyuni taklif qiladi.
-        kb.KITOB_QIDIRISH: "eski_tugma_matni",
-        kb.KATEGORIYALAR: "eski_tugma_matni",
-        kb.MENING_KITOBLARIM: "eski_tugma_matni",
-        kb.NAVBATLARIM: "eski_tugma_matni",
-        kb.BANDLARIM: "eski_tugma_matni",
-        kb.JARIMALARIM: "eski_tugma_matni",
+        # Pastdigi bo'lim tugmalari o'z handler'iga boradi (inline emas).
+        kb.KITOB_QIDIRISH: "qidiruv_boshla",
+        kb.KATEGORIYALAR: "kategoriyalar",
+        kb.MENING_KITOBLARIM: "kitoblarim",
+        kb.NAVBATLARIM: "navbatlarim",
+        kb.BANDLARIM: "bandlarim",
+        kb.JARIMALARIM: "jarimalarim",
+        kb.MENYU_YORDAM: "yordam_tugmasi",
     }
     holatlar = [
         (None, "holatsiz"),
@@ -536,12 +571,49 @@ async def main() -> int:
         (Qidiruv.matn, "Qidiruv.matn"),
         (KutubxonachiQaytarish.inventar, "Kutubxonachi"),
     ]
+
+    # Matnli (reply keyboard) bo'lim tugmalari — state ichida ham.
+    # Ariza maydonlarida ular o'sha maydonga YOZILMASIN: state handler'ining
+    # o'zidagi `_menyu_tugmasi_bosilganmi` qalqoni savolni qayta so'raydi.
+    # Qidiruvda esa `qidiruv_natija` tugmani bo'limga yo'naltiradi.
+    # Kutubxonachi/qidiruv bo'limlari state handler'ida ichki tekshiruv bilan
+    # boshqariladi, shuning uchun router darajasidagi kutilma o'zgaradi.
+    # Ariza bosqichlarida bo'lim tugmalari state handler'ida ushlanadi
+    # (qiymat sifatida saqlanmaydi) — pastdagi alohista tekshiruvda.
+    # Qidiruv state'ida esa `qidiruv_natija` ichida bo'limga yo'naltiriladi.
+    ariza_states = {"Ariza.fish", "Ariza.telefon", "Ariza.sinf", "Ariza.kasb"}
+    qidiruv_tugmalari = (
+        kb.KITOB_QIDIRISH,
+        kb.KATEGORIYALAR,
+        kb.MENING_KITOBLARIM,
+        kb.NAVBATLARIM,
+        kb.BANDLARIM,
+        kb.JARIMALARIM,
+    )
     for raw_state, nomi in holatlar:
         for matn, kutilangan in kutilayotgan.items():
+            if nomi in ariza_states:
+                continue
+            if nomi == "Qidiruv.matn" and matn in qidiruv_tugmalari:
+                # state ichida bo'limga yo'naltiriladi
+                continue
             olindi = await qaysi_handler("message", xabar(matn), raw_state)
             tekshir(
                 olindi == kutilangan,
                 f"{nomi:16} + {matn:22} -> {olindi} (kutilgan {kutilangan})",
+            )
+
+    # Ariza bosqichida bo'lim tugmalari haqiqiy maydon qiymati bo'lmaydi:
+    # ular state handler'ida ushlanadi va `_menyu_tugmasi_bosilganmi`
+    # qalqoni bilan savolni qaytaradi (qiymat sifatida saqlanmaydi).
+    for raw_state, nomi in holatlar:
+        if nomi not in ariza_states:
+            continue
+        for matn in qidiruv_tugmalari:
+            olindi = await qaysi_handler("message", xabar(matn), raw_state)
+            tekshir(
+                olindi.startswith("ariza_"),
+                f"{nomi:16} + {matn:22} -> {olindi} (maydonga tushmaydi)",
             )
 
     # Qo'lda kiritilgan matn o'z state handler'iga yetishi kerak.
