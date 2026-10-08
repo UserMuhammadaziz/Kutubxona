@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import clsx from 'clsx'
 import { useAuthStore, isAdmin } from '../store/auth'
 import { useThemeStore } from '../store/theme'
+import { Logo, LogoMark } from './Logo'
 
 const navItems = [
   { to: '/', label: 'Boshqaruv paneli', icon: '📊', end: true },
@@ -101,7 +102,7 @@ export function Layout() {
           ☰
         </button>
         <span className="flex items-center gap-2 text-base font-semibold text-slate-900 dark:text-slate-100">
-          <span aria-hidden>📖</span>
+          <LogoMark className="h-6 w-6" />
           Kutubxona
         </span>
         <button
@@ -118,10 +119,7 @@ export function Layout() {
         <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-slate-200 bg-paper lg:flex dark:border-slate-700 dark:bg-slate-800">
           <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-700">
             <div className="flex items-center gap-2">
-              <span className="text-xl" aria-hidden>
-                📖
-              </span>
-              <span className="text-lg font-semibold text-slate-900 dark:text-slate-100">Kutubxona</span>
+              <Logo />
             </div>
             <button
               onClick={toggleTheme}
@@ -146,7 +144,7 @@ export function Layout() {
             <div className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-paper shadow-xl dark:bg-slate-800">
               <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3.5 dark:border-slate-700">
                 <span className="flex items-center gap-2 text-base font-semibold text-slate-900 dark:text-slate-100">
-                  <span aria-hidden>📖</span>
+                  <LogoMark className="h-6 w-6" />
                   Kutubxona
                 </span>
                 <button

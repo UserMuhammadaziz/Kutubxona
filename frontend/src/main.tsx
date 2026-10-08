@@ -17,6 +17,14 @@ const queryClient = new QueryClient({
   },
 })
 
+// PWA: service worker faqat production build'da ro'yxatdan o'tadi
+// (dev'da vite sw.js ni bermaydi va kesh muammolariga olib kelishi mumkin).
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {})
+  })
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>

@@ -3,6 +3,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/auth'
 import { errorMessage } from '../api/client'
 import { Button, Card, ErrorBanner, Field, Input, Label } from '../components/ui'
+import { LogoMark } from '../components/Logo'
 
 export function Login() {
   const { status, login } = useAuthStore()
@@ -41,7 +42,7 @@ export function Login() {
     <div className="flex min-h-screen items-center justify-center bg-canvas px-4 dark:bg-slate-900">
       <Card className="w-full max-w-sm p-8">
         <div className="mb-6 text-center">
-          <div className="mb-2 text-3xl">📖</div>
+          <LogoMark className="mx-auto mb-3 h-14 w-14" />
           <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Kutubxona tizimi</h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Kutubxonachi hisobingizga kiring</p>
         </div>
