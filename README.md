@@ -3,6 +3,8 @@
 Tuman kutubxonasi uchun kitob fondi, berish-qaytarish, jarima va navbat tizimi.
 Django REST Framework + PostgreSQL + Celery/Redis + aiogram 3 (Telegram bot).
 
+> **To'liq qo'llanma:** [QOLLANMA.md](QOLLANMA.md) — o'rnatish, ishlatish, API, bot, admin panel bo'yicha batafsil qo'llanma.
+
 ## O'rnatish
 
 1. Repozitoriyani klonlang va virtual muhit yarating:
