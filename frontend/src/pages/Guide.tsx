@@ -1,10 +1,7 @@
-import { useState } from 'react'
 import type { Components } from 'react-markdown'
 import ReactMarkdown from 'react-markdown'
 import rehypeSlug from 'rehype-slug'
 import remarkGfm from 'remark-gfm'
-import clsx from 'clsx'
-import qollanma from '../../../QOLLANMA.md?raw'
 import foydalanuvchiQollanma from '../../../FOYDALANUVCHI_QOLLANMA.md?raw'
 import { Card, PageHeader } from '../components/ui'
 
@@ -139,14 +136,7 @@ const components: Components = {
   ),
 }
 
-const tablar = [
-  { id: 'foydalanuvchi', nomi: "Saytdan foydalanish", matn: foydalanuvchiQollanma },
-  { id: 'texnik', nomi: "To'liq texnik qo'llanma", matn: qollanma },
-] as const
-
 export function Guide() {
-  const [tab, setTab] = useState<(typeof tablar)[number]['id']>('foydalanuvchi')
-
   return (
     <div>
       <PageHeader
@@ -154,29 +144,9 @@ export function Guide() {
         subtitle="Saytdan foydalanish bo'yicha qo'llanma"
       />
 
-      <div className="mb-4 flex flex-wrap gap-2" role="tablist" aria-label="Qo'llanma turi">
-        {tablar.map((t) => (
-          <button
-            key={t.id}
-            role="tab"
-            aria-selected={tab === t.id}
-            onClick={() => setTab(t.id)}
-            className={clsx(
-              'rounded-lg px-4 py-2 text-sm font-medium transition-colors',
-              tab === t.id
-                ? 'bg-brand-600 text-white shadow-sm'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600',
-            )}
-          >
-            {t.id === 'foydalanuvchi' ? '👩‍💼 ' : '🛠️ '}
-            {t.nomi}
-          </button>
-        ))}
-      </div>
-
       <Card className="p-4 sm:p-6 lg:p-8">
         <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSlug]} components={components}>
-          {tablar.find((t) => t.id === tab)?.matn ?? ''}
+          {foydalanuvchiQollanma}
         </ReactMarkdown>
       </Card>
     </div>
