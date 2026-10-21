@@ -338,7 +338,7 @@ Shundan so'ng `python manage.py runserver` orqali `http://127.0.0.1:8000/` da to
 
 **Chiqish:** Chap paneldagi pastki qismdagi **"Chiqish"** tugmasi.
 
-**Mavzu almashtirish:** Yuqori qismdagi 🌙 (qorong'i) / ☯️ (yorug') tugmasi bilan rejimni almashtirasiz.
+**Mavzu almashtirish:** Yuqori qismdagi <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg> (qorong'i) / <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg> (yorug') tugmasi bilan rejimni almashtirasiz.
 
 ---
 
@@ -396,9 +396,9 @@ Katalogdagi barcha kitoblarni ko'rish, qo'shish, tahrirlash va o'chirish.
 **Jadval ustunlari:** Nomi (ISBN ostida) · Muallif · Janr · Til · Nashriyot · Yil · Narhi · Buyurtma · Holati · Nusxalar (`mavjud/jami`) · Band · Harakatlar
 
 **Holat badge'lari:**
-- 🟢 **Mavjud** — kamida bitta nusxa bor
-- 🔵 **Berilgan** — hamma nusxa hozir o'quvchi qo'lidа
-- 🔴 **Yo'qolgan**
+- <span style="display:inline-block;width:11px;height:11px;border-radius:9999px;background:#10b981;vertical-align:-0.1em"></span> **Mavjud** — kamida bitta nusxa bor
+- <span style="display:inline-block;width:11px;height:11px;border-radius:9999px;background:#3b82f6;vertical-align:-0.1em"></span> **Berilgan** — hamma nusxa hozir o'quvchi qo'lidа
+- <span style="display:inline-block;width:11px;height:11px;border-radius:9999px;background:#ef4444;vertical-align:-0.1em"></span> **Yo'qolgan**
 
 **Nusxalar soni:** 0 bo'lsa qizil, 0 dan katta bo'lsa yashil. Faol navbat bo'lsa sariq "N ta navbat" chiqadi.
 
@@ -408,21 +408,21 @@ Katalogdagi barcha kitoblarni ko'rish, qo'shish, tahrirlash va o'chirish.
 
 | Maydon | Majburiy | Izoh |
 |---|---|---|
-| Nomi | ✅ | Kitob nomi |
-| Muallif | ✅ | Muallif ismi |
-| ISBN | ❌ | Mavjud bo'lmasa bo'sh qoldiring |
-| Janr | ✅ | Standart: Badiiy |
-| Nashr yili | ✅ | 1400–joriy yil |
-| Til | ❌ | O'zbek (lotin), Kirill, Rus, Ingliz, Boshqa |
-| Narhi (so'm) | ❌ | 0 dan katta |
-| Holati | ✅ | Mavjud / Yo'qolgan (Berilgan tizim avtomatik boshqaradi) |
-| Buyurtma soni | ❌ | 0 dan katta |
-| Nashriyot | ❌ | Matn |
-| Tavsif | ❌ | 3 qatorli |
+| Nomi | <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M22 11.08V12a10 10 0 11-5.93-9.14M22 4L12 14.01l-3-3"/></svg> | Kitob nomi |
+| Muallif | <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M22 11.08V12a10 10 0 11-5.93-9.14M22 4L12 14.01l-3-3"/></svg> | Muallif ismi |
+| ISBN | <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 22a10 10 0 100-20 10 10 0 000 20zM15 9l-6 6M9 9l6 6"/></svg> | Mavjud bo'lmasa bo'sh qoldiring |
+| Janr | <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M22 11.08V12a10 10 0 11-5.93-9.14M22 4L12 14.01l-3-3"/></svg> | Standart: Badiiy |
+| Nashr yili | <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M22 11.08V12a10 10 0 11-5.93-9.14M22 4L12 14.01l-3-3"/></svg> | 1400–joriy yil |
+| Til | <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 22a10 10 0 100-20 10 10 0 000 20zM15 9l-6 6M9 9l6 6"/></svg> | O'zbek (lotin), Kirill, Rus, Ingliz, Boshqa |
+| Narhi (so'm) | <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 22a10 10 0 100-20 10 10 0 000 20zM15 9l-6 6M9 9l6 6"/></svg> | 0 dan katta |
+| Holati | <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M22 11.08V12a10 10 0 11-5.93-9.14M22 4L12 14.01l-3-3"/></svg> | Mavjud / Yo'qolgan (Berilgan tizim avtomatik boshqaradi) |
+| Buyurtma soni | <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 22a10 10 0 100-20 10 10 0 000 20zM15 9l-6 6M9 9l6 6"/></svg> | 0 dan katta |
+| Nashriyot | <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 22a10 10 0 100-20 10 10 0 000 20zM15 9l-6 6M9 9l6 6"/></svg> | Matn |
+| Tavsif | <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 22a10 10 0 100-20 10 10 0 000 20zM15 9l-6 6M9 9l6 6"/></svg> | 3 qatorli |
 
 3. **Saqlash** → "Kitob qo'shildi." xabari
 
-> ⚠️ **Muhim:** Kitob qo'shgandan keyin **Nusxalar** bo'limida kamida bitta nusxa qo'shishingiz kerak — aks holda u "asli" sifatida beriladi.
+> <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg> **Muhim:** Kitob qo'shgandan keyin **Nusxalar** bo'limida kamida bitta nusxa qo'shishingiz kerak — aks holda u "asli" sifatida beriladi.
 
 **Kitobni tahrirlash:** Har bir qatordagi **Tahrirlash** tugmasi → forma avval joriy qiymatlar bilan to'ldiriladi → o'zgartirib **Saqlash**.
 
@@ -460,7 +460,7 @@ Har bir kitobning **jismoniy nusxalarini** (inventar raqam bilan) boshqarish.
 
 **Jadval ustunlari:** Kitob · Inventar № · Javon · Holati · Harakatlar
 
-**Holat badge'lari:** 🟢 Mavjud · 🔵 Berilgan · 🟡 Band / Ta'mirda · 🔴 Yo'qolgan
+**Holat badge'lari:** <span style="display:inline-block;width:11px;height:11px;border-radius:9999px;background:#10b981;vertical-align:-0.1em"></span> Mavjud · <span style="display:inline-block;width:11px;height:11px;border-radius:9999px;background:#3b82f6;vertical-align:-0.1em"></span> Berilgan · <span style="display:inline-block;width:11px;height:11px;border-radius:9999px;background:#f59e0b;vertical-align:-0.1em"></span> Band / Ta'mirda · <span style="display:inline-block;width:11px;height:11px;border-radius:9999px;background:#ef4444;vertical-align:-0.1em"></span> Yo'qolgan
 
 **Harakat tugmalari (holatga bog'liq):**
 
@@ -477,14 +477,14 @@ Har bir kitobning **jismoniy nusxalarini** (inventar raqam bilan) boshqarish.
 
 | Maydon | Majburiy | Izoh |
 |---|---|---|
-| Kitob | ✅ | "Kitobni tanlang" — ro'yxatdan tanlang |
-| Inventar raqami | ✅ | Masalan: `INV-000001` |
-| Javon | ❌ | Masalan: `A-3` |
-| Izoh | ❌ | Matn |
+| Kitob | <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M22 11.08V12a10 10 0 11-5.93-9.14M22 4L12 14.01l-3-3"/></svg> | "Kitobni tanlang" — ro'yxatdan tanlang |
+| Inventar raqami | <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M22 11.08V12a10 10 0 11-5.93-9.14M22 4L12 14.01l-3-3"/></svg> | Masalan: `INV-000001` |
+| Javon | <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 22a10 10 0 100-20 10 10 0 000 20zM15 9l-6 6M9 9l6 6"/></svg> | Masalan: `A-3` |
+| Izoh | <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 22a10 10 0 100-20 10 10 0 000 20zM15 9l-6 6M9 9l6 6"/></svg> | Matn |
 
 3. **Saqlash**
 
-> ⚠️ **Muhim:** Nusxa qo'shilsa yoki ta'mirdan chiqsa, avtomatik ravishda navbatdagi birinchi odamga Telegram orqali taklif yuboriladi.
+> <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg> **Muhim:** Nusxa qo'shilsa yoki ta'mirdan chiqsa, avtomatik ravishda navbatdagi birinchi odamga Telegram orqali taklif yuboriladi.
 
 ---
 
@@ -496,7 +496,7 @@ Kutubxona a'zolarini boshqarish. Ikkala sahifa bir xil, faqat roli boshqacha.
 
 **Jadval ustunlari:** F.I.Sh. (bosilganda tafsilotga o'tadi) · Sinf (o'qituvchilar uchun "Fan") · Telefon · Karta raqami · Holati · Harakat
 
-**Holat:** 🟢 Faol · 🔴 Bloklangan
+**Holat:** <span style="display:inline-block;width:11px;height:11px;border-radius:9999px;background:#10b981;vertical-align:-0.1em"></span> Faol · <span style="display:inline-block;width:11px;height:11px;border-radius:9999px;background:#ef4444;vertical-align:-0.1em"></span> Bloklangan
 
 **Yangi o'quvchi qo'shish:**
 1. **"+ Yangi o'quvchi"** tugmasi
@@ -504,15 +504,15 @@ Kutubxona a'zolarini boshqarish. Ikkala sahifa bir xil, faqat roli boshqacha.
 
 | Maydon | Majburiy | Izoh |
 |---|---|---|
-| To'liq ismi (F.I.Sh.) | ✅ | Masalan: Aliyev Vali |
-| Telefon raqami | ✅ | `+998` bilan oldindan to'ldirilgan |
-| Sinf (yoki Fan) | ✅ (o'qituvchi uchun) | Masalan: `7-A` / `Matematika` |
-| Tug'ilgan sana | ❌ | Sana tanlash |
-| Manzil | ❌ | Matn |
+| To'liq ismi (F.I.Sh.) | <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M22 11.08V12a10 10 0 11-5.93-9.14M22 4L12 14.01l-3-3"/></svg> | Masalan: Aliyev Vali |
+| Telefon raqami | <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M22 11.08V12a10 10 0 11-5.93-9.14M22 4L12 14.01l-3-3"/></svg> | `+998` bilan oldindan to'ldirilgan |
+| Sinf (yoki Fan) | <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M22 11.08V12a10 10 0 11-5.93-9.14M22 4L12 14.01l-3-3"/></svg> (o'qituvchi uchun) | Masalan: `7-A` / `Matematika` |
+| Tug'ilgan sana | <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 22a10 10 0 100-20 10 10 0 000 20zM15 9l-6 6M9 9l6 6"/></svg> | Sana tanlash |
+| Manzil | <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 22a10 10 0 100-20 10 10 0 000 20zM15 9l-6 6M9 9l6 6"/></svg> | Matn |
 
 3. **Saqlash** → toast xabar: "Ism ro'yxatga qo'shildi. Karta: **LIB-2026-0001**"
 
-> 💡 **Karta raqami avtomatik beriladi** — qo'lda yozish shart emas. Toast xabarda ko'rsatiladi, o'quvchiga bering.
+> <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 16v-4M12 8h.01M12 22a10 10 0 100-20 10 10 0 000 20z"/></svg> **Karta raqami avtomatik beriladi** — qo'lda yozish shart emas. Toast xabarda ko'rsatiladi, o'quvchiga bering.
 
 **Bloklash/Faollashtirish:** Har bir qatordagi **Bloklash** / **Faollashtirish** tugmasi — bir bosishda amalga oshadi.
 
@@ -538,7 +538,7 @@ Bitta o'quvchi haqida to'liq ma'lumot. **Kitob qaytarish va jarima to'lash shu y
 | Kitob | Kitob nomi |
 | Berilgan | Berilgan sana |
 | Muddat | Qaytarish muddati |
-| Qolgan kun | 🔴 Manfiy = muddati o'tgan · 🟡 2 kundan kam · 🟢 Xavfsiz |
+| Qolgan kun | <span style="display:inline-block;width:11px;height:11px;border-radius:9999px;background:#ef4444;vertical-align:-0.1em"></span> Manfiy = muddati o'tgan · <span style="display:inline-block;width:11px;height:11px;border-radius:9999px;background:#f59e0b;vertical-align:-0.1em"></span> 2 kundan kam · <span style="display:inline-block;width:11px;height:11px;border-radius:9999px;background:#10b981;vertical-align:-0.1em"></span> Xavfsiz |
 | Harakat | **Qaytarish** tugmasi |
 
 **To'lanmagan jarimalar jadvali:**
@@ -608,9 +608,9 @@ Telegram bot orqali kelgan a'zolik arizalarini ko'rib chiqish.
    - `(asli)` — nusxasi yo'q, asli beriladi
    - `(barcha nusxalar band)` — hozircha berilmaydi
 6. **Ma'lumot bannerini** o'qing:
-   - 🟢 "Beriladi: mavjud nusxa (N ta mavjud / jami M)"
-   - 🟡 "Beriladi: kitob asli (bu kitobning umuman nusxasi yo'q)"
-   - 🟡 "Hozircha barcha nusxalar band (N ta). O'quvchi navbatga qo'shiladi."
+   - <span style="display:inline-block;width:11px;height:11px;border-radius:9999px;background:#10b981;vertical-align:-0.1em"></span> "Beriladi: mavjud nusxa (N ta mavjud / jami M)"
+   - <span style="display:inline-block;width:11px;height:11px;border-radius:9999px;background:#f59e0b;vertical-align:-0.1em"></span> "Beriladi: kitob asli (bu kitobning umuman nusxasi yo'q)"
+   - <span style="display:inline-block;width:11px;height:11px;border-radius:9999px;background:#f59e0b;vertical-align:-0.1em"></span> "Hozircha barcha nusxalar band (N ta). O'quvchi navbatga qo'shiladi."
 7. **Ixtiyoriy:** "Aniq nusxani qo'lda tanlash" ni belgilang → inventar raqamini tanlash mumkin
 8. **Berish** tugmasi
 
@@ -664,14 +664,14 @@ Kitob mavjud bo'lmaganda o'quvchilarning navbatini kuzatish.
 **Jadval ustunlari:** Kitob · O'quvchi · Navbat sanasi · Holati · Taklif javobi · Harakat
 
 **Holat badge'lari:**
-- 🟡 **Kutmoqda** — navbatda turibdi
-- 🔵 **Taklif qilindi** — nusxa ajratildi, javob kutilmoqda
-- 🟢 **Yakunlandi** — kitob berildi
-- 🔴 **Bekor** — navbat bekor qilindi
+- <span style="display:inline-block;width:11px;height:11px;border-radius:9999px;background:#f59e0b;vertical-align:-0.1em"></span> **Kutmoqda** — navbatda turibdi
+- <span style="display:inline-block;width:11px;height:11px;border-radius:9999px;background:#3b82f6;vertical-align:-0.1em"></span> **Taklif qilindi** — nusxa ajratildi, javob kutilmoqda
+- <span style="display:inline-block;width:11px;height:11px;border-radius:9999px;background:#10b981;vertical-align:-0.1em"></span> **Yakunlandi** — kitob berildi
+- <span style="display:inline-block;width:11px;height:11px;border-radius:9999px;background:#ef4444;vertical-align:-0.1em"></span> **Bekor** — navbat bekor qilindi
 
 **Taklif javobi ustuni:** O'quvchi javob bergandan keyin ko'rinadi:
-- 🟢 "Olaman" — taklif muddati bilan
-- 🔴 "Kerak emas" — keyingisiga o'tadi
+- <span style="display:inline-block;width:11px;height:11px;border-radius:9999px;background:#10b981;vertical-align:-0.1em"></span> "Olaman" — taklif muddati bilan
+- <span style="display:inline-block;width:11px;height:11px;border-radius:9999px;background:#ef4444;vertical-align:-0.1em"></span> "Kerak emas" — keyingisiga o'tadi
 
 **Navbatni tasdiqlash (kitobni berish):**
 1. "Taklif qilindi" holatini tanlab, javobni ko'ring
@@ -694,7 +694,7 @@ Kechiktirib qaytarilgan kitoblar uchun jarimalarni boshqarish.
 
 **Jadval ustunlari:** O'quvchi · Kitob · Kechikkan kun · Summa · Holati · Harakat
 
-**Holat:** 🟢 To'langan · 🔴 To'lanmagan
+**Holat:** <span style="display:inline-block;width:11px;height:11px;border-radius:9999px;background:#10b981;vertical-align:-0.1em"></span> To'langan · <span style="display:inline-block;width:11px;height:11px;border-radius:9999px;background:#ef4444;vertical-align:-0.1em"></span> To'lanmagan
 
 **Jarimani to'lash:**
 1. Filtrda "To'lanmagan" ni tanlab qarzdorlarni ko'ring
@@ -714,7 +714,7 @@ Kutubxonachi va administrator hisoblarini boshqarish. **Faqat administrator** ko
 
 **Jadval ustunlari:** F.I.Sh. · Foydalanuvchi nomi (@username) · Lavozim · Telefon · Holati · Harakat
 
-**Lavozim badge'lari:** 🔵 Administrator · ⚪ Kutubxonachi
+**Lavozim badge'lari:** <span style="display:inline-block;width:11px;height:11px;border-radius:9999px;background:#3b82f6;vertical-align:-0.1em"></span> Administrator · <span style="display:inline-block;width:11px;height:11px;border-radius:9999px;background:#cbd5e1;vertical-align:-0.1em"></span> Kutubxonachi
 
 **Yangi xodim qo'shish:**
 1. **"+ Yangi xodim"** tugmasi
@@ -722,11 +722,11 @@ Kutubxonachi va administrator hisoblarini boshqarish. **Faqat administrator** ko
 
 | Maydon | Majburiy | Izoh |
 |---|---|---|
-| To'liq ismi | ✅ | F.I.Sh. |
-| Foydalanuvchi nomi | ✅ | Login (unique) |
-| Parol | ✅ | Xodimga bering |
-| Lavozim | ✅ | Kutubxonachi / Administrator (standart: Kutubxonachi) |
-| Telefon | ❌ | `+998 ...` |
+| To'liq ismi | <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M22 11.08V12a10 10 0 11-5.93-9.14M22 4L12 14.01l-3-3"/></svg> | F.I.Sh. |
+| Foydalanuvchi nomi | <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M22 11.08V12a10 10 0 11-5.93-9.14M22 4L12 14.01l-3-3"/></svg> | Login (unique) |
+| Parol | <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M22 11.08V12a10 10 0 11-5.93-9.14M22 4L12 14.01l-3-3"/></svg> | Xodimga bering |
+| Lavozim | <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M22 11.08V12a10 10 0 11-5.93-9.14M22 4L12 14.01l-3-3"/></svg> | Kutubxonachi / Administrator (standart: Kutubxonachi) |
+| Telefon | <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 22a10 10 0 100-20 10 10 0 000 20zM15 9l-6 6M9 9l6 6"/></svg> | `+998 ...` |
 
 3. **Saqlash** → xodimga login/parolni bering
 
@@ -746,7 +746,7 @@ Kutubxonachi va administrator hisoblarini boshqarish. **Faqat administrator** ko
 | **Keng/kiyin ekran** | Keng ekranda jadval, kichik ekranda karta ko'rinishi |
 | **Qidiruv** | Har harfda so'rov yuborilmaydi — biroz kutiladi (debounce) |
 | **O'chirish/Tasdiqlash** | Har doim tasdiqlash oynasi chiqadi |
-| **Mavzu** | 🌙 qorong'i / ☯️ yorug' rejim |
+| **Mavzu** | <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg> qorong'i / <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg> yorug' rejim |
 
 #### 5.4.16 Kunlik ish tartibi (tavsiya etiladi)
 
@@ -810,13 +810,13 @@ yoki `start_all.bat` orqali avtomatik.
 
 #### Asosiy menyu tugmalari
 
-- 🔍 **Kitob qidirish** — matn orqali qidirish
-- 📚 **Kategoriyalar** — janrlar bo'yicha
-- 📚 **Mening kitoblarim** — joriy berilgan kitoblar
-- ⏳ **Navbatlarim** — navbatdagi kitoblar
-- 🔖 **Bandlarim** — band qilingan kitoblar
-- 💰 **Jarimalarim** — to'lanmagan jarimalar
-- ❓ **Yordam** — bot haqida ma'lumot
+- <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"/></svg> **Kitob qidirish** — matn orqali qidirish
+- <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg> **Kategoriyalar** — janrlar bo'yicha
+- <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg> **Mening kitoblarim** — joriy berilgan kitoblar
+- <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> **Navbatlarim** — navbatdagi kitoblar
+- <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg> **Bandlarim** — band qilingan kitoblar
+- <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> **Jarimalarim** — to'lanmagan jarimalar
+- <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3m.08 4h.01M12 22a10 10 0 100-20 10 10 0 000 20z"/></svg> **Yordam** — bot haqida ma'lumot
 
 #### Kitob qidirish va band qilish
 
