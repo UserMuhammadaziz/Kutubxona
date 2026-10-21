@@ -32,6 +32,42 @@ def service_worker(request):
 
 
 
+# Model nomi .env orqali almashtiriladi (masalan GEMINI_MODEL=gemini-2.5-flash).
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+
+SYSTEM_INSTRUCTION = (
+    "Siz — «Kutubxona» kutubxonaviy boshqaruv tizimining yordamchisiz. "
+    "Faqat o'zbek tilida, qisqa va aniq javob bering. Kitob fondi, "
+    "kitob berish-qaytarish, o'quvchilar, navbat, jarima va bandlar "
+    "bo'yicha savollarga yordam bering. Ma'lumotni o'zingiz to'qimang."
+)
+
+
+def _clean_history(raw):
+    """Frontend kelgan historyni Gemini API formatiga keltiradi.
+
+    Frontend sodda formatda saqlaydi: {"role": "user"|"model", "parts": ["..."]}.
+    Gemini SDK esa `parts` ro'yxatida `{"text": "..."}` obyektlarini talab qiladi.
+    Noto'g'ri kirishlar (begona role, bo'sh matn) tashlab yuboriladi.
+    """
+    cleaned = []
+    for item in raw or []:
+        if not isinstance(item, dict):
+            continue
+        role = item.get("role")
+        if role not in ("user", "model"):
+            continue
+        parts = item.get("parts") or []
+        if isinstance(parts, str):
+            parts = [parts]
+        texts = [p.get("text", "") if isinstance(p, dict) else str(p) for p in parts]
+        texts = [t for t in texts if t]
+        if not texts:
+            continue
+        cleaned.append({"role": role, "parts": [{"text": t} for t in texts]})
+    return cleaned
+
+
 @method_decorator(csrf_exempt, name="dispatch")
 class ChatbotView(View):
     """Gemini API proxy endpoint for chatbot."""
@@ -52,27 +88,37 @@ class ChatbotView(View):
 
         try:
             data = json.loads(request.body)
-            message = data.get("message", "")
-            history = data.get("history", [])
+            message = (data.get("message") or "").strip()
+            history = _clean_history(data.get("history"))
 
             if not message:
                 return JsonResponse({"error": "Message is required"}, status=400)
 
             genai.configure(api_key=api_key)
-            model = genai.GenerativeModel("gemini-1.5-flash")
+            model = genai.GenerativeModel(
+                model_name=GEMINI_MODEL,
+                system_instruction=SYSTEM_INSTRUCTION,
+            )
 
             chat = model.start_chat(history=history)
             response = chat.send_message(message)
+            text = response.text or ""
 
-            return JsonResponse(
+            # Frontendga sodda formatda qaytaramiz (parts: ["..."]) va to'liq
+            # suhbat tarixini saqlaymiz — oldingi versiya faqat oxirgi
+            # almashinuvni qaytarib, ko'p qadamli kontekstni yo'qotardi.
+            new_history = list(history)
+            new_history.append({"role": "user", "parts": [{"text": message}]})
+            new_history.append({"role": "model", "parts": [{"text": text}]})
+            simple_history = [
                 {
-                    "response": response.text,
-                    "history": [
-                        {"role": "user", "parts": [message]},
-                        {"role": "model", "parts": [response.text]},
-                    ],
+                    "role": h["role"],
+                    "parts": [p["text"] for p in h["parts"]],
                 }
-            )
+                for h in new_history
+            ]
+
+            return JsonResponse({"response": text, "history": simple_history})
         except json.JSONDecodeError:
             return JsonResponse({"error": "Invalid JSON"}, status=400)
         except Exception as e:
