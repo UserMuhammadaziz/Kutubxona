@@ -5,6 +5,8 @@ from . import views
 urlpatterns = [
     # PWA service worker — IndexView catch-all'idan oldin turishi shart.
     path("sw.js", views.service_worker, name="service-worker"),
+    # Chatbot API endpoint
+    path("api/chatbot/", views.ChatbotView.as_view(), name="chatbot"),
     # frontend React Router (BrowserRouter) ishlatadi: /books, /login kabi
     # yo'llar serverga so'rov bilan keladi va ularni SPA shell'ga
     # yo'naltirishimiz kerak. Bu view faqat "" ga xos bo'lsa, boshqa

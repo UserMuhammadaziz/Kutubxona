@@ -20,6 +20,9 @@ aiogram==3.31.0
 # .env o'qish
 python-dotenv==1.2.3
 
+# Google Generative AI (Gemini) for chatbot
+google-generativeai==0.8.5
+
 # Ishlab chiqarish (production) WSGI server — Windows'da ishlamaydi,
 # shuning uchun lokal venvga qo'shilmagan. Aniq versiya serverga bog'liq
 # (>= qo'yiladi — mavzuning pasaytirilishiga yo'l qo'ymaydi).
