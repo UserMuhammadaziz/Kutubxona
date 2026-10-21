@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { booksApi, reservationsApi } from '../api/resources'
 import { errorMessage } from '../api/client'
+import { Icons } from '../components/icons'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { formatDate } from '../lib/format'
 import { JANR_LABELS, TIL_LABELS, HOLAT_LABELS, NAVBAT_HOLATI_LABELS, type Janr, type Kitob, type KitobHolati, type KitobPayload, type Navbat } from '../types'
@@ -223,7 +224,7 @@ setError(null)
 
       {!loading && !isError && !rows?.length && (
         <EmptyState
-          icon="📚"
+          icon={<Icons.books className="h-10 w-10" />}
           title={filtrBor ? 'Kitob topilmadi' : 'Hali kitob yo‘q'}
           description={
             filtrBor
@@ -506,7 +507,7 @@ setError(null)
         )}
         {!queueQuery.isLoading && !queueQuery.isError && !queueQuery.data?.length && (
           <EmptyState
-            icon="📋"
+            icon={<Icons.clipboardList className="h-10 w-10" />}
             title="Bu kitobga hozircha navbat yo'q"
             description="Kitob qaytarilganda navbatdagi o‘quvchiga avtomatik taklif yuboriladi."
           />

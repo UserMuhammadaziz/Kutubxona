@@ -4,19 +4,21 @@ import clsx from 'clsx'
 import { useAuthStore, isAdmin } from '../store/auth'
 import { useThemeStore } from '../store/theme'
 import { Logo, LogoMark } from './Logo'
+import { Chatbot } from './Chatbot'
+import { Icons } from './icons'
 
 const navItems = [
-  { to: '/', label: 'Boshqaruv paneli', icon: '📊', end: true },
-  { to: '/books', label: 'Kitoblar', icon: '📚' },
-  { to: '/copies', label: 'Nusxalar', icon: '📦' },
-  { to: '/readers', label: "O'quvchilar", icon: '🎓' },
-  { to: '/teachers', label: "O'qituvchilar", icon: '👩‍🏫' },
-  { to: '/applications', label: 'Arizalar', icon: '📋' },
-  { to: '/loans', label: 'Berish / Qaytarish', icon: '🔄' },
-  { to: '/bandlar', label: 'Bandlar', icon: '🔒' },
-  { to: '/reservations', label: 'Navbatlar', icon: '⏳' },
-  { to: '/fines', label: 'Jarimalar', icon: '💰' },
-  { to: '/guide', label: "Qo'llanma", icon: '📖' },
+  { to: '/', label: 'Boshqaruv paneli', icon: Icons.dashboard, end: true },
+  { to: '/books', label: 'Kitoblar', icon: Icons.books },
+  { to: '/copies', label: 'Nusxalar', icon: Icons.package },
+  { to: '/readers', label: "O'quvchilar", icon: Icons.graduationCap },
+  { to: '/teachers', label: "O'qituvchilar", icon: Icons.user },
+  { to: '/applications', label: 'Arizalar', icon: Icons.clipboardList },
+  { to: '/loans', label: 'Berish / Qaytarish', icon: Icons.arrowsRightLeft },
+  { to: '/bandlar', label: 'Bandlar', icon: Icons.lock },
+  { to: '/reservations', label: 'Navbatlar', icon: Icons.clock },
+  { to: '/fines', label: 'Jarimalar', icon: Icons.money },
+  { to: '/guide', label: "Qo'llanma", icon: Icons.bookClosed },
 ]
 
 function NavList({ onNavigate }: { onNavigate?: () => void }) {
@@ -34,13 +36,13 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
     <nav className="flex-1 space-y-1 overflow-y-auto p-3">
       {navItems.map((item) => (
         <NavLink key={item.to} to={item.to} end={item.end} className={linkClass} onClick={onNavigate}>
-          <span aria-hidden>{item.icon}</span>
+          <span aria-hidden>{item.icon({ className: 'h-5 w-5' })}</span>
           {item.label}
         </NavLink>
       ))}
       {isAdmin(user) && (
         <NavLink to="/staff" className={linkClass} onClick={onNavigate}>
-          <span aria-hidden>🛡️</span>
+          <span aria-hidden>{Icons.shield({ className: 'h-5 w-5' })}</span>
           Xodimlar
         </NavLink>
       )}
@@ -98,9 +100,9 @@ export function Layout() {
         <button
           onClick={() => setDrawerOpen(true)}
           aria-label="Menyuni ochish"
-          className="rounded-lg p-2 text-xl text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
+          className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
         >
-          ☰
+          {Icons.menu({ className: 'h-6 w-6' })}
         </button>
         <span className="flex items-center gap-2 text-base font-semibold text-slate-900 dark:text-slate-100">
           <LogoMark className="h-6 w-6" />
@@ -109,9 +111,9 @@ export function Layout() {
         <button
           onClick={toggleTheme}
           aria-label={theme === 'dark' ? 'Yorug rejimga o‘tish' : 'Qorong‘i rejimga o‘tish'}
-          className="rounded-lg p-2 text-lg text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
+          className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
         >
-          {theme === 'dark' ? '☀️' : '🌙'}
+          {theme === 'dark' ? Icons.sun({ className: 'h-6 w-6' }) : Icons.moon({ className: 'h-6 w-6' })}
         </button>
       </header>
 
@@ -126,9 +128,9 @@ export function Layout() {
               onClick={toggleTheme}
               aria-label={theme === 'dark' ? 'Yorug rejimga o‘tish' : 'Qorong‘i rejimga o‘tish'}
               title={theme === 'dark' ? 'Yorug' : "Qorong'i"}
-              className="rounded-lg p-2 text-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+              className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
             >
-              {theme === 'dark' ? '☀️' : '🌙'}
+              {theme === 'dark' ? Icons.sun({ className: 'h-6 w-6' }) : Icons.moon({ className: 'h-6 w-6' })}
             </button>
           </div>
           <NavList />
@@ -153,7 +155,7 @@ export function Layout() {
                   aria-label="Menyuni yopish"
                   className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
                 >
-                  ✕
+                  {Icons.close({ className: 'h-6 w-6' })}
                 </button>
               </div>
               <NavList onNavigate={() => setDrawerOpen(false)} />
@@ -166,6 +168,7 @@ export function Layout() {
           <Outlet />
         </main>
       </div>
+      <Chatbot />
     </div>
   )
 }

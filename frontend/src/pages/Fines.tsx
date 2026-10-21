@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { finesApi } from '../api/resources'
 import { errorMessage } from '../api/client'
+import { Icons } from '../components/icons'
 import type { Jarima } from '../types'
 import {
   Badge,
@@ -79,7 +80,9 @@ export function Fines() {
 
       {!isLoading && !isError && !data?.results.length && (
         <EmptyState
-          icon={filtrBor ? '🔍' : '🎉'}
+          icon={
+            filtrBor ? <Icons.search className="h-10 w-10" /> : <Icons.party className="h-10 w-10" />
+          }
           title={filtrBor ? 'Jarima topilmadi' : 'Jarima yo‘q'}
           description={
             filtrBor
@@ -109,7 +112,10 @@ export function Fines() {
                   {f.tolandimi ? 'To‘langan' : 'To‘lanmagan'}
                 </Badge>
               </div>
-              <div className="text-sm text-slate-600 dark:text-slate-300">📖 {f.kitob_nomi}</div>
+              <div className="flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-300">
+                <Icons.bookOpen className="h-4 w-4 shrink-0" />
+                {f.kitob_nomi}
+              </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-slate-500 dark:text-slate-400">
                   {f.kechikkan_kunlar} kun kechikish
@@ -124,7 +130,10 @@ export function Fines() {
                 </Button>
               )}
               {f.tolandimi && f.tolangan_sana && (
-                <div className="text-xs text-slate-400">💳 {formatDate(f.tolangan_sana)}</div>
+                <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                  <Icons.creditCard className="h-4 w-4 shrink-0" />
+                  {formatDate(f.tolangan_sana)}
+                </div>
               )}
             </div>
           )}

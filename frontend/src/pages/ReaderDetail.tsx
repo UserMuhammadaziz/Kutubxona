@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { finesApi, loansApi, readersApi } from '../api/resources'
 import { errorMessage } from '../api/client'
+import { Icons } from '../components/icons'
 import type { BerishMeni, JarimaMeni } from '../types'
 import {
   Badge,
@@ -74,9 +75,10 @@ export function ReaderDetail() {
       <div>
         <button
           onClick={() => navigate(-1)}
-          className="mb-4 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+          className="mb-4 flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
         >
-          ← Orqaga
+          <Icons.arrowLeft className="h-4 w-4" />
+          Orqaga
         </button>
         <ErrorState
           title="O‘quvchini yuklab bo‘lmadi"
@@ -90,8 +92,12 @@ export function ReaderDetail() {
 
   return (
     <div>
-      <button onClick={() => navigate(-1)} className="mb-4 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
-        ← Orqaga
+      <button
+        onClick={() => navigate(-1)}
+        className="mb-4 flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+      >
+        <Icons.arrowLeft className="h-4 w-4" />
+        Orqaga
       </button>
       <PageHeader
         title={reader.fish}

@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import clsx from 'clsx'
+import { Icons } from './icons'
 
 export type ToastKind = 'success' | 'error' | 'info'
 
@@ -23,19 +24,19 @@ const UZUN = 7000
 // eng eskisi chiqarib tashlanadi.
 const MAX = 3
 
-const usul: Record<ToastKind, { icon: string; ring: string; iconColor: string }> = {
+const usul: Record<ToastKind, { icon: ReactNode; ring: string; iconColor: string }> = {
   success: {
-    icon: '✓',
+    icon: <Icons.check className="h-3.5 w-3.5" />,
     ring: 'border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-950/80',
     iconColor: 'bg-emerald-600 text-white dark:bg-emerald-500',
   },
   error: {
-    icon: '!',
+    icon: <Icons.exclamation className="h-3.5 w-3.5" />,
     ring: 'border-red-200 bg-red-50 dark:border-red-500/30 dark:bg-red-950/80',
     iconColor: 'bg-red-600 text-white dark:bg-red-500',
   },
   info: {
-    icon: 'i',
+    icon: <Icons.info className="h-3.5 w-3.5" />,
     ring: 'border-blue-200 bg-blue-50 dark:border-blue-500/30 dark:bg-blue-950/80',
     iconColor: 'bg-blue-600 text-white dark:bg-blue-500',
   },
@@ -120,7 +121,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 aria-label="Yopish"
                 className="-mr-1 shrink-0 rounded p-0.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
               >
-                ✕
+                <Icons.close className="h-4 w-4" />
               </button>
             </div>
           )

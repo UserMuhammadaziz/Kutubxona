@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { readersApi } from '../api/resources'
 import { errorMessage } from '../api/client'
+import { Icons } from '../components/icons'
 import type { Oquvchi, OquvchiCreatePayload, OquvchiRol } from '../types'
 import {
   Badge,
@@ -140,7 +141,15 @@ export function Readers({ rol = 'oquvchi' }: ReadersProps = {}) {
 
       {!isLoading && !isError && !data?.results.length && (
         <EmptyState
-          icon={qidirilmoqda ? '🔍' : oqituvchilar ? '👩‍🏫' : '🎓'}
+          icon={
+            qidirilmoqda ? (
+              <Icons.search className="h-10 w-10" />
+            ) : oqituvchilar ? (
+              <Icons.user className="h-10 w-10" />
+            ) : (
+              <Icons.graduationCap className="h-10 w-10" />
+            )
+          }
           title={
             qidirilmoqda
               ? 'Hech narsa topilmadi'
@@ -191,7 +200,10 @@ export function Readers({ rol = 'oquvchi' }: ReadersProps = {}) {
                 <Badge tone={r.faol ? 'green' : 'red'}>{r.faol ? 'Faol' : 'Bloklangan'}</Badge>
               </div>
               <div className="text-sm text-slate-600 dark:text-slate-300">{r.telefon}</div>
-              <div className="text-xs text-slate-500 dark:text-slate-400">🪪 {r.karta_raqami}</div>
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                <Icons.idCard className="h-4 w-4 shrink-0" />
+                {r.karta_raqami}
+              </div>
               <Button
                 size="sm"
                 variant="secondary"

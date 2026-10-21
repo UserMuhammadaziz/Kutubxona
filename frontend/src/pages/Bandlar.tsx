@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { holdsApi } from '../api/resources'
 import { errorMessage } from '../api/client'
+import { Icons } from '../components/icons'
 import { BAND_HOLATI_LABELS, type BandQilish, type BandHolati } from '../types'
 import {
   Badge,
@@ -208,7 +209,12 @@ export function Bandlar() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="🔒 Band qilingan kitoblar"
+        title={
+          <>
+            <Icons.lock className="h-6 w-6 shrink-0 text-slate-400" />
+            Band qilingan kitoblar
+          </>
+        }
         subtitle="Tasdiqlash kutilayotgan so'rovlarni ko'rib chiqing, tasdiqlang yoki rad eting."
       />
 
@@ -260,7 +266,7 @@ export function Bandlar() {
 
         {royxat.length === 0 ? (
           <EmptyState
-            icon="🔒"
+            icon={<Icons.lock className="h-10 w-10" />}
             title="Band so'rovi topilmadi"
             description={
               holati

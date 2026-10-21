@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { reservationsApi } from '../api/resources'
 import { errorMessage } from '../api/client'
+import { Icons } from '../components/icons'
 import { NAVBAT_HOLATI_LABELS, NAVBAT_JAVOB_LABELS, type Navbat, type NavbatHolati } from '../types'
 import {
   Badge,
@@ -105,7 +106,7 @@ export function Reservations() {
 
       {!isLoading && !isError && !data?.results.length && (
         <EmptyState
-          icon="📋"
+          icon={<Icons.clipboardList className="h-10 w-10" />}
           title={filtrBor ? 'Navbat topilmadi' : 'Navbat yo‘q'}
           description={
             filtrBor

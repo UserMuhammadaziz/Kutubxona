@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { statsApi } from '../api/resources'
 import { errorMessage } from '../api/client'
+import { Icons } from '../components/icons'
 import { Card, EmptyState, ErrorState, PageHeader, Spinner } from '../components/ui'
 import { formatMoney } from '../lib/format'
 
@@ -91,7 +92,7 @@ export function Dashboard() {
           )}
           {!topLoading && !topError && !topBooks?.length && (
             <EmptyState
-              icon="📚"
+              icon={<Icons.books className="h-10 w-10" />}
               title="Hali hech qanday kitob berilmagan"
               description="Berish/qaaytarish bo‘limidan kitoblar berilgach, eng o‘qilganlar shu yerda ko‘rinadi."
             />

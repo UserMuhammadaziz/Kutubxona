@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import { booksApi, copiesApi, loansApi, readersApi } from '../api/resources'
 import { errorMessage } from '../api/client'
+import { Icons } from '../components/icons'
 import { BERISH_HOLATI_LABELS, type Berish, type BerishCreatePayload, type BerishHolati, type Kitob } from '../types'
 import {
   Badge,
@@ -246,7 +247,7 @@ function onSubmit(e: FormEvent) {
 
       {!isLoading && !isError && !data?.results.length && (
         <EmptyState
-          icon="📚"
+          icon={<Icons.books className="h-10 w-10" />}
           title={filtrBor ? 'Berish topilmadi' : 'Hali berishlar yo‘q'}
           description={
             filtrBor
@@ -437,7 +438,9 @@ function onSubmit(e: FormEvent) {
                   : 'border-slate-200 bg-canvas text-slate-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300'
               }`}
             >
-              {reja.aside ? '📕 ' : 'ℹ️ '}
+              <span className="inline-block align-[-2px]">
+                {reja.aside ? <Icons.bookClosed className="h-4 w-4" /> : <Icons.info className="h-4 w-4" />}
+              </span>{' '}
               {reja.matn}
             </p>
           )}

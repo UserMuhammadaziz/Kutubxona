@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { applicationsApi } from '../api/resources'
 import { errorMessage } from '../api/client'
+import { Icons } from '../components/icons'
 import type { Ariza, ArizaHolati, ArizaRol } from '../types'
 import { ARIZA_HOLATI_LABELS, ARIZA_ROL_LABELS } from '../types'
 import {
@@ -34,10 +35,22 @@ const TONE: Record<ArizaHolati, 'amber' | 'green' | 'red'> = {
 }
 
 /** Oquvchida sinf, o'qituvchida kasb (o'qitayotgan fan) ko'rsatiladi. */
-function rolBoshqicha(a: Ariza): string {
-  return a.rol === 'oqituvchi'
-    ? `📚 Kasb: ${a.kasb || 'ko‘rsatilmagan'}`
-    : `🎓 ${a.sinf || 'Sinf ko‘rsatilmagan'}`
+function rolBoshqicha(a: Ariza) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      {a.rol === 'oqituvchi' ? (
+        <>
+          <Icons.books className="h-3.5 w-3.5 shrink-0" />
+          Kasb: {a.kasb || 'ko‘rsatilmagan'}
+        </>
+      ) : (
+        <>
+          <Icons.graduationCap className="h-3.5 w-3.5 shrink-0" />
+          {a.sinf || 'Sinf ko‘rsatilmagan'}
+        </>
+      )}
+    </span>
+  )
 }
 
 /** Tasdiqlash dialogida ishlatiladigan qisqa ko'rinish. */
@@ -172,7 +185,7 @@ export function Applications() {
 
       {!isLoading && !isError && !data?.results.length && (
         <EmptyState
-          icon="📭"
+          icon={<Icons.inbox className="h-10 w-10" />}
           title={holati === 'kutmoqda' ? 'Kutilayotgan ariza yo‘q' : 'Ariza topilmadi'}
           description={
             holati === 'kutmoqda'
@@ -205,7 +218,10 @@ export function Applications() {
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="font-medium text-slate-900 dark:text-slate-100">{a.fish}</div>
-                  <div className="text-sm text-slate-500 dark:text-slate-400">📞 {a.telefon}</div>
+                  <div className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400">
+                    <Icons.phone className="h-4 w-4 shrink-0" />
+                    {a.telefon}
+                  </div>
                 </div>
                 <Badge tone={TONE[a.holati]}>{ARIZA_HOLATI_LABELS[a.holati]}</Badge>
               </div>
@@ -214,7 +230,10 @@ export function Applications() {
               </div>
               <div className="text-xs text-slate-400">{formatDate(a.ariza_sanasi)}</div>
               {a.izoh && (
-                <div className="text-xs text-slate-500 dark:text-slate-400">📝 {a.izoh}</div>
+                <div className="flex items-start gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                  <Icons.note className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  {a.izoh}
+                </div>
               )}
               {a.holati === 'kutmoqda' && (
                 <div className="mt-1 flex gap-2">

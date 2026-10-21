@@ -10,6 +10,7 @@ import {
   type TextareaHTMLAttributes,
 } from 'react'
 import clsx from 'clsx'
+import { Icons } from './icons'
 
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return <div className={clsx('rounded-xl border border-slate-200 bg-paper shadow-sm dark:border-slate-700 dark:bg-slate-800', className)} {...props} />
@@ -137,11 +138,13 @@ export function Badge({
   )
 }
 
-export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: string; actions?: ReactNode }) {
+export function PageHeader({ title, subtitle, actions }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode }) {
   return (
     <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
-        <h1 className="text-xl font-semibold text-slate-900 sm:text-2xl dark:text-slate-100">{title}</h1>
+        <h1 className="flex items-center gap-2 text-xl font-semibold text-slate-900 sm:text-2xl dark:text-slate-100">
+          {title}
+        </h1>
         {subtitle && <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -215,20 +218,20 @@ export function ListSkeleton({ rows = 3, className }: { rows?: number; className
 }
 
 export function EmptyState({
-  icon = '📭',
+  icon,
   title,
   description,
   action,
 }: {
-  icon?: string
+  icon?: ReactNode
   title: string
   description?: string
   action?: ReactNode
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 px-4 py-12 text-center">
-      <span className="text-3xl" aria-hidden>
-        {icon}
+      <span className="text-slate-300 dark:text-slate-600" aria-hidden>
+        {icon ?? <Icons.inbox className="h-10 w-10" />}
       </span>
       <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{title}</p>
       {description && <p className="max-w-sm text-sm text-slate-500 dark:text-slate-400">{description}</p>}
@@ -254,8 +257,8 @@ export function ErrorState({
       role="alert"
       className="flex flex-col items-center justify-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-10 text-center dark:border-red-800/60 dark:bg-red-950/40"
     >
-      <span className="text-3xl" aria-hidden>
-        ⚠️
+      <span className="text-red-400 dark:text-red-500" aria-hidden>
+        <Icons.alert className="h-9 w-9" />
       </span>
       <p className="text-sm font-medium text-red-800 dark:text-red-300">{title}</p>
       {message && <p className="max-w-sm text-sm text-red-700/90 dark:text-red-400/90">{message}</p>}
@@ -323,7 +326,7 @@ export function Modal({
             aria-label="Yopish"
             className="-mr-1 shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
           >
-            ✕
+            <Icons.close className="h-5 w-5" />
           </button>
         </div>
         {children}

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { staffApi } from '../api/resources'
 import { errorMessage } from '../api/client'
+import { Icons } from '../components/icons'
 import type { Rol, User, UserCreatePayload } from '../types'
 import {
   Badge,
@@ -101,7 +102,7 @@ export function Staff() {
 
       {!isLoading && !isError && !data?.results.length && (
         <EmptyState
-          icon="👥"
+          icon={<Icons.users className="h-10 w-10" />}
           title="Xodim topilmadi"
           description="Kutubxonachi yoki administrator hisobini yarating."
           action={

@@ -1,6 +1,7 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { booksApi, holdsApi } from '../api/resources'
+import { Icons } from '../components/icons'
 import { Badge, Button, Card, PageHeader, Spinner, Table } from '../components/ui'
 import { BAND_HOLATI_LABELS, JANR_LABELS, NAVBAT_HOLATI_LABELS, NUSXA_HOLATI_LABELS, TIL_LABELS, HOLAT_LABELS, type Janr, type NavbatHolati, type NusxaHolati, type BandHolati } from '../types'
 import { formatDate, formatMoney } from '../lib/format'
@@ -18,8 +19,12 @@ export function BookDetail() {
 
   return (
     <div>
-      <button onClick={() => navigate(-1)} className="mb-4 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
-        ← Orqaga
+      <button
+        onClick={() => navigate(-1)}
+        className="mb-4 flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+      >
+        <Icons.arrowLeft className="h-4 w-4" />
+        Orqaga
       </button>
       <PageHeader title={book.nomi} subtitle={`${book.muallif} · ${book.nashr_yili}`} />
 

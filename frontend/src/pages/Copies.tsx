@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { booksApi, copiesApi } from '../api/resources'
 import { errorMessage } from '../api/client'
+import { Icons } from '../components/icons'
 import { NUSXA_HOLATI_LABELS, type Nusxa, type NusxaCreatePayload, type NusxaHolati } from '../types'
 import {
   Badge,
@@ -155,7 +156,7 @@ export function Copies() {
 
       {!isLoading && !isError && !data?.results.length && (
         <EmptyState
-          icon="📦"
+          icon={<Icons.package className="h-10 w-10" />}
           title={filtrBor ? 'Nusxa topilmadi' : 'Hali nusxa yo‘q'}
           description={
             filtrBor
