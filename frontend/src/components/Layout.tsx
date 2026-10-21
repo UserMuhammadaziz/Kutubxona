@@ -16,6 +16,7 @@ const navItems = [
   { to: '/bandlar', label: 'Bandlar', icon: '🔒' },
   { to: '/reservations', label: 'Navbatlar', icon: '⏳' },
   { to: '/fines', label: 'Jarimalar', icon: '💰' },
+  { to: '/guide', label: "Qo'llanma", icon: '📖' },
 ]
 
 function NavList({ onNavigate }: { onNavigate?: () => void }) {

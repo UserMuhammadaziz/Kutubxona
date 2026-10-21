@@ -10,14 +10,14 @@ Tuman kutubxonasi uchun kitob fondi, berish-qaytarish, jarima va navbat tizimi.
 
 1. [Loyiha haqida](#1-loyiha-haqida)
 2. [Tuzilma](#2-tuzilma)
-3. [O'rnatish](#3-o'rnatish)
+3. [O'rnatish](#3-ornatish)
 4. [Ishga tushirish](#4-ishga-tushirish)
 5. [Admin panel (React) — saytdan foydalanish](#5-admin-panel-react)
 6. [Telegram bot](#6-telegram-bot)
-7. [API qo'llanmasi](#7-api-qo'llanmasi)
+7. [API qo'llanmasi](#7-api-qollanmasi)
 8. [Celery vazifalari](#8-celery-vazifalari)
 9. [Boshqaruv buyruqlari (manage.py)](#9-boshqaruv-buyruqlari)
-10. [Loyiha qoidalari (sozlamalar)](#10-loyiha-qoidalari)
+10. [Loyiha qoidalari (sozlamalar)](#10-loyiha-qoidalari-sozlamalar)
 11. [Biznes qoidalari](#11-biznes-qoidalari)
 12. [Muammolarni bartaraf etish](#12-muammolarni-bartaraf-etish)
 

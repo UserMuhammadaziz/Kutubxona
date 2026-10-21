@@ -16,6 +16,7 @@ import { Bandlar } from './pages/Bandlar'
 import { Reservations } from './pages/Reservations'
 import { Fines } from './pages/Fines'
 import { Staff } from './pages/Staff'
+import { Guide } from './pages/Guide'
 
 function App() {
   const hydrate = useAuthStore((s) => s.hydrate)
@@ -42,6 +43,7 @@ function App() {
           <Route path="/bandlar" element={<Bandlar />} />
           <Route path="/reservations" element={<Reservations />} />
           <Route path="/fines" element={<Fines />} />
+          <Route path="/guide" element={<Guide />} />
 
           <Route element={<RequireAdmin />}>
             <Route path="/staff" element={<Staff />} />
