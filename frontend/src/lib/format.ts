@@ -5,10 +5,23 @@ export function formatDate(value: string | null | undefined): string {
   // ko'rsatardi. Shuning uchun bunday qiymatlarni to'g'ridan-to'g'ri
   // formatlaymiz, timezone o'zgartirishidan foydalanmaymiz.
   const faqatSana = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
-  if (faqatSana) return `${faqatSana[1]}.${faqatSana[2]}.${faqatSana[3]}`
+  if (faqatSana) return `${faqatSana[3]}.${faqatSana[2]}.${faqatSana[1]}`
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return value
-  return d.toLocaleDateString('uz-UZ', { year: 'numeric', month: '2-digit', day: '2-digit' })
+  return kunOy(d)
+}
+
+// `toLocaleDateString('uz-UZ')` brauzerga qarab "2026-10-21" yoki "21/10/2026"
+// beradi; sahifada bir xil ko'rinish uchun qo'lda DD.MM.YYYY yig'iladi.
+function kunOy(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()}`
+}
+
+/** Noma'lum kod (`band_qilingan`) xom holda chiqmasligi uchun: "Band qilingan". */
+export function humanize(code: string): string {
+  const t = code.replace(/_/g, ' ').trim()
+  return t.charAt(0).toUpperCase() + t.slice(1)
 }
 
 /**
@@ -23,11 +36,7 @@ export function formatDateTime(value: string | null | undefined): string {
   if (!value) return '—'
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return value
-  const sana = d.toLocaleDateString('uz-UZ', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  })
+  const sana = kunOy(d)
   const vaqt = d.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })
   return `${sana}, ${vaqt}`
 }

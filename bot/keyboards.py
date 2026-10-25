@@ -19,7 +19,7 @@ TELEFON_YUBORISH = "📱 Telefon raqamni yuborish"
 
 MENYU_YORDAM = "❓ Yordam"
 
-# Pastdigi KATTA tugmalar (ReplyKeyboardMarkup) — botning asosiy menyusi.
+# Pastdagi KATTA tugmalar (ReplyKeyboardMarkup) — botning asosiy menyusi.
 # Ularning matni shu o'zgaruvchilardan olinadi: `handlers/qidiruv.py`,
 # `handlers/shaxsiy.py` va `handlers/navigatsiya.py` shu matnlarni filtr
 # sifatida ishlatadi (`F.text == KITOB_QIDIRISH`).
@@ -120,8 +120,8 @@ ARIZA_ROL_OQUVCHI = "oquvchi"
 ARIZA_ROL_OQITUVCHI = "oqituvchi"
 
 ARIZA_ROL_TUGMA_MATNLARI = {
-    ARIZA_ROL_OQUVCHI: "🎓 Oquvchi sifatida a'riza yuborish",
-    ARIZA_ROL_OQITUVCHI: "👨‍🏫 O'qituvchi sifatida a'riza yuborish",
+    ARIZA_ROL_OQUVCHI: "🎓 O'quvchi sifatida ariza yuborish",
+    ARIZA_ROL_OQITUVCHI: "👨‍🏫 O'qituvchi sifatida ariza yuborish",
 }
 
 

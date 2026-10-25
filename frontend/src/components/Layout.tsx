@@ -5,6 +5,8 @@ import { useAuthStore, isAdmin } from '../store/auth'
 import { useThemeStore } from '../store/theme'
 import { Logo, LogoMark } from './Logo'
 import { Chatbot } from './Chatbot'
+import { CommandBar } from './CommandBar'
+import { PwaBanner } from './PwaBanner'
 import { Icons } from './icons'
 
 const navItems = [
@@ -20,6 +22,39 @@ const navItems = [
   { to: '/fines', label: 'Jarimalar', icon: Icons.money },
   { to: '/guide', label: "Qo'llanma", icon: Icons.bookClosed },
 ]
+
+// Kundalik ish uchun mobil pastki panel (ilova kabi): bosh sahifa, berish, kitoblar, o'quvchilar.
+const tabItems = [
+  { to: '/', label: 'Bosh', icon: Icons.dashboard, end: true },
+  { to: '/loans', label: 'Berish', icon: Icons.arrowsRightLeft },
+  { to: '/books', label: 'Kitoblar', icon: Icons.books },
+  { to: '/readers', label: "O'quvchilar", icon: Icons.graduationCap },
+]
+
+function BottomTabs({ onMenu }: { onMenu: () => void }) {
+  const tab = 'flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium'
+  return (
+    <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-paper pb-[env(safe-area-inset-bottom)] lg:hidden dark:border-slate-700 dark:bg-slate-800">
+      {tabItems.map((item) => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          end={item.end}
+          className={({ isActive }) =>
+            clsx(tab, isActive ? 'text-brand-700 dark:text-brand-400' : 'text-slate-500 dark:text-slate-400')
+          }
+        >
+          {item.icon({ className: 'h-6 w-6' })}
+          {item.label}
+        </NavLink>
+      ))}
+      <button onClick={onMenu} className={clsx(tab, 'text-slate-500 dark:text-slate-400')}>
+        {Icons.menu({ className: 'h-6 w-6' })}
+        Yana
+      </button>
+    </nav>
+  )
+}
 
 function NavList({ onNavigate }: { onNavigate?: () => void }) {
   const { user } = useAuthStore()
@@ -94,7 +129,7 @@ export function Layout() {
   }, [drawerOpen])
 
   return (
-    <div className="min-h-screen bg-canvas dark:bg-slate-900">
+    <div className="min-h-dvh bg-canvas dark:bg-slate-900">
       {/* Mobil yuqori panel */}
       <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-slate-200 bg-paper px-4 py-3 lg:hidden dark:border-slate-700 dark:bg-slate-800">
         <button
@@ -119,7 +154,7 @@ export function Layout() {
 
       <div className="flex">
         {/* Desktop yon panel */}
-        <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-slate-200 bg-paper lg:flex dark:border-slate-700 dark:bg-slate-800">
+        <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-slate-200 bg-paper lg:flex dark:border-slate-700 dark:bg-slate-800">
           <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-700">
             <div className="flex items-center gap-2">
               <Logo />
@@ -164,11 +199,14 @@ export function Layout() {
           </div>
         )}
 
-        <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
+        <main className="min-w-0 flex-1 p-4 pb-24 sm:p-6 lg:p-8 lg:pb-8">
           <Outlet />
         </main>
       </div>
+      <BottomTabs onMenu={() => setDrawerOpen(true)} />
+      <PwaBanner />
       <Chatbot />
+      <CommandBar />
     </div>
   )
 }

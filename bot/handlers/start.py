@@ -39,8 +39,8 @@ ROL_UCHUNCHI_MAYDON = {
 }
 # Tasdiqlangan xabar matni (kalit — rol).
 ROL_TASDIQLANDI_XABARI = {
-    ARIZA_ROL_OQUVCHI: "🎓 <b>O'quvchi</b> sifatida a'riza yuborasiz.",
-    ARIZA_ROL_OQITUVCHI: "👨‍🏫 <b>O'qituvchi</b> sifatida a'riza yuborasiz.",
+    ARIZA_ROL_OQUVCHI: "🎓 <b>O'quvchi</b> sifatida ariza yuborasiz.",
+    ARIZA_ROL_OQITUVCHI: "👨‍🏫 <b>O'qituvchi</b> sifatida ariza yuborasiz.",
 }
 
 # Bosqich savollari. Bitta joyda saqlanadi: bir xil savol bir necha marta
@@ -53,10 +53,10 @@ SAVOL_KASB = f"3️⃣ Qaysi fanni dars berasiz? (masalan: {KASB_MASALALARI}):"
 
 
 def _menyu_tugmasi_bosilganmi(text: str | None) -> bool:
-    """Ariza bosqichida pastdigi menyu tugmasi bosildimi?
+    """Ariza bosqichida pastdagi menyu tugmasi bosildimi?
 
-    Tugmalar endi pastdigi klaviaturada ko'rinadi va ular matn yuboradi.
-    Agarhimoya qo'yilmasa, "Mening kitoblarim" bosilganda u "sinf" yoki
+    Tugmalar endi pastdagi klaviaturada ko'rinadi va ular matn yuboradi.
+    Agar himoya qo'yilmasa, "Mening kitoblarim" bosilganda u "sinf" yoki
     "kasb" sifatida qabul qilinib, ariza behuda bo'lib ketardi."""
     return (text or "").strip() in ASOSIY_TUGMALAR
 
@@ -86,7 +86,7 @@ def joriy_savol(state: str | None, ma_lumot: dict | None = None) -> str:
 async def _menyu_tugmasi_javobi(message: Message, savol: str) -> None:
     """Ariza maydoniga menyu tugmasi matni keldi — maydonga qaytaradi.
 
-    Pastdigi tugmalar bosqichga qarab ko'rinmasligi kerak, lekin eski
+    Pastdagi tugmalar bosqichga qarab ko'rinmasligi kerak, lekin eski
     xabarda yoki eski klientda ular ko'rinib turishi mumkin. Bunday matn
     maydonga tushsa, ariza behuda bo'lib ketardi — shuning uchun qaytarib
     beramiz.
@@ -94,7 +94,7 @@ async def _menyu_tugmasi_javobi(message: Message, savol: str) -> None:
     await message.answer(
         f"{savol}\n\n"
         "Iltimos, shu savolga javobni matn ko'rinishida yozing.\n"
-        "Ariza to'ldirishni to'xtatmoqchimisan? /bekor bosing."
+        "Ariza to'ldirishni to'xtatmoqchimisiz? /bekor yuboring."
     )
 
 
@@ -170,7 +170,7 @@ async def ariza_rol_tanlandi(callback: CallbackQuery, state: FSMContext):
     """Rol tugmasi bosilganda rolni saqlaydi va ariza bo'sh bosqichini boshlaydi."""
     rol = (callback.data or "").partition(":")[2]
     if rol not in ROL_TASDIQLANDI_XABARI:
-        await callback.answer("Noma'lum ro'l.", show_alert=True)
+        await callback.answer("Noma'lum rol.", show_alert=True)
         return
 
     # Tugma eski xabarda qolib qolgan bo'lishi mumkin — ariza allaqon
@@ -184,6 +184,14 @@ async def ariza_rol_tanlandi(callback: CallbackQuery, state: FSMContext):
         await callback.answer(KUTILMOQDA_XABAR, show_alert=True)
         return
 
+    # Agar foydalanuvchi allaqachon ariza to'ldirmoqda bo'lsa (FSM holati bor),
+    # takroriy bosishni e'tiborsiz qoldiramiz — aks holda state tozalansa,
+    # ma'lumotlar yo'qoladi va foydalanuvchi hayratda qoladi.
+    joriy_state = await state.get_state()
+    if joriy_state and joriy_state.startswith("Ariza:"):
+        await callback.answer("Siz allaqachon arizani to'ldirmoqdasiz.", show_alert=True)
+        return
+
     await state.clear()
     await state.update_data(rol=rol)
     await state.set_state(Ariza.fish)
@@ -191,13 +199,14 @@ async def ariza_rol_tanlandi(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     if callback.message is None:
         return
+    # Inline xabarni tahrirlaymiz (rol tanlash xabari), so'ng ism so'rovi uchun
+    # YANGI xabar yuboramiz. Bu holda:
+    # - Eskirgan inline tugmalarni yangilab, xabar toza qoladi
+    # - Foydalanuvchi savolni yangi xabarda ko'radi (reply qilish oson)
+    # - Takroriy callback (ikkinchi bosish) oldini oldik (yuqoridagi get_state tekshiruv)
     await xabarni_tahrirlash(callback, rol_tanlash_xabari(rol))
-    # Rol xabari inline tugmalar bilan berilgan — o'sha xabar
-    # tahrirlanadi, maydon uchun yangi xabar yuboriladi. Pastdagi klaviatura
-    # endi faqat telefon bosqichida (kontakt yuborish) kerak bo'ladi.
-    await callback.message.answer(
-        SAVOL_FISH,
-    )
+    await callback.message.answer(SAVOL_FISH)
+    # Pastdagi klaviatura endi faqat telefon bosqichida (kontakt yuborish) kerak.
 
 
 @router.message(Ariza.fish)
@@ -239,9 +248,10 @@ async def ariza_telefon(message: Message, state: FSMContext):
     telefon = telefon_keltirish(contact.phone_number)
     if not telefon:
         await message.answer(
-            "❌ Telefon raqam +998901234567 formatida bo'lishi kerak.\n\n"
-            "Quyidagi formatlar to'g'ri keladi: +998901234567, +998 90 123 45 67.\n"
-            "📱 Pastdagi tugma orqali qayta yuboring:"
+            "❌ Telefon raqamingiz O'zbekiston formati (+998 XX XXX XX XX) bo'lishi kerak.\n\n"
+            "Yuborilgan kontakt raqami boshqa mamlakatga tegishli. "
+            "Iltimos, o'z O'zbekiston raqamingizni yuboring:\n"
+            "📱 Pastdagi tugma orqali qayta yuboring yoki qo'lda yozing (+998901234567):"
         )
         return
 
@@ -262,9 +272,9 @@ async def ariza_telefon_matn(message: Message, state: FSMContext):
     telefon = matndan_telefon_keltirish(matn)
     if not telefon:
         await message.answer(
-            "Iltimos, pastdagi tugma orqali telefon raqamingizni yuboring.\n"
-            "Yoki raqamni qo'lda yozib bo'lishingiz mumkin "
-            "(masalan: +998901234567)"
+            "❌ Telefon raqam +998901234567 formatida bo'lishi kerak.\n\n"
+            "Quyidagi formatlar to'g'ri keladi: +998901234567, +998 90 123 45 67.\n"
+            "📱 Pastdagi tugma orqali qayta yuboring:"
         )
         return
 
@@ -370,11 +380,23 @@ async def _arizani_yuborish(
 ):
     telegram_id = message.from_user.id
     rol = data.get("rol", ARIZA_ROL_OQUVCHI)
+    
+    # Ma'lumotlar to'liqmi tekshirish
+    fish = data.get("fish")
+    telefon = data.get("telefon")
+    if not fish or not telefon:
+        logger.error("Ariza ma'lumotlari to'liq emas: fish=%s, telefon=%s", fish, telefon)
+        await state.clear()
+        await message.answer(
+            "⚠️ Ma'lumotlar to'liq emas. Iltimos, /start bosib qayta urinib ko'ring."
+        )
+        return
+
     try:
         await api.ariza_yubor(
             telegram_id=telegram_id,
-            fish=data["fish"],
-            telefon=data["telefon"],
+            fish=fish,
+            telefon=telefon,
             rol=rol,
             sinf=sinf,
             kasb=kasb,
@@ -404,8 +426,8 @@ async def _arizani_yuborish(
     uchinchi_qator = f"🎓 Sinf: {x(sinf)}" if rol == ARIZA_ROL_OQUVCHI else f"📚 Kasb: {x(kasb)}"
     await message.answer(
         "✅ Arizangiz yuborildi!\n\n"
-        f"📋 Ism: {x(data.get('fish'))}\n"
-        f"📞 Telefon: {x(data.get('telefon'))}\n"
+        f"📋 Ism: {x(fish)}\n"
+        f"📞 Telefon: {x(telefon)}\n"
         f"{uchinchi_qator}\n\n"
         "Kutubxonachi arizangizni tasdiqlagach, /start buyrug'ini bosing va "
         "botdan foydalanasiz. Tasdiqlash yoki rad etish natijasi shu yerga "

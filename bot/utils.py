@@ -66,7 +66,7 @@ async def xabarni_tahrirlash(
         if "message to edit not found" in str(xato).lower():
             await xabar.answer(
                 "Bu xabar allaqachon eskirgan. Bo'limni qayta ochish uchun "
-                "pastdigi tugmalardan foydalaning yoki /start bosing."
+                "pastdagi tugmalardan foydalaning yoki /start bosing."
             )
             return False
         logger.warning("xabar tahrirlanmadi: %s", xato)

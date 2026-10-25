@@ -209,6 +209,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
     "EXCEPTION_HANDLER": "config.exceptions.xato_handler",
+    "DEFAULT_THROTTLE_RATES": {"login": "10/min", "chatbot": "30/min"},
 }
 
 # Ilovalar `apps/` ichida bo'lgani uchun standart test qidiruvi ularni
@@ -230,6 +231,25 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
 
+# --- Kesh (Redis, alohida db) ---
+# Testlarda tashqi Redis kerak emas — lokal xotira keshi ishlatiladi.
+CACHE_URL = os.environ.get("CACHE_URL", REDIS_URL.rsplit("/", 1)[0] + "/1")
+if "test" in sys.argv:
+    CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "config.cache.SafeRedisCache",
+            "LOCATION": CACHE_URL,
+            "KEY_PREFIX": "kutubxona",
+            "TIMEOUT": 300,
+            "OPTIONS": {"socket_connect_timeout": 1, "socket_timeout": 1},
+        }
+    }
+CELERY_RESULT_EXPIRES = 3600
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_TASK_IGNORE_RESULT = True
+
 # --- Telegram bot (API dan foydalanish uchun) ---
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 BOT_API_BASE_URL = os.environ.get("BOT_API_BASE_URL", "http://127.0.0.1:8000/api")
@@ -238,8 +258,14 @@ BOT_API_BASE_URL = os.environ.get("BOT_API_BASE_URL", "http://127.0.0.1:8000/api
 # Nginx TLS va HTTP -> HTTPS redirect'ini o'zi boshqaradi (Strict-Transport-Security
 # header'i ham nginx'da qo'yilgan). Quyidagilar Django tomonda qo'shimcha himoya.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-SESSION_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_SECURE = not DEBUG
+# Cookie'larni HTTPS bo'lmagan intranet/IP muhitda ham ishlashiga xizmat
+# qilish uchun COOKIE_SECURE env orqali boshqariladi (debug=False'da oddiy
+# HTTP da cookie'lar yuborilishi kerak).
+_session_cookie_secure = os.environ.get(
+    "COOKIE_SECURE", str(not DEBUG)
+).lower() in ("true", "1", "yes")
+SESSION_COOKIE_SECURE = _session_cookie_secure
+CSRF_COOKIE_SECURE = _session_cookie_secure
 X_FRAME_OPTIONS = "DENY"
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
@@ -251,3 +277,16 @@ SECURE_SSL_REDIRECT = os.environ.get(
 ).lower() in ("true", "1", "yes")
 # security.W008 ni jimga olish: redirect mas'uliyati nginx'da.
 SILENCED_SYSTEM_CHECKS = ["security.W008"]
+
+# --- Cross-Origin-Opener-Policy (COOP) ---
+# COOP header bilan HTTPS-mo'ljalga o't qilib qilsaganda brauzer qabul qiladi.
+# Odatiy HTTP/IP manzillar bo'lmasa brauzer buni o'zini yuborib yuboradi va
+# konsoldagi «header has been ignored» ogohlantirishiga qo'shiladi. HTTPS
+# yo'q bo'lganda (COOKIE_SECURE=False) COOP ni ochiq chuqurutmiz.
+# HTTPS qo'shilsa COOKIE_SECURE=True bo'lsa avto qayta yoqiladi, yoki
+# CROSS_ORIGIN_OPENER_POLICY=same-origin env bilan majburiy yoqish mumkin.
+_coop = os.environ.get(
+    "CROSS_ORIGIN_OPENER_POLICY",
+    "same-origin" if _session_cookie_secure else ""
+)
+SECURE_CROSS_ORIGIN_OPENER_POLICY = None if _coop.lower() in ("", "none", "off") else _coop
