@@ -19,13 +19,13 @@ import {
   Pagination,
   ResponsiveList,
   Select,
-  Table,
   TableSkeleton,
   Textarea,
 } from '../components/ui'
 import { useToast } from '../components/Toast'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { formatDateTime } from '../lib/format'
+import DataTable, { type DataTableColumn } from '../components/DataTable'
 
 const TONE: Record<BandHolati, 'blue' | 'green' | 'red' | 'slate'> = {
   kutmoqda: 'blue',
@@ -326,82 +326,117 @@ export function Bandlar() {
                 </div>
               )}
             >
-              <Table>
-                <thead className="border-b border-slate-200 bg-canvas text-xs uppercase text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
-                  <tr>
-                    <th className="w-20 px-4 py-3">So'rov</th>
-                    <th className="px-4 py-3">Kitob</th>
-                    <th className="px-4 py-3">So&apos;ragan o&apos;quvchi</th>
-                    <th className="px-4 py-3">Holat</th>
-                    <th className="px-4 py-3">So&apos;rov sanasi</th>
-                    <th className="px-4 py-3">Tasdiqlovchi</th>
-                    <th className="w-64 px-4 py-3">Harakat</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                  {royxat.map((b) => (
-                    <tr key={b.id} className="align-top hover:bg-canvas dark:hover:bg-slate-800/50">
-                      <td className="px-4 py-3">
-                        {/* Ikki xil ID bor: so'rov ID va kitob ID. Qidiruv
-                            kitob ID bo'yicha — ikkalasini chalkashtirmaslik uchun
-                            aniq yozilgan. */}
-                        <div className="font-mono text-xs text-slate-500 dark:text-slate-400">
-                          #{b.id}
+              <DataTable<BandQilish>
+                data={royxat}
+                getRowId={(b) => b.id}
+                emptyText="Band so'rovi topilmadi"
+                pagination={{
+                  count: data?.count ?? 0,
+                  page: page - 1,
+                  rowsPerPage: PAGE_SIZE,
+                  onPageChange: (p) => setPage(p + 1),
+                }}
+                columns={
+                  [
+                    {
+                      id: 'sorov',
+                      label: "So'rov",
+                      sortBy: (b) => b.id,
+                      render: (b) => (
+                        <div>
+                          {/* Ikki xil ID bor: so'rov ID va kitob ID. Qidiruv
+                              kitob ID bo'yicha — ikkalasini chalkashtirmaslik
+                              uchun aniq yozilgan. */}
+                          <div className="font-mono text-xs text-slate-500 dark:text-slate-400">
+                            #{b.id}
+                          </div>
+                          <div className="font-mono text-xs text-slate-400 dark:text-slate-500">
+                            kitob: {b.kitob}
+                          </div>
                         </div>
-                        <div className="font-mono text-xs text-slate-400 dark:text-slate-500">
-                          kitob: {b.kitob}
+                      ),
+                    },
+                    {
+                      id: 'kitob',
+                      label: 'Kitob',
+                      sortBy: (b) => b.kitob_nomi,
+                      render: (b) => (
+                        <div>
+                          <div className="font-medium text-slate-900 dark:text-slate-100">
+                            {b.kitob_nomi}
+                          </div>
+                          <div className="text-xs text-slate-500 dark:text-slate-400">
+                            {b.kitob_muallif}
+                          </div>
                         </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="min-w-0 break-words font-medium text-slate-900 dark:text-slate-100">
-                          {b.kitob_nomi}
+                      ),
+                    },
+                    {
+                      id: 'oquvchi',
+                      label: "So'ragan o'quvchi",
+                      sortBy: (b) => b.oquvchi_fish,
+                      render: (b) => <OquvchiQatori band={b} />,
+                    },
+                    {
+                      id: 'holati',
+                      label: 'Holat',
+                      sortBy: (b) => b.holati,
+                      render: (b) => <Badge tone={TONE[b.holati]}>{BAND_HOLATI_LABELS[b.holati]}</Badge>,
+                    },
+                    {
+                      id: 'so_rov_sanasi',
+                      label: "So'rov sanasi",
+                      sortBy: (b) => b.so_rov_sanasi,
+                      render: (b) => formatDateTime(b.so_rov_sanasi),
+                    },
+                    {
+                      id: 'tasdiqlovchi',
+                      label: 'Tasdiqlovchi',
+                      sortBy: (b) => b.tasdiqlovchi_fish ?? '',
+                      render: (b) => (
+                        <div className="text-sm text-slate-700 dark:text-slate-200">
+                          {b.tasdiqlovchi_fish ? (
+                            <>
+                              <div>{b.tasdiqlovchi_fish}</div>
+                              {b.tasdiqlash_sanasi && (
+                                <div className="text-xs text-slate-500 dark:text-slate-400">
+                                  {formatDateTime(b.tasdiqlash_sanasi)}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-slate-400 dark:text-slate-500">—</span>
+                          )}
                         </div>
-                        <div className="break-words text-xs text-slate-500 dark:text-slate-400">
-                          {b.kitob_muallif}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <OquvchiQatori band={b} />
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge tone={TONE[b.holati]}>{BAND_HOLATI_LABELS[b.holati]}</Badge>
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-700 dark:text-slate-200">
-                        {formatDateTime(b.so_rov_sanasi)}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-slate-700 dark:text-slate-200">
-                        {b.tasdiqlovchi_fish ? (
-                          <>
-                            <div className="break-words">{b.tasdiqlovchi_fish}</div>
-                            {b.tasdiqlash_sanasi && (
-                              <div className="text-xs text-slate-500 dark:text-slate-400">
-                                {formatDateTime(b.tasdiqlash_sanasi)}
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <span className="text-slate-400 dark:text-slate-500">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
+                      ),
+                    },
+                    {
+                      id: 'harakat',
+                      label: 'Harakat',
+                      sortable: false,
+                      align: 'right',
+                      render: (b) => (
                         <HarakatTugmalari
                           band={b}
                           busy={busy}
                           onApprove={(x) => openModal(x, 'approve')}
                           onReject={(x) => openModal(x, 'reject')}
                         />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
+                      ),
+                    },
+                  ] as DataTableColumn<BandQilish>[]
+                }
+              />
             </ResponsiveList>
-            <Pagination
-              count={data?.count ?? 0}
-              page={page}
-              pageSize={PAGE_SIZE}
-              onChange={setPage}
-            />
+            {/* Mobilda jadvaldagi MUI pagination ko'rinmaydi */}
+            <div className="md:hidden">
+              <Pagination
+                count={data?.count ?? 0}
+                page={page}
+                pageSize={PAGE_SIZE}
+                onChange={setPage}
+              />
+            </div>
           </>
         )}
       </Card>

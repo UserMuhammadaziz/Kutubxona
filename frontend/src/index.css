@@ -22,10 +22,45 @@ html, body, #root {
   height: 100%;
 }
 
+/* Modal/drawer ochilganda body'ga overflow:hidden qo'yiladi — scrollbar yo'qolib
+   sahifa ~15px sakrardi. Joy doim zaxiralanadi. */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   @apply bg-canvas text-slate-900 antialiased dark:bg-slate-900 dark:text-slate-100;
 }
 
 * {
   box-sizing: border-box;
+}
+/* Kursor va fokus: Tailwind v4 tugmalarga pointer bermaydi. */
+button:not(:disabled),
+[role='button']:not([aria-disabled='true']),
+summary,
+select,
+label:has(input[type='checkbox'], input[type='radio']) {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled='true'] {
+  cursor: not-allowed;
+}
+
+/* Klaviatura bilan yurganda joriy element aniq ko'rinadi (sichqonchada chiqmaydi). */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 2px;
+}
+
+/* Qorong'i rejim: kulrang-ko'k (slate) o'rniga to'q ko'k (navy) tuslar. */
+.dark {
+  --color-slate-500: #8b97b3;
+  --color-slate-600: #3a4863;
+  --color-slate-700: #2b3750;
+  --color-slate-800: #1e2840;
+  --color-slate-900: #151c2e;
+  --color-slate-950: #0e1424;
 }

@@ -1,10 +1,22 @@
+import type { ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { booksApi, holdsApi } from '../api/resources'
 import { Icons } from '../components/icons'
 import { Badge, Button, Card, PageHeader, Spinner, Table } from '../components/ui'
 import { BAND_HOLATI_LABELS, JANR_LABELS, NAVBAT_HOLATI_LABELS, NUSXA_HOLATI_LABELS, TIL_LABELS, HOLAT_LABELS, type Janr, type NavbatHolati, type NusxaHolati, type BandHolati } from '../types'
-import { formatDate, formatMoney } from '../lib/format'
+import { formatDate, formatMoney, humanize } from '../lib/format'
+
+function Fact({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <dt className="text-slate-500 dark:text-slate-400">{label}</dt>
+      <dd className="font-medium text-slate-900 dark:text-slate-100">{children}</dd>
+    </div>
+  )
+}
+
+const nusxaTone = { mavjud: 'green', berilgan: 'blue', band: 'amber', tamirda: 'amber', yoqolgan: 'red' } as const
 
 export function BookDetail() {
   const { id } = useParams()
@@ -31,44 +43,20 @@ export function BookDetail() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="p-5 lg:col-span-1">
           <dl className="space-y-3 text-sm">
-            <div>
-              <dt className="text-slate-500 dark:text-slate-400">ISBN</dt>
-              <dd className="font-medium text-slate-900 dark:text-slate-100">{book.isbn || '—'}</dd>
-            </div>
-            <div>
-              <dt className="text-slate-500 dark:text-slate-400">Janr</dt>
-              <dd>
-                <Badge>{JANR_LABELS[book.janr as Janr] ?? book.janr}</Badge>
-              </dd>
-            </div>
-            <div>
-              <dt className="text-slate-500 dark:text-slate-400">Til</dt>
-              <dd className="font-medium text-slate-900 dark:text-slate-100">{book.til ? (TIL_LABELS[book.til] ?? book.til) : '—'}</dd>
-            </div>
-            <div>
-              <dt className="text-slate-500 dark:text-slate-400">Holati</dt>
-              <dd>
-                <Badge tone={book.holati === 'mavjud' ? 'green' : book.holati === 'berilgan' ? 'blue' : 'red'}>
-                  {HOLAT_LABELS[book.holati] ?? book.holati}
-                </Badge>
-              </dd>
-            </div>
-            <div>
-              <dt className="text-slate-500 dark:text-slate-400">Narhi</dt>
-              <dd className="font-medium text-slate-900 dark:text-slate-100">{formatMoney(book.narh)}</dd>
-            </div>
-            <div>
-              <dt className="text-slate-500 dark:text-slate-400">Buyurtma soni</dt>
-              <dd className="font-medium text-slate-900 dark:text-slate-100">{book.buyurtma_soni ?? '—'}</dd>
-            </div>
-            <div>
-              <dt className="text-slate-500 dark:text-slate-400">Nashriyot</dt>
-              <dd className="font-medium text-slate-900 dark:text-slate-100">{book.nashriyot || '—'}</dd>
-            </div>
-            <div>
-              <dt className="text-slate-500 dark:text-slate-400">Qo'shilgan sana</dt>
-              <dd className="font-medium text-slate-900 dark:text-slate-100">{formatDate(book.qoshilgan_sana)}</dd>
-            </div>
+            {book.isbn && <Fact label="ISBN">{book.isbn}</Fact>}
+            <Fact label="Janr">
+              <Badge>{JANR_LABELS[book.janr as Janr] ?? humanize(book.janr)}</Badge>
+            </Fact>
+            {book.til && <Fact label="Til">{TIL_LABELS[book.til] ?? book.til}</Fact>}
+            <Fact label="Holati">
+              <Badge tone={book.holati === 'mavjud' ? 'green' : book.holati === 'berilgan' ? 'blue' : 'red'}>
+                {HOLAT_LABELS[book.holati] ?? humanize(book.holati)}
+              </Badge>
+            </Fact>
+            {book.narh && <Fact label="Narxi">{formatMoney(book.narh)}</Fact>}
+            {book.buyurtma_soni != null && <Fact label="Buyurtma soni">{book.buyurtma_soni}</Fact>}
+            {book.nashriyot && <Fact label="Nashriyot">{book.nashriyot}</Fact>}
+            <Fact label="Qo'shilgan sana">{formatDate(book.qoshilgan_sana)}</Fact>
             {book.tavsif && (
               <div>
                 <dt className="text-slate-500 dark:text-slate-400">Tavsif</dt>
@@ -100,8 +88,8 @@ export function BookDetail() {
                 <tr key={n.id}>
                   <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{n.inventar_raqami}</td>
                   <td className="px-4 py-3">
-                    <Badge tone={n.holati === 'mavjud' ? 'green' : n.holati === 'berilgan' ? 'blue' : 'amber'}>
-                      {NUSXA_HOLATI_LABELS[n.holati as NusxaHolati] ?? n.holati}
+                    <Badge tone={nusxaTone[n.holati as NusxaHolati] ?? 'amber'}>
+                      {NUSXA_HOLATI_LABELS[n.holati as NusxaHolati] ?? humanize(n.holati)}
                     </Badge>
                   </td>
                   <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{n.javon || '—'}</td>
@@ -133,7 +121,7 @@ export function BookDetail() {
                     <tr key={q.id}>
                       <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{q.oquvchi_fish}</td>
                       <td className="px-4 py-3">
-                        <Badge tone="amber">{NAVBAT_HOLATI_LABELS[q.holati as NavbatHolati] ?? q.holati}</Badge>
+                        <Badge tone={q.holati === 'taklif_qilindi' ? 'green' : 'amber'}>{NAVBAT_HOLATI_LABELS[q.holati as NavbatHolati] ?? humanize(q.holati)}</Badge>
                       </td>
                       <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{formatDate(q.navbat_sanasi)}</td>
                     </tr>
@@ -143,7 +131,7 @@ export function BookDetail() {
             </>
           )}
 
-          {holds?.results?.length && (
+          {!!holds?.results?.length && (
             <>
               <h2 className="mb-3 mt-6 text-lg font-semibold text-slate-900 dark:text-slate-100">Band qilingan so'rovlar ({holds.results.length})</h2>
               <Table>
@@ -160,7 +148,7 @@ export function BookDetail() {
                     <tr key={h.id}>
                       <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{h.oquvchi_fish}</td>
                       <td className="px-4 py-3">
-                        <Badge tone="amber">{BAND_HOLATI_LABELS[h.holati as BandHolati] ?? h.holati}</Badge>
+                        <Badge tone="amber">{BAND_HOLATI_LABELS[h.holati as BandHolati] ?? humanize(h.holati)}</Badge>
                       </td>
                       <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{formatDate(h.so_rov_sanasi)}</td>
                       <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{h.izoh || '—'}</td>

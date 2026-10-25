@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState, type FormEvent } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { booksApi, reservationsApi } from '../api/resources'
 import { errorMessage } from '../api/client'
@@ -27,6 +27,7 @@ import {
   Table,
   TableSkeleton,
 } from '../components/ui'
+import DataTable, { type DataTableColumn } from '../components/DataTable'
 import { useToast } from '../components/Toast'
 import { useAuthStore } from '../store/auth'
 
@@ -59,6 +60,12 @@ export function Books() {
   const [janr, setJanr] = useState('')
   const [search, setSearch] = useState('')
   const kechikkanSearch = useDebouncedValue(search)
+  // AI buyruq paneli (Ctrl+K) qidiruvni `?q=` orqali to'ldiradi.
+  const [urlParams] = useSearchParams()
+  useEffect(() => {
+    const q = urlParams.get('q')
+    if (q !== null) setSearch(q)
+  }, [urlParams])
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Kitob | null>(null)
   const [form, setForm] = useState<KitobPayload>(emptyForm)
@@ -177,7 +184,12 @@ setError(null)
     else createMut.mutate(payload)
   }
 
-  const rows = searching ? searchQuery.data : listQuery.data?.results
+  // Qidiruv endpointi janr bo'yicha filtrlamaydi — natija shu yerda toraytiriladi.
+  const rows = searching
+    ? janr
+      ? searchQuery.data?.filter((k) => k.janr === janr)
+      : searchQuery.data
+    : listQuery.data?.results
   const loading = searching ? searchQuery.isLoading : listQuery.isLoading
   const listError = searching ? searchQuery.error : listQuery.error
   const isError = searching ? searchQuery.isError : listQuery.isError
@@ -197,7 +209,7 @@ setError(null)
           <Input placeholder="Nomi, muallif yoki ISBN bo'yicha qidirish..." value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <div className="w-48">
-          <Select value={janr} onChange={(e) => { setJanr(e.target.value); setPage(1) }} disabled={searching}>
+          <Select value={janr} onChange={(e) => { setJanr(e.target.value); setPage(1) }}>
             <option value="">Barcha janrlar</option>
             {Object.entries(JANR_LABELS).map(([value, label]) => (
               <option key={value} value={value}>
@@ -301,86 +313,125 @@ setError(null)
             </div>
           )}
         >
-          <Table>
-          <thead className="border-b border-slate-200 bg-canvas text-xs uppercase text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
-            <tr>
-              <th className="px-4 py-3">Nomi</th>
-              <th className="px-4 py-3">Muallif</th>
-              <th className="px-4 py-3">Janr</th>
-              <th className="px-4 py-3">Til</th>
-              <th className="px-4 py-3">Nashriyot</th>
-              <th className="px-4 py-3">Yil</th>
-              <th className="px-4 py-3">Narhi</th>
-              <th className="px-4 py-3">Buyurtma</th>
-              <th className="px-4 py-3">Holati</th>
-              <th className="px-4 py-3">Nusxalar</th>
-              <th className="px-4 py-3">Band</th>
-              <th className="px-4 py-3"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-            {rows.map((b) => (
-              <tr key={b.id} className="hover:bg-canvas dark:hover:bg-slate-800/50">
-                <td className="px-4 py-3">
-                  <Link to={`/books/${b.id}`} className="font-medium text-brand-700 hover:underline dark:text-brand-400">
-                    {b.nomi}
-                  </Link>
-                  <div className="text-xs text-slate-400 dark:text-slate-500">{b.isbn}</div>
-                </td>
-                <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{b.muallif}</td>
-                <td className="px-4 py-3">
-                  <Badge>{JANR_LABELS[b.janr as Janr] ?? b.janr}</Badge>
-                </td>
-                <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{(TIL_LABELS[b.til] ?? b.til) || '—'}</td>
-                <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{b.nashriyot || '—'}</td>
-                <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{b.nashr_yili}</td>
-                <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
-                  {b.narh ? Number(b.narh).toLocaleString('ru-RU') : '—'}
-                </td>
-                <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{b.buyurtma_soni ?? '—'}</td>
-                <td className="px-4 py-3">
-                  <Badge tone={KITOB_HOLATI_TONE[b.holati as KitobHolati] ?? 'slate'}>{HOLAT_LABELS[b.holati as KitobHolati] ?? b.holati}</Badge>
-                </td>
-                <td className="px-4 py-3">
-                  <Badge tone={b.mavjud_nusxalar > 0 ? 'green' : 'red'}>
-                    {b.mavjud_nusxalar} / {b.jami_nusxalar}
-                  </Badge>
-                </td>
-                <td className="px-4 py-3">
-                  <Badge tone={b.faol_navbatlar > 0 ? 'amber' : 'slate'}>
-                    {b.faol_navbatlar > 0 ? `${b.faol_navbatlar} ta` : '—'}
-                  </Badge>
-                </td>
-                <td className="px-4 py-3 text-right">
-                  {canEdit && b.faol_navbatlar > 0 && (
-                    <Button size="sm" variant="secondary" onClick={() => setQueueBook(b)}>
-                      Navbat
-                    </Button>
-                  )}
-                  {canEdit && (
-                    <div className="flex justify-end gap-2">
-                      <Button size="sm" variant="secondary" onClick={() => openEdit(b)}>
-                        Tahrirlash
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        onClick={() => setOchiriladigan(b)}
-                      >
-                        O'chirish
-                      </Button>
+          <DataTable<Kitob>
+            data={rows ?? []}
+            getRowId={(b) => b.id}
+            emptyText="Kitob topilmadi"
+            pagination={
+              !searching && listQuery.data
+                ? {
+                    count: listQuery.data.count,
+                    page: page - 1,
+                    rowsPerPage: 20,
+                    onPageChange: (p) => setPage(p + 1),
+                  }
+                : undefined
+            }
+            columns={
+              [
+                {
+                  id: 'nomi',
+                  label: 'Nomi',
+                  align: 'left',
+                  sortBy: (b) => b.nomi,
+                  render: (b) => (
+                    <div>
+                      <Link to={`/books/${b.id}`} className="font-medium text-brand-700 hover:underline dark:text-brand-400">
+                        {b.nomi}
+                      </Link>
+                      <div className="text-xs text-slate-400 dark:text-slate-500">{b.isbn}</div>
                     </div>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
+                  ),
+                },
+                { id: 'muallif', label: 'Muallif', sortBy: (b) => b.muallif },
+                {
+                  id: 'janr',
+                  label: 'Janr',
+                  render: (b) => <Badge>{JANR_LABELS[b.janr as Janr] ?? b.janr}</Badge>,
+                },
+                {
+                  id: 'til',
+                  label: 'Til',
+                  render: (b) => (TIL_LABELS[b.til as typeof TIL_LABELS extends never ? never : keyof typeof TIL_LABELS] ?? b.til) || '—',
+                },
+                { id: 'nashriyot', label: 'Nashriyot', render: (b) => b.nashriyot || '—' },
+                { id: 'nashr_yili', label: 'Yil', numeric: true, sortBy: (b) => b.nashr_yili },
+                {
+                  id: 'narh',
+                  label: 'Narhi',
+                  numeric: true,
+                  sortBy: (b) => Number(b.narh || 0),
+                  render: (b) => (b.narh ? Number(b.narh).toLocaleString('ru-RU') : '—'),
+                },
+                { id: 'buyurtma_soni', label: 'Buyurtma', numeric: true, render: (b) => <>{b.buyurtma_soni ?? '—'}</> },
+                {
+                  id: 'holati',
+                  label: 'Holati',
+                  sortBy: (b) => b.holati,
+                  render: (b) => (
+                    <Badge tone={KITOB_HOLATI_TONE[b.holati as KitobHolati] ?? 'slate'}>
+                      {HOLAT_LABELS[b.holati as KitobHolati] ?? b.holati}
+                    </Badge>
+                  ),
+                },
+                {
+                  id: 'nusxalar',
+                  label: 'Nusxalar',
+                  numeric: true,
+                  sortBy: (b) => b.mavjud_nusxalar,
+                  render: (b) => (
+                    <Badge tone={b.mavjud_nusxalar > 0 ? 'green' : 'red'}>
+                      {b.mavjud_nusxalar} / {b.jami_nusxalar}
+                    </Badge>
+                  ),
+                },
+                {
+                  id: 'band',
+                  label: 'Band',
+                  numeric: true,
+                  sortBy: (b) => b.faol_navbatlar,
+                  render: (b) => (
+                    <Badge tone={b.faol_navbatlar > 0 ? 'amber' : 'slate'}>
+                      {b.faol_navbatlar > 0 ? `${b.faol_navbatlar} ta` : '—'}
+                    </Badge>
+                  ),
+                },
+                {
+                  id: 'amallar',
+                  label: '',
+                  sortable: false,
+                  align: 'right',
+                  render: (b) => (
+                    <div className="flex justify-end gap-2">
+                      {canEdit && b.faol_navbatlar > 0 && (
+                        <Button size="sm" variant="secondary" onClick={() => setQueueBook(b)}>
+                          Navbat
+                        </Button>
+                      )}
+                      {canEdit && (
+                        <>
+                          <Button size="sm" variant="secondary" onClick={() => openEdit(b)}>
+                            Tahrirlash
+                          </Button>
+                          <Button size="sm" variant="danger" onClick={() => setOchiriladigan(b)}>
+                            O'chirish
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  ),
+                },
+              ] as DataTableColumn<Kitob>[]
+            }
+          />
         </ResponsiveList>
       )}
 
+      {/* Mobilda jadvaldagi MUI pagination ko'rinmaydi — karta ro'yxati uchun alohida */}
       {!searching && listQuery.data && (
-        <Pagination count={listQuery.data.count} page={page} onChange={setPage} />
+        <div className="md:hidden">
+          <Pagination count={listQuery.data.count} page={page} onChange={setPage} />
+        </div>
       )}
 
       <Modal open={modalOpen} onClose={closeModal} title={editing ? 'Kitobni tahrirlash' : 'Yangi kitob qo‘shish'}>

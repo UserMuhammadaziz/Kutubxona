@@ -1,7 +1,18 @@
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
+
+class LoginThrottle(AnonRateThrottle):
+    scope = "login"
+
+
+class ThrottledTokenView(TokenObtainPairView):
+    """Parol terishdan himoya: IP bo'yicha daqiqasiga 10 urinish (Redis'da umumiy)."""
+
+    throttle_classes = [LoginThrottle]
 from berish.views import BerishViewSet
 from jarima.views import JarimaViewSet
 from kitob.views import BandQilishViewSet, KitobViewSet
@@ -25,7 +36,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include(router.urls)),
     path("api/stats/", include("stats.urls")),
-    path("api/auth/token/", TokenObtainPairView.as_view()),
+    path("api/auth/token/", ThrottledTokenView.as_view()),
     path("api/auth/token/refresh/", TokenRefreshView.as_view()),
     path("api/auth/me/", me),
     path("", include("web.urls")),

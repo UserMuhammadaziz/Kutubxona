@@ -1,3 +1,4 @@
+from django.core.cache import cache
 from django.utils.timezone import now
 from django.db.models import Count, Q
 from rest_framework.decorators import api_view, permission_classes
@@ -9,7 +10,10 @@ from jarima.models import Jarima
 from kitob.models import Kitob
 from navbat.models import Navbat
 from nusxa.models import Nusxa
+from config.cache import stats_versiyasi
 from user.permissions import IsLibrarian
+
+STATS_TTL = 60  # soniya; yozuv o'zgarsa signal versiyani oshirib, keshni darrov eskirtiradi
 
 
 @api_view(["GET"])
@@ -26,6 +30,10 @@ def top_books(request):
     if limit < 1 or limit > 100:
         raise ValidationError({"limit": "1 dan 100 gacha son kiritishingiz kerak."})
 
+    kalit = f"stats:top:{stats_versiyasi()}:{limit}"
+    if (kesh := cache.get(kalit)) is not None:
+        return Response(kesh)
+
     # Berishlar ikki turda bo'ladi: nusxa orqali (nusxalar__berish) va
     # nusxasi yo'q kitobni «asli» holda berish (kitob_id to'g'ridan-to'g'ri).
     # Faqat birinchisini hisoblashda asli berilganlar reytingda yo'q edi.
@@ -40,6 +48,7 @@ def top_books(request):
         {"id": k.id, "nomi": k.nomi, "muallif": k.muallif, "berishlar_soni": k.berishlar_soni}
         for k in qs
     ]
+    cache.set(kalit, data, STATS_TTL)
     return Response(data)
 
 
@@ -47,6 +56,10 @@ def top_books(request):
 @permission_classes([IsLibrarian])
 def dashboard(request):
     """GET /api/stats/dashboard/ — umumiy raqamlar: fond, berilgan, muddati o'tgan, navbat, qarz."""
+    kalit = f"stats:dashboard:{stats_versiyasi()}:{now().date()}"
+    if (kesh := cache.get(kalit)) is not None:
+        return Response(kesh)
+
     jami_nusxalar = Nusxa.objects.count()
     mavjud_nusxalar = Nusxa.objects.filter(holati="mavjud").count()
     berilgan_nusxalar = Nusxa.objects.filter(holati="berilgan").count()
@@ -57,15 +70,15 @@ def dashboard(request):
     tolanmagan_jarima = Jarima.objects.filter(tolandimi=False)
     umumiy_qarz = sum(j.summa for j in tolanmagan_jarima)
 
-    return Response(
-        {
-            "jami_kitoblar": Kitob.objects.count(),
-            "jami_nusxalar": jami_nusxalar,
-            "mavjud_nusxalar": mavjud_nusxalar,
-            "berilgan_nusxalar": berilgan_nusxalar,
-            "muddati_otgan_berishlar": muddati_otgan,
-            "faol_navbatlar": faol_navbatlar,
-            "tolanmagan_jarimalar_soni": tolanmagan_jarima.count(),
-            "umumiy_qarz": umumiy_qarz,
-        }
-    )
+    data = {
+        "jami_kitoblar": Kitob.objects.count(),
+        "jami_nusxalar": jami_nusxalar,
+        "mavjud_nusxalar": mavjud_nusxalar,
+        "berilgan_nusxalar": berilgan_nusxalar,
+        "muddati_otgan_berishlar": muddati_otgan,
+        "faol_navbatlar": faol_navbatlar,
+        "tolanmagan_jarimalar_soni": tolanmagan_jarima.count(),
+        "umumiy_qarz": umumiy_qarz,
+    }
+    cache.set(kalit, data, STATS_TTL)
+    return Response(data)

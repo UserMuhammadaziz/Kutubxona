@@ -15,9 +15,9 @@ import {
   Pagination,
   ResponsiveList,
   Select,
-  Table,
   TableSkeleton,
 } from '../components/ui'
+import DataTable, { type DataTableColumn } from '../components/DataTable'
 import { useToast } from '../components/Toast'
 import { formatDate, formatMoney } from '../lib/format'
 
@@ -138,53 +138,67 @@ export function Fines() {
             </div>
           )}
         >
-          <Table>
-            <thead className="border-b border-slate-200 bg-canvas text-xs uppercase text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
-              <tr>
-                <th className="px-4 py-3">O'quvchi</th>
-                <th className="px-4 py-3">Kitob</th>
-                <th className="px-4 py-3">Kechikkan kun</th>
-                <th className="px-4 py-3">Summa</th>
-                <th className="px-4 py-3">Holati</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-              {data.results.map((f) => (
-                <tr key={f.id} className="hover:bg-canvas dark:hover:bg-slate-800/50">
-                  <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">
-                    {f.oquvchi_fish}
-                  </td>
-                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{f.kitob_nomi}</td>
-                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{f.kechikkan_kunlar}</td>
-                  <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">
-                    {formatMoney(f.summa)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge tone={f.tolandimi ? 'green' : 'red'}>
-                      {f.tolandimi ? "To'langan" : "To'lanmagan"}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {!f.tolandimi && (
+          <DataTable<Jarima>
+            data={data.results}
+            getRowId={(f) => f.id}
+            emptyText="Jarima topilmadi"
+            pagination={{
+              count: data.count,
+              page: page - 1,
+              rowsPerPage: 20,
+              onPageChange: (p) => setPage(p + 1),
+            }}
+            columns={
+              [
+                {
+                  id: 'oquvchi_fish',
+                  label: "O'quvchi",
+                  sortBy: (f) => f.oquvchi_fish,
+                  render: (f) => <span className="font-medium text-slate-900 dark:text-slate-100">{f.oquvchi_fish}</span>,
+                },
+                { id: 'kitob_nomi', label: 'Kitob', sortBy: (f) => f.kitob_nomi },
+                { id: 'kechikkan_kunlar', label: 'Kechikkan kun', numeric: true, sortBy: (f) => f.kechikkan_kunlar },
+                {
+                  id: 'summa',
+                  label: 'Summa',
+                  numeric: true,
+                  sortBy: (f) => f.summa,
+                  render: (f) => <span className="font-medium text-slate-900 dark:text-slate-100">{formatMoney(f.summa)}</span>,
+                },
+                {
+                  id: 'tolandimi',
+                  label: 'Holati',
+                  sortBy: (f) => (f.tolandimi ? 1 : 0),
+                  render: (f) => (
+                    <Badge tone={f.tolandimi ? 'green' : 'red'}>{f.tolandimi ? "To'langan" : "To'lanmagan"}</Badge>
+                  ),
+                },
+                {
+                  id: 'amallar',
+                  label: '',
+                  sortable: false,
+                  align: 'right',
+                  render: (f) =>
+                    !f.tolandimi ? (
                       <Button size="sm" onClick={() => setTasdiqlanadigan(f)} disabled={payMut.isPending}>
                         To'landi
                       </Button>
-                    )}
-                    {f.tolandimi && f.tolangan_sana && (
-                      <span className="text-xs text-slate-400 dark:text-slate-500">
-                        {formatDate(f.tolangan_sana)}
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
+                    ) : f.tolangan_sana ? (
+                      <span className="text-xs text-slate-400 dark:text-slate-500">{formatDate(f.tolangan_sana)}</span>
+                    ) : null,
+                },
+              ] as DataTableColumn<Jarima>[]
+            }
+          />
         </ResponsiveList>
       )}
 
-      {data && <Pagination count={data.count} page={page} onChange={setPage} />}
+      {/* Mobilda jadvaldagi MUI pagination ko'rinmaydi */}
+      {data && (
+        <div className="md:hidden">
+          <Pagination count={data.count} page={page} onChange={setPage} />
+        </div>
+      )}
 
       <ConfirmDialog
         open={!!tasdiqlanadigan}

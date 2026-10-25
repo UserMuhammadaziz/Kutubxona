@@ -16,7 +16,7 @@ import { Bandlar } from './pages/Bandlar'
 import { Reservations } from './pages/Reservations'
 import { Fines } from './pages/Fines'
 import { Staff } from './pages/Staff'
-import { Guide } from './pages/Guide'
+import { Guide, PublicGuide } from './pages/Guide'
 
 function App() {
   const hydrate = useAuthStore((s) => s.hydrate)
@@ -28,6 +28,7 @@ function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/yordam" element={<PublicGuide />} />
 
       <Route element={<RequireAuth />}>
         <Route element={<Layout />}>

@@ -17,10 +17,15 @@ const queryClient = new QueryClient({
   },
 })
 
-// PWA: service worker faqat production build'da ro'yxatdan o'tadi
-// (dev'da vite sw.js ni bermaydi va kesh muammolariga olib kelishi mumkin).
+// PWA: service worker faqat production build'da va ishonchli HTTPS muhitda
+// ro'yxatdan o'tadi. IP manzillarda (masalan http://16.171.23.72 yoki
+// https://IP «sertifikat ogohlantirishidan o'tib» kirilganda) SW skripti
+// «An SSL certificate error occurred when fetching the script» xatosi bilan
+// yuklanmaydi — bunday hollarda ro'yxatdan o'tkazilmaydi, konsol toza qoladi.
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
+    const isIpHost = /^\d{1,3}(\.\d{1,3}){3}$/.test(window.location.hostname)
+    if (!window.isSecureContext || isIpHost) return
     navigator.serviceWorker.register('/sw.js').catch(() => {})
   })
 }

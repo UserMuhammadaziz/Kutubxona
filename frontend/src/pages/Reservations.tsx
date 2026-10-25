@@ -15,11 +15,11 @@ import {
   Pagination,
   ResponsiveList,
   Select,
-  Table,
   TableSkeleton,
 } from '../components/ui'
 import { useToast } from '../components/Toast'
 import { formatDate } from '../lib/format'
+import DataTable, { type DataTableColumn } from '../components/DataTable'
 
 const TONE: Record<NavbatHolati, 'amber' | 'blue' | 'green' | 'red'> = {
   kutmoqda: 'amber',
@@ -172,77 +172,104 @@ export function Reservations() {
             )
           }}
         >
-          <Table>
-            <thead className="border-b border-slate-200 bg-canvas text-xs uppercase text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
-              <tr>
-                <th className="px-4 py-3">Kitob</th>
-                <th className="px-4 py-3">O'quvchi</th>
-                <th className="px-4 py-3">Navbat sanasi</th>
-                <th className="px-4 py-3">Holati</th>
-                <th className="px-4 py-3">Taklif javobi</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-              {data.results.map((r) => {
-                const javobBerilgan = r.holati === 'taklif_qilindi' && r.javob === 'olaman'
-                return (
-                  <tr key={r.id} className="hover:bg-canvas dark:hover:bg-slate-800/50">
-                    <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">
+          <DataTable<Navbat>
+            data={data.results}
+            getRowId={(r) => r.id}
+            emptyText="Navbat topilmadi"
+            pagination={{
+              count: data.count,
+              page: page - 1,
+              rowsPerPage: 20,
+              onPageChange: (p) => setPage(p + 1),
+            }}
+            columns={
+              [
+                {
+                  id: 'kitob',
+                  label: 'Kitob',
+                  sortBy: (r) => r.kitob_nomi,
+                  render: (r) => (
+                    <div className="font-medium text-slate-900 dark:text-slate-100">
                       {r.kitob_nomi}
-                    </td>
-                    <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{r.oquvchi_fish}</td>
-                    <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
-                      {formatDate(r.navbat_sanasi)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge tone={TONE[r.holati]}>{NAVBAT_HOLATI_LABELS[r.holati]}</Badge>
-                    </td>
-                    <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
-                      {r.javob ? (
-                        <>
-                          <Badge tone={r.javob === 'olaman' ? 'green' : 'red'}>
-                            {NAVBAT_JAVOB_LABELS[r.javob]}
-                          </Badge>
-                          {javobBerilgan && r.taklif_muddati && (
-                            <div
-                              className={`mt-1 text-xs ${muddatiOtdi(r) ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'}`}
-                            >
-                              {muddatiOtdi(r) ? 'Muddati o‘tgan' : 'Muddati bor'}:{' '}
-                              {formatDate(r.taklif_muddati)}
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <span className="text-slate-400">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {(r.holati === 'kutmoqda' || r.holati === 'taklif_qilindi') && (
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            size="sm"
-                            variant="danger"
-                            onClick={() => setBekorQilinadigan(r)}
-                            disabled={cancelMut.isPending}
+                    </div>
+                  ),
+                },
+                {
+                  id: 'oquvchi',
+                  label: "O'quvchi",
+                  sortBy: (r) => r.oquvchi_fish,
+                },
+                {
+                  id: 'navbat_sanasi',
+                  label: 'Navbat sanasi',
+                  sortBy: (r) => r.navbat_sanasi,
+                  render: (r) => formatDate(r.navbat_sanasi),
+                },
+                {
+                  id: 'holati',
+                  label: 'Holati',
+                  sortBy: (r) => r.holati,
+                  render: (r) => <Badge tone={TONE[r.holati]}>{NAVBAT_HOLATI_LABELS[r.holati]}</Badge>,
+                },
+                {
+                  id: 'javob',
+                  label: 'Taklif javobi',
+                  sortBy: (r) => r.javob ?? '',
+                  render: (r) => {
+                    const javobBerilgan = r.holati === 'taklif_qilindi' && r.javob === 'olaman'
+                    return r.javob ? (
+                      <>
+                        <Badge tone={r.javob === 'olaman' ? 'green' : 'red'}>
+                          {NAVBAT_JAVOB_LABELS[r.javob]}
+                        </Badge>
+                        {javobBerilgan && r.taklif_muddati && (
+                          <div
+                            className={`mt-1 text-xs ${muddatiOtdi(r) ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'}`}
                           >
-                            Bekor qilish
-                          </Button>
-                          <Button size="sm" onClick={() => setTasdiqlanadigan(r)}>
-                            Tasdiqlash
-                          </Button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </Table>
+                            {muddatiOtdi(r) ? 'Muddati o‘tgan' : 'Muddati bor'}:{' '}
+                            {formatDate(r.taklif_muddati)}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-slate-400 dark:text-slate-500">—</span>
+                    )
+                  },
+                },
+                {
+                  id: 'amallar',
+                  label: '',
+                  sortable: false,
+                  align: 'right',
+                  render: (r) =>
+                    (r.holati === 'kutmoqda' || r.holati === 'taklif_qilindi') && (
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onClick={() => setBekorQilinadigan(r)}
+                          disabled={cancelMut.isPending}
+                        >
+                          Bekor qilish
+                        </Button>
+                        <Button size="sm" onClick={() => setTasdiqlanadigan(r)}>
+                          Tasdiqlash
+                        </Button>
+                      </div>
+                    ),
+                },
+              ] as DataTableColumn<Navbat>[]
+            }
+          />
         </ResponsiveList>
       )}
 
-      {data && <Pagination count={data.count} page={page} onChange={setPage} />}
+      {/* Mobilda jadvaldagi MUI pagination ko'rinmaydi */}
+      {data && (
+        <div className="md:hidden">
+          <Pagination count={data.count} page={page} onChange={setPage} />
+        </div>
+      )}
 
       <ConfirmDialog
         open={!!tasdiqlanadigan}
