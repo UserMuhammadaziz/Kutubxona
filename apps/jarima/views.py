@@ -69,6 +69,8 @@ class JarimaViewSet(viewsets.ModelViewSet):
                 "Siz jarimangizni to'ladingiz. "
                 "Keyingi safar kitobni vaqtida topshiring!"
             )
-            telegram_xabar_yubor(oquvchi.telegram_id, matn)
+            telegram_xabar_yubor(
+                oquvchi.telegram_id, matn, organization=jarima.organization
+            )
 
         return Response(JarimaSerializer(jarima).data)

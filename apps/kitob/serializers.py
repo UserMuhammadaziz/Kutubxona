@@ -168,10 +168,14 @@ class BandQilishYaratishSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {"error": "oquvchi_kerak", "detail": "oquvchi yoki telegram_id kiritilishi shart"}
             )
+        org = self.context.get("organization")
+        qs = Oquvchi.objects.all()
+        if org is not None:
+            qs = qs.filter(organization=org)
         if attrs.get("oquvchi"):
-            oquvchi = Oquvchi.objects.filter(pk=attrs["oquvchi"]).first()
+            oquvchi = qs.filter(pk=attrs["oquvchi"]).first()
         else:
-            oquvchi = Oquvchi.objects.filter(telegram_id=attrs["telegram_id"]).first()
+            oquvchi = qs.filter(telegram_id=attrs["telegram_id"]).first()
         if not oquvchi:
             raise serializers.ValidationError(
                 {"error": "oquvchi_topilmadi", "detail": "O'quvchi topilmadi yoki bog'lanmagan"}

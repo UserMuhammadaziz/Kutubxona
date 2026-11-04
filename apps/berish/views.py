@@ -4,6 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from oquvchi.models import Oquvchi
+from organization.tenancy import joriy_kutubxonani_aniqla, scope
 from user.permissions import IsLibrarian
 from . import services
 from berish.models import Berish
@@ -25,8 +26,23 @@ class BerishViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated()]
         return [IsLibrarian()]
 
+    def get_organization(self):
+        return joriy_kutubxonani_aniqla(self.request, required=True)
+
+    def get_queryset(self):
+        return scope(self.queryset, self.get_organization())
+
+    def get_serializer_context(self):
+        return {
+            **super().get_serializer_context(),
+            "organization": self.get_organization(),
+        }
+
     def create(self, request, *args, **kwargs):
-        serializer = BerishYaratishSerializer(data=request.data)
+        serializer = BerishYaratishSerializer(
+            data=request.data,
+            context={"organization": self.get_organization(), "request": request},
+        )
         serializer.is_valid(raise_exception=True)
         malumot = serializer.validated_data
         if malumot.get("kitob"):
@@ -63,16 +79,22 @@ class BerishViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"], url_path="my")
     def meni(self, request):
         telegram_id = request.query_params.get("telegram_id")
-        oquvchi = Oquvchi.objects.filter(telegram_id=telegram_id).first()
+        oquvchi = scope(Oquvchi.objects, self.get_organization()).filter(
+            telegram_id=telegram_id
+        ).first()
         if not oquvchi:
             return Response(
                 {"error": "topilmadi", "detail": "O'quvchi bog'lanmagan"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        qs = self.queryset.filter(oquvchi=oquvchi, qaytarilgan_sana__isnull=True)
+        qs = self.get_queryset().filter(
+            oquvchi=oquvchi, qaytarilgan_sana__isnull=True
+        )
         return Response(BerishMeniSerializer(qs, many=True).data)
 
     @action(detail=False, methods=["get"], url_path="overdue")
     def overdue(self, request):
-        qs = self.queryset.filter(qaytarilgan_sana__isnull=True, qaytarish_muddati__lt=now().date())
+        qs = self.get_queryset().filter(
+            qaytarilgan_sana__isnull=True, qaytarish_muddati__lt=now().date()
+        )
         return Response(BerishSerializer(qs, many=True).data)

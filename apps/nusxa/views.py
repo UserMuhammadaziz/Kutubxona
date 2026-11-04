@@ -4,6 +4,7 @@ from rest_framework.response import Response
 
 from berish.serializers import BerishSerializer
 from navbat.services import navbatni_mavjud_nusxa_bilan_ishga_tushir
+from organization.tenancy import joriy_kutubxonani_aniqla, scope
 from user.permissions import IsLibrarian
 from .models import Nusxa
 from .serializers import NusxaSerializer, NusxaYaratishSerializer
@@ -23,6 +24,18 @@ class NusxaViewSet(viewsets.ModelViewSet):
     filterset_fields = ["kitob", "holati", "javon", "inventar_raqami"]
     http_method_names = ["get", "post", "patch", "delete"]
 
+    def get_organization(self):
+        return joriy_kutubxonani_aniqla(self.request, required=True)
+
+    def get_queryset(self):
+        return scope(self.queryset, self.get_organization())
+
+    def get_serializer_context(self):
+        return {
+            **super().get_serializer_context(),
+            "organization": self.get_organization(),
+        }
+
     def get_serializer_class(self):
         if self.action == "create":
             return NusxaYaratishSerializer
@@ -30,7 +43,7 @@ class NusxaViewSet(viewsets.ModelViewSet):
         return NusxaSerializer
 
     def perform_create(self, serializer):
-        nusxa = serializer.save()
+        nusxa = serializer.save(organization=self.get_organization())
         # Yangi nusxa qo'shilishi — navbatda turgan o'quvchilar uchun
         # kitob endi mavjud, demak taklif yuborishimiz mumkin.
         navbatni_mavjud_nusxa_bilan_ishga_tushir(nusxa.kitob_id)

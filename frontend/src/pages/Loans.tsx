@@ -326,7 +326,8 @@ function onSubmit(e: FormEvent) {
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{l.oquvchi_fish}</td>
+                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
+                    {l.oquvchi_fish} {l.oquvchi.sinf ? `- ${l.oquvchi.sinf}-sinf` : ''}
                   <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
                     {formatDate(l.berilgan_sana)}
                   </td>

@@ -1,8 +1,10 @@
 from django.db import models
 from berish.models import Berish
 from user.models import User
+from organization.models import TenantModel
 
-class Jarima(models.Model):
+
+class Jarima(TenantModel):
     berish = models.OneToOneField(Berish, on_delete=models.CASCADE, related_name="jarima")
     kechikkan_kunlar = models.PositiveIntegerField()
     kunlik_stavka = models.DecimalField(max_digits=10, decimal_places=2, default=5000)
@@ -16,4 +18,5 @@ class Jarima(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=["tolandimi", "eslatma_yuborilgan_sana"], name="jarima_eslatma_idx"),
+            models.Index(fields=["organization", "tolandimi"], name="jarima_org_tolandi_idx"),
         ]

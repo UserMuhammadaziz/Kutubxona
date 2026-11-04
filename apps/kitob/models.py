@@ -2,7 +2,10 @@ from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from datetime import date
 
-class Kitob(models.Model):
+from organization.models import TenantModel
+
+
+class Kitob(TenantModel):
     JANR_CHOICES = [
     ("badiiy", "Badiiy"),
     ("ilmiy", "Ilmiy"),
@@ -30,7 +33,7 @@ class Kitob(models.Model):
 
     nomi = models.CharField(max_length = 300,  db_index=True)
     muallif = models.CharField(max_length=150, db_index=True)
-    isbn = models.CharField(max_length = 20, unique=True, null=True, blank=True)
+    isbn = models.CharField(max_length = 20, null=True, blank=True)
     janr = models.CharField(max_length = 60, choices = JANR_CHOICES)
     til = models.CharField(max_length = 30, choices = TIL_CHOICES, blank=True, default="")
     narh = models.DecimalField(max_digits = 12, decimal_places = 2, null = True, blank = True)
@@ -44,8 +47,20 @@ class Kitob(models.Model):
     tavsif = models.TextField(blank=True)
     qoshilgan_sana = models.DateField(auto_now_add=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "isbn"],
+                condition=models.Q(isbn__isnull=False),
+                name="org_bitta_isbn",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["organization", "nomi"], name="kitob_org_nomi_idx"),
+        ]
 
-class BandQilish(models.Model):
+
+class BandQilish(TenantModel):
     """Kitobni band qilish (saqlab qo'yish) so'rovi.
 
     O'quvchi yoki o'qituvchi kitobni band qilishni so'raydi — shundan keyin

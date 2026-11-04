@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom'
 import { statsApi } from '../api/resources'
 import { errorMessage } from '../api/client'
 import { Icons } from '../components/icons'
-import { Card, EmptyState, ErrorState, PageHeader, Spinner } from '../components/ui'
+import { Card, EmptyState, ErrorState, PageHeader, Spinner, Badge } from '../components/ui'
 import { formatMoney } from '../lib/format'
+import { isAdmin } from '../store/auth'
 
 function StatCard({ label, value, tone }: { label: string; value: string | number; tone?: 'red' | 'amber' }) {
   return (
@@ -77,6 +78,22 @@ export function Dashboard() {
           <StatCard label="Umumiy qarzdorlik" value={formatMoney(data.umumiy_qarz)} tone="amber" />
         </Link>
       </div>
+
+      {isAdmin() && (
+        <div className="mt-8">
+          <h2 className="mb-3 text-lg font-semibold text-slate-900 dark:text-slate-100">Foydalanuvchilar soni</h2>
+          <div className="grid grid-cols-2 gap-4">
+            <Card className="p-4">
+              <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Oquvchilar</div>
+              <div className="text-3xl font-semibold text-slate-900 dark:text-slate-100">{data.oquvchi_soni || 0}</div>
+            </Card>
+            <Card className="p-4">
+              <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Oqituvchilar</div>
+              <div className="text-3xl font-semibold text-slate-900 dark:text-slate-100">{data.oqituvchi_soni || 0}</div>
+            </Card>
+          </div>
+        </div>
+      )}
 
       <div className="mt-8">
         <h2 className="mb-3 text-lg font-semibold text-slate-900 dark:text-slate-100">Eng ko'p o'qilgan kitoblar</h2>

@@ -8,19 +8,8 @@ from .models import Jarima
 @transaction.atomic
 def jarimani_hisobla(berish):
     """Bitta Berish uchun kechikish borligini tekshiradi va Jarima yozuvini
-    update_or_create qiladi. OneToOne maydon + shu funksiya orqali ikki
-    qavatli himoya — bitta berishga ikkinchi marta jarima yozilmaydi.
-    Allaqachon to'langan jarimaga tegilmaydi. Idempotent: bir necha marta
-    ketma-ket chaqirilsa ham natija o'zgarmaydi.
-
-    Kechikish qolmagan holat (`kechikkan <= 0`) uchun avval yaratilgan va
-    hali to'lanmagan jarima o'chiriladi — aks holda masalan muddat keyin
-    uzaytirilganda yoki qaytarish sanasi aniq belgilanganda o'quvchi
-    to'lanmagan, amaliyotda mavjud bo'lmagan jarimani ko'radi."""
+    update_or_create qiladi."""
     muddat = berish.qaytarish_muddati
-    # `date.today()` serverining mahalliy vaqtini ishlatadi va TZ da
-    # farq bo'lsa (masalda server UTC da ishlaydi) kechikish bir kun
-    # noto'g'ri hisoblanadi — `localdate()` Django sozlamasidan oladi.
     tekshiriladigan_sana = berish.qaytarilgan_sana or localdate()
     kechikkan = (tekshiriladigan_sana - muddat).days
 
@@ -34,12 +23,15 @@ def jarimani_hisobla(berish):
     if mavjud and mavjud.tolandimi:
         return mavjud
 
+    org = berish.organization
+    kunlik = org.kunlik_jarima if org else settings.KUNLIK_JARIMA
     jarima, _ = Jarima.objects.update_or_create(
         berish=berish,
         defaults={
+            "organization": org,
             "kechikkan_kunlar": kechikkan,
-            "kunlik_stavka": settings.KUNLIK_JARIMA,
-            "summa": kechikkan * settings.KUNLIK_JARIMA,
+            "kunlik_stavka": kunlik,
+            "summa": kechikkan * kunlik,
         },
     )
     return jarima

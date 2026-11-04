@@ -65,9 +65,12 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'django_filters',
-    'user',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
+    'django_filters',
+    'organization',
+    'telegrambot',
+    'user',
     'nusxa',
     'kitob',
     'berish',
@@ -209,6 +212,16 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
     "EXCEPTION_HANDLER": "config.exceptions.xato_handler",
+    "DEFAULT_THROTTLE_CLASSES": (
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ),
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "120/hour",
+        "user": "3000/hour",
+        "register": "10/hour",
+        "bot_webhook": "600/min",
+    },
 }
 
 # Ilovalar `apps/` ichida bo'lgani uchun standart test qidiruvi ularni
@@ -231,8 +244,24 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
 
 # --- Telegram bot (API dan foydalanish uchun) ---
+# Eski bitta-kutubxonali bot uchun fallback. Yangi SaaS rejimida har bir
+# kutubxona o'z bot tokenini panel orqali ulaydi (organization.TelegramBot).
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 BOT_API_BASE_URL = os.environ.get("BOT_API_BASE_URL", "http://127.0.0.1:8000/api")
+# Bot tokenlarini bazada shifrlash uchun kalit. Productionda majburiy.
+BOT_TOKEN_ENCRYPTION_KEY = os.environ.get("BOT_TOKEN_ENCRYPTION_KEY", "")
+TELEGRAM_WEBHOOK_BASE_URL = os.environ.get(
+    "TELEGRAM_WEBHOOK_BASE_URL", "http://127.0.0.1:8000"
+).rstrip("/")
+TELEGRAM_WEBHOOK_SECRET = os.environ.get("TELEGRAM_WEBHOOK_SECRET", "")
+BOT_SERVICE_USERNAME = os.environ.get("BOT_SERVICE_USERNAME", "")
+BOT_SERVICE_PASSWORD = os.environ.get("BOT_SERVICE_PASSWORD", "")
+
+# Frontend manzili (parolni tiklash havolasi va CORS uchun).
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+CORS_ALLOWED_ORIGINS = [
+    o.strip() for o in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()
+]
 
 # --- Production xavfsizligi (manage.py check --deploy) ---
 # Nginx TLS va HTTP -> HTTPS redirect'ini o'zi boshqaradi (Strict-Transport-Security

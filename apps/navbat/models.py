@@ -3,8 +3,10 @@ from django.db.models import Q
 from kitob.models import Kitob 
 from nusxa.models import Nusxa 
 from oquvchi.models import Oquvchi 
+from organization.models import TenantModel
 
-class Navbat(models.Model):
+
+class Navbat(TenantModel):
     CHOICES_NAVBAT = [
     ("kutmoqda", "Kutmoqda"),
     ("taklif_qilindi", "Taklif qilindi"),
@@ -37,4 +39,5 @@ class Navbat(models.Model):
         ordering = ["navbat_sanasi"]
         indexes = [
             models.Index(fields=["holati", "taklif_muddati"], name="navbat_taklif_muddat_idx"),
+            models.Index(fields=["organization", "holati"], name="navbat_org_holat_idx"),
         ]

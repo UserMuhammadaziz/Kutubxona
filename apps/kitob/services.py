@@ -120,31 +120,19 @@ def band_qilish(kitob, oquvchi, izoh=""):
     ).exists():
         _band_xato("allaqachon_berilgan", "Bu kitob allaqachon olganizda bor")
 
-    band = BandQilish.objects.create(kitob=kitob, oquvchi=oquvchi, izoh=izoh or "")
+    band = BandQilish.objects.create(
+        organization=kitob.organization, kitob=kitob, oquvchi=oquvchi, izoh=izoh or ""
+    )
     _xodimlarga_xabar_yubor(band)
     return band, True
 
 
 def _xodimlarga_xabar_yubor(band):
-    """Yangi band so'rovi haqida kutubxonachi/administratorlarga xabar.
-
-    Xodimlar `.env` dagi `BOT_ADMIN_CHAT_IDS` ro'yxatiga kirgan Telegram
-    hisoblar; ro'yxat bo'sh bo'lsa xabar yuborilmaydi (xato ham chiqmaydi) —
-    tasdiqlash web-panel orqali ham mumkin.
-    """
-    import os
-
+    """Yangi band so'rovi haqida kutubxonachi/administratorlarga xabar."""
     from config.telegram import telegram_escape, telegram_xabar_yubor
+    from organization.models import Membership
 
-    raw = os.environ.get("BOT_ADMIN_CHAT_IDS", "")
-    chat_idlar = [
-        int(q.strip())
-        for q in raw.split(",")
-        if q.strip().lstrip("-").isdigit()
-    ]
-    if not chat_idlar:
-        return
-
+    organization = band.organization
     rol = "o'qituvchi" if band.oquvchi.rol == "oqituvchi" else "o'quvchi"
     qator = f"🔒 Yangi band so'rovi: {telegram_escape(band.kitob.nomi)}"
     if band.izoh:
@@ -154,8 +142,18 @@ def _xodimlarga_xabar_yubor(band):
         f"So'raydi: {telegram_escape(band.oquvchi.fish)} ({rol})\n"
         f"Tasdiqlash uchun botda /bandlar buyrug'ini bosing."
     )
+    chat_idlar = (
+        Membership.objects.filter(
+            organization=organization,
+            faol=True,
+            rol__in=["egasi", "administrator", "kutubxonachi"],
+            telegram_id__isnull=False,
+        )
+        .values_list("telegram_id", flat=True)
+        .distinct()
+    )
     for chat_id in chat_idlar:
-        telegram_xabar_yubor(chat_id, matn)
+        telegram_xabar_yubor(chat_id, matn, organization=organization)
 
 
 def band_qilishni_bekor_qil(band, oquvchi):
@@ -237,22 +235,15 @@ def band_qilishni_tasdiqla(band, xodim, izoh=""):
 
 # ---------------------------------------------------------------------------
 # Band so'rovi natijalarini o'quvchiga yetkazish
-#
-# Bot xabar qiladi: «Tasdiqlanganligi xabar qilinadi» — shu vaat xabar
-# yuborilishi SHART, aks holda yozuv yolg'on bo'ladi. Xabar tranzaksiya
-# commit bo'lgandan keyin yuboriladi (rollback bo'lsa yuborilmaydi).
 # ---------------------------------------------------------------------------
 
 
 def _band_tasdiqlandi_xabarini_yubor(band):
-    """Band tasdiqlandi: o'quvchiga xabar + qaytarish muddati.
-
-    `band.berish` band bilan bir vaqtda saqlanadi (yuqorida `save()`),
-    shuning uchun `on_commit` ichida mavjud bo'ladi. Xabar yuborilmasa ham
-    tasdiqlash amalga oshgan bo'ladi."""
+    """Band tasdiqlandi: o'quvchiga xabar + qaytarish muddati."""
     if not band.oquvchi.telegram_id:
         return
     berish = band.berish
+    muddat = band.organization.muddat_kun if band.organization else settings.MUDDAT_KUN
     matn = (
         "◈ <b>KUTUBXONA</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -263,11 +254,11 @@ def _band_tasdiqlandi_xabarini_yubor(band):
         matn += (
             f"Berilgan sana: {berish.berilgan_sana}\n"
             f"Qaytarish muddati: <b>{berish.qaytarish_muddati}</b>\n\n"
-            f"Iltimos, kitobni {settings.MUDDAT_KUN} kun ichida qaytaring."
+            f"Iltimos, kitobni {muddat} kun ichida qaytaring."
         )
-    else:  # pragma: no cover — himoya; berish har doim yaratiladi
+    else:  # pragma: no cover
         matn += "Kitob sizga berishga tayyor. Qaytarish muddati uchun botga yozing."
-    telegram_xabar_yubor(band.oquvchi.telegram_id, matn)
+    telegram_xabar_yubor(band.oquvchi.telegram_id, matn, organization=band.organization)
 
 
 def _band_rad_etildi_xabarini_yubor(band):
@@ -283,4 +274,4 @@ def _band_rad_etildi_xabarini_yubor(band):
     if band.tasdiqlash_izohi:
         matn += f"\nSabab: {telegram_escape(band.tasdiqlash_izohi)}"
     matn += "\n\nBoshqa kitob band qilmoqchi bo'lsangiz, qayta urinib ko'ring."
-    telegram_xabar_yubor(band.oquvchi.telegram_id, matn)
+    telegram_xabar_yubor(band.oquvchi.telegram_id, matn, organization=band.organization)

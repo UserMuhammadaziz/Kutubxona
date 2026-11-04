@@ -54,6 +54,7 @@ def taklif_xabari_matni(navbat):
     muddat = navbat.taklif_muddati.strftime("%d.%m.%Y %H:%M")
     nomi = telegram_escape(navbat.kitob.nomi)
     muallif = telegram_escape(navbat.kitob.muallif)
+    soat = navbat.organization.taklif_soat if navbat.organization else settings.TAKLIF_SOAT
     return (
         "🔔 <b>Navbatingiz yaqinlashdi!</b>\n\n"
         f"📖 <b>{nomi}</b>\n"
@@ -66,15 +67,9 @@ def taklif_xabari_matni(navbat):
 
 
 def _botga_xabar_yubor(navbat_id):
-    """Taklif xabarini o'quvchining Telegram hisobiga yuboradi.
-
-    Aniq bir marta yuborilishini kafolatlaydi: `taklif_xabari_yuborilgan`
-    bayrogi taklif yuborilgan paytning o'zida (tranzaksiya ichida) True
-    qilinadi, shuning uchun on_commit ishlayotgan bo'lishiga qaramay
-    xabar ikkinchi marta yuborilmaydi.
-    """
+    """Taklif xabarini o'quvchining Telegram hisobiga yuboradi."""
     navbat = (
-        Navbat.objects.select_related("kitob", "oquvchi", "ajratilgan_nusxa")
+        Navbat.objects.select_related("organization", "kitob", "oquvchi", "ajratilgan_nusxa")
         .filter(pk=navbat_id, taklif_xabari_yuborilgan=True)
         .first()
     )
@@ -82,7 +77,9 @@ def _botga_xabar_yubor(navbat_id):
         return False
     if not navbat.oquvchi.telegram_id:
         return False
-    if not telegram_xabar_yubor(navbat.oquvchi.telegram_id, taklif_xabari_matni(navbat)):
+    if not telegram_xabar_yubor(
+        navbat.oquvchi.telegram_id, taklif_xabari_matni(navbat), organization=navbat.organization
+    ):
         return False
 
     Navbat.objects.filter(pk=navbat.pk).update(taklif_xabari_yuborilgan=False)
@@ -136,11 +133,12 @@ def taklif_yubor(kitob_id, nusxa):
         return False
 
     taklif_vaqti = now()
+    soat = navbat.organization.taklif_soat if navbat.organization else settings.TAKLIF_SOAT
     navbat.holati = "taklif_qilindi"
     navbat.ajratilgan_nusxa = nusxa
     navbat.javob = ""
     navbat.taklif_vaqti = taklif_vaqti
-    navbat.taklif_muddati = taklif_vaqti + timedelta(hours=settings.TAKLIF_SOAT)
+    navbat.taklif_muddati = taklif_vaqti + timedelta(hours=soat)
     navbat.taklif_xabari_yuborilgan = True
     navbat.save(
         update_fields=[

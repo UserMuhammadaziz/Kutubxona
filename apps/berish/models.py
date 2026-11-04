@@ -6,9 +6,10 @@ from oquvchi.models import Oquvchi
 from django.utils.timezone import now
 from datetime import date
 from django.conf import settings
+from organization.models import TenantModel
 
 
-class Berish(models.Model):
+class Berish(TenantModel):
     CHOICES_HOLAT = [
     ("faol", "Faol"),
     ("qaytarilgan", "Qaytarilgan"),
@@ -51,4 +52,5 @@ class Berish(models.Model):
         indexes = [
             models.Index(fields=["oquvchi", "qaytarilgan_sana"], name="berish_oquvchi_qaytarilgan_idx"),
             models.Index(fields=["qaytarish_muddati"], name="berish_muddat_idx"),
+            models.Index(fields=["organization", "holati"], name="berish_org_holat_idx"),
         ]

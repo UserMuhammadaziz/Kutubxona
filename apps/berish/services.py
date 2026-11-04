@@ -31,11 +31,16 @@ def _oq_berish_cheklovlari(oquvchi):
     if not oquvchi.faol:
         _xato("oquvchi_bloklangan", "O'quvchi bloklangan")
 
+    org = oquvchi.organization
+    limit = org.limit_kitob if org else settings.LIMIT_KITOB
     faol_soni = Berish.objects.filter(oquvchi=oquvchi, qaytarilgan_sana__isnull=True).count()
-    if faol_soni >= settings.LIMIT_KITOB:
-        _xato("limit_oshdi", f"O'quvchida allaqachon {settings.LIMIT_KITOB} ta kitob bor")
+    if faol_soni >= limit:
+        _xato("limit_oshdi", f"O'quvchida allaqachon {limit} ta kitob bor")
 
-    if Jarima.objects.filter(berish__oquvchi=oquvchi, tolandimi=False).exists():
+    jarimalar = Jarima.objects.filter(berish__oquvchi=oquvchi, tolandimi=False)
+    if org is not None:
+        jarimalar = jarimalar.filter(organization=org)
+    if jarimalar.exists():
         _xato("tolanmagan_jarima", "O'quvchida to'lanmagan jarima bor")
 
 
@@ -113,11 +118,14 @@ def kitob_ber(nusxa, oquvchi, xodim, kitob=None, band_tasdiqlandi=False):
     # bloklab, tekshiruv va yozuvni ketma-ketlashtiradi.
     oquvchi = Oquvchi.objects.select_for_update().get(pk=oquvchi.pk)
     _oq_berish_cheklovlari(oquvchi)
+    organization = oquvchi.organization
 
     if nusxa is None:
         if kitob is None:
             _xato("notogri_manzil", "Nusxa yoki kitobni tanlang")
         kitob = Kitob.objects.select_for_update().get(pk=kitob.pk)
+        if organization is not None and kitob.organization_id != organization.pk:
+            _xato("boshqa_kutubxona", "Kitob boshqa kutubxonaga tegishli")
         if Nusxa.objects.filter(kitob_id=kitob.pk).exists():
             _xato(
                 "nusxa_mavjud",
@@ -134,6 +142,8 @@ def kitob_ber(nusxa, oquvchi, xodim, kitob=None, band_tasdiqlandi=False):
         kitob_id = nusxa.kitob_id
         nusxa_holati = "berilgan"
         kitob = nusxa.kitob
+        if organization is not None and kitob.organization_id != organization.pk:
+            _xato("boshqa_kutubxona", "Nusxa boshqa kutubxonaga tegishli")
 
     # Band himoyasi: tasdiqlanmagan band so'rovi bo'lsa kitobni hech kimga
     # berib bo'lmaydi (so'rov qiluvchiga ham — avval tasdiqlanishi kerak).
@@ -151,12 +161,14 @@ def kitob_ber(nusxa, oquvchi, xodim, kitob=None, band_tasdiqlandi=False):
         nusxa.holati = nusxa_holati
         nusxa.save(update_fields=["holati"])
 
+    muddat = organization.muddat_kun if organization else settings.MUDDAT_KUN
     berish = Berish.objects.create(
+        organization=organization,
         nusxa=nusxa,
         kitob_id=kitob_id,
         oquvchi=oquvchi,
         bergan_xodim=xodim,
-        qaytarish_muddati=now().date() + timedelta(days=settings.MUDDAT_KUN),
+        qaytarish_muddati=now().date() + timedelta(days=muddat),
         holati="faol",
     )
 
@@ -179,32 +191,82 @@ def kitob_ber(nusxa, oquvchi, xodim, kitob=None, band_tasdiqlandi=False):
         taklif_xabari_yuborilgan=False,
     )
 
-    # Kitob olgan kundan boshlab qaytarish muddati (14 kun) boshlanadi.
+    # Kitob olgan kundan boshlab qaytarish muddati boshlanadi.
+    try:
+        from telegrambot.models import KitobXabari
+
+        KitobXabari.objects.get_or_create(
+            organization=berish.organization, kitob=kitob, tur="berildi"
+        )
+        from telegrambot.tasks import yangi_kitob_xabari_yubor
+
+        yangi_kitob_xabari_yubor.delay(kitob_id=kitob.pk)
+    except Exception:
+        pass
     transaction.on_commit(lambda: _kitob_berildi_xabarini_yubor(berish))
 
     return berish
 
 
 def _kitob_berildi_xabarini_yubor(berish):
-    """Berish tranzaksiyasi commit bo'lgach, o'quvchiga Telegram xabar yuboradi:
-    «Kitob berildi» + qaytarish muddati + olgan kundan hisoblanadigan muddat."""
+    """Berish tranzaksiyasi commit bo'lgach, o'quvchiga Telegram xabar yuboradi."""
     oquvchi = berish.oquvchi
     if not oquvchi.telegram_id:
         return
     if berish.nusxa_id:
-        manzil = f"Inventar raqami: {berish.nusxa.inventar_raqami}"
+        manzil = "Inventar raqami: " + str(berish.nusxa.inventar_raqami)
     else:
-        manzil = "Nusxasi yo'q — kitob aslida berildi"
+        manzil = "Nusxasi yo'q - kitob aslida berildi"
+    from django.conf import settings
+    if berish.organization:
+        muddat = berish.organization.muddat_kun
+    else:
+        muddat = settings.MUDDAT_KUN
+    kim = oquvchi.fish
+    if getattr(oquvchi, "rol", None) == "oqituvchi":
+        kim_rol = "O'qituvchi"
+        kim_sinf_kasb = getattr(oquvchi, "kasb", None) or "-"
+    else:
+        kim_rol = "O'quvchi"
+        kim_sinf_kasb = getattr(oquvchi, "sinf", None) or "-"
+    kim_qisqa = str(kim) + " (" + str(kim_sinf_kasb) + ")"
     matn = (
-        "📖 <b>Kitob berildi!</b>\n\n"
-        f"Qabul qilgan kitobingiz: <b>{telegram_escape(berish.kitob.nomi)}</b>\n"
-        f"{manzil}\n"
-        f"Berilgan sana: {berish.berilgan_sana}\n"
-        f"Qaytarish muddati: <b>{berish.qaytarish_muddati}</b>\n\n"
-        f"Sizda kitobni olgan kundan boshlab {settings.MUDDAT_KUN} kun muddat bor. "
-        "Iltimos, vaqtida topshiring!"
+        "\U0001F4D6 <b>Kitob berildi!</b>\n\n"
+        + "Qabul qilgan kitob: <b>" + telegram_escape(berish.kitob.nomi) + "</b>\n"
+        + "Muallif: " + telegram_escape(berish.kitob.muallif) + "\n"
+        + manzil + "\n\n"
+        + "<b>Batafsil (kimga berildi):</b>\n"
+        + "\u2022 Ism: " + telegram_escape(kim) + "\n"
+        + "\u2022 Rol: " + telegram_escape(kim_rol) + "\n"
+        + "\u2022 Sinf/Fan: " + telegram_escape(kim_sinf_kasb) + "\n"
+        + "\u2022 Telefon: " + telegram_escape(oquvchi.telefon) + "\n"
+        + "\u2022 Karta: " + telegram_escape(oquvchi.karta_raqami) + "\n\n"
+        + "<b>Qisqacha:</b> " + telegram_escape(kim_qisqa) + " \u2014 " + telegram_escape(berish.kitob.nomi) + " berildi.\n\n"
+        + "Berilgan sana: " + str(berish.berilgan_sana) + "\n"
+        + "Qaytarish muddati: <b>" + str(berish.qaytarish_muddati) + "</b>\n\n"
+        + "Sizda kitobni olgan kundan boshlab " + str(muddat) + " kun muddat bor. Iltimos, vaqtida topshiring!"
     )
-    telegram_xabar_yubor(oquvchi.telegram_id, matn)
+    try:
+        from oquvchi.models import Oquvchi
+        from telegrambot.services import botni_ol
+        from config.telegram import telegram_xabar_yubor as txy
+        bot = botni_ol(berish.organization)
+        if bot and bot.holati == "ulangan":
+            qisqa = (
+                "\U0001F4E3 <b>Kitob berildi (axborot)</b>\n\n"
+                + "Kitob: <b>" + telegram_escape(berish.kitob.nomi) + "</b>\n"
+                + "Muallif: " + telegram_escape(berish.kitob.muallif) + "\n"
+                + "<b>Qisqacha:</b> " + telegram_escape(kim_qisqa) + " ga berildi.\n"
+                + "<b>Batafsil:</b> " + telegram_escape(kim) + " | " + telegram_escape(kim_rol) + " | " + telegram_escape(kim_sinf_kasb) + " | Qaytarish: " + str(berish.qaytarish_muddati) + "\n"
+                + "<b>Holat:</b> Hozir berilgan \u2014 mavjudlik soni pasaygan."
+            )
+            for tid in Oquvchi.objects.filter(
+                organization=berish.organization, faol=True, telegram_id__isnull=False
+            ).exclude(pk=oquvchi.pk).values_list("telegram_id", flat=True).distinct():
+                txy(tid, qisqa, organization=berish.organization, bot=bot)
+    except Exception:
+        pass
+    telegram_xabar_yubor(oquvchi.telegram_id, matn, organization=berish.organization)
 
 
 def _erken_qaytarish_xabarini_yubor(berish):
@@ -226,7 +288,7 @@ def _erken_qaytarish_xabarini_yubor(berish):
         "raxmat! Jarima yozilmadi.\n"
         "📚 Yana kitob olish uchun «🔎 Kitob qidirish» bo'limidan foydalanishingiz mumkin."
     )
-    telegram_xabar_yubor(oquvchi.telegram_id, matn)
+    telegram_xabar_yubor(oquvchi.telegram_id, matn, organization=berish.organization)
 
 
 @transaction.atomic
