@@ -43,11 +43,18 @@ export function Home() {
       <header className="mx-auto flex h-20 max-w-6xl items-center justify-between px-4">
         <Logo />
         <nav className="flex items-center gap-1 sm:gap-2">
-          <Link to="/yordam" className="hidden px-3 py-2 text-sm font-medium hover:underline sm:block">
+          <Link to="/demo" className="hidden px-3 py-2 text-sm font-medium hover:underline sm:block">
+            Sinab ko‘rish
+          </Link>
+          <Link to="/yordam" className="hidden px-3 py-2 text-sm font-medium hover:underline md:block">
             Qo‘llanma
           </Link>
-          <Link to="/login" className="px-3 py-2 text-sm font-medium hover:underline">
-            Kirish
+          <Link
+            to="/login"
+            className="rounded-full border px-4 py-2 text-sm font-semibold"
+            style={{ borderColor: YASHIL, color: YASHIL }}
+          >
+            Tizimga kirish
           </Link>
           <Link to="/register" className="rounded-full px-5 py-2.5 text-sm font-semibold text-white" style={{ background: YASHIL }}>
             Ro‘yxatdan o‘tish
@@ -59,18 +66,18 @@ export function Home() {
         {/* Hero */}
         <section className="mx-auto max-w-6xl px-4 pt-10 sm:pt-16">
           <h1 className="max-w-4xl text-4xl font-bold leading-[1.06] tracking-tight sm:text-6xl">
-            Kim qaysi kitobni olgan — <span style={{ color: YASHIL_OCH }}>bir qarashda.</span>
+            Kim qaysi kitobni olgani <span style={{ color: YASHIL_OCH }}>doim ko‘z oldingizda.</span>
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-relaxed sm:text-xl" style={{ color: SOYA }}>
-            Kutubxonachi uchun berish, qaytarish, muddat va jarima hisobi. Daftar va Excel o‘rniga. O‘zbek tilida,
-            kompyuter va telefonda.
+            Kitob berish, qaytarish, muddat va jarima hisobi bir joyda. Daftar va Excel kerak emas. Hammasi o‘zbek
+            tilida, kompyuter va telefonda ishlaydi.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link to="/register" className={btn + ' text-white'} style={{ background: YASHIL }}>
               Ro‘yxatdan o‘tish
             </Link>
-            <Link to="/login" className={btn} style={{ background: OQ }}>
-              Kirish
+            <Link to="/demo" className={btn} style={{ background: OQ }}>
+              Sinab ko‘rish
             </Link>
           </div>
 
@@ -128,7 +135,7 @@ export function Home() {
             <Tile bg={YASHIL} color="#fff" className="lg:col-span-2">
               <h3 className="text-xl font-bold">AI yordamchi</h3>
               <p className="mt-2 text-base leading-relaxed" style={{ color: '#cfe5da' }}>
-                Tizim bo‘yicha savolga o‘zbekcha javob beradi. Ctrl+K orqali oddiy gap bilan buyruq berasiz.
+                Tizim haqida savol bersangiz, o‘zbekcha javob beradi. Ctrl+K bosib, oddiy gap bilan buyruq ham berishingiz mumkin.
               </p>
             </Tile>
 
@@ -163,8 +170,8 @@ export function Home() {
             <Tile bg={QUM} className="lg:col-span-6">
               <h3 className="text-xl font-bold">Kutubxonalar alohida</h3>
               <p className="mt-2 text-base leading-relaxed" style={{ color: SOYA }}>
-                Har bir kutubxonaning ma’lumoti boshqalarnikidan ajratilgan. Kutubxona, maktab, universitet yoki ofis
-                bo‘lishi mumkin.
+                Har bir kutubxonaning ma’lumoti boshqalarnikidan ajratilgan. Maktab, universitet, mahalla
+                kutubxonasi yoki ofis kutubxonasi bo‘lishi mumkin.
               </p>
             </Tile>
           </div>

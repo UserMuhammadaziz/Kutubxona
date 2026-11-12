@@ -180,6 +180,9 @@ export function Login() {
             <BookOpen className="h-4 w-4" aria-hidden="true" />
             Tizimdan foydalanish qo‘llanmasi
           </Link>
+          <Link to="/demo" className="mt-2 block text-center text-sm font-medium text-slate-600 hover:underline dark:text-slate-400">
+            Ro‘yxatdan o‘tmasdan sinab ko‘rish
+          </Link>
         </div>
       </main>
     </div>

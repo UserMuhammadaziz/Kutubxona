@@ -19,6 +19,7 @@ import { Announcements } from './pages/Announcements'
 import { Fines } from './pages/Fines'
 import { Staff } from './pages/Staff'
 import { Guide, PublicGuide } from './pages/Guide'
+import { Demo } from './pages/Demo'
 import { Register } from './pages/Register'
 import { Home } from './pages/Home'
 
@@ -35,6 +36,7 @@ function App() {
       <Route path="/yordam" element={<PublicGuide />} />
       <Route path="/register" element={<Register />} />
       <Route path="/welcome" element={<Home />} />
+      <Route path="/demo" element={<Demo />} />
 
       <Route element={<RequireAuth />}>
         <Route element={<Layout />}>

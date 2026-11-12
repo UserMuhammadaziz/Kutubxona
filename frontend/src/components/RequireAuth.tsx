@@ -11,6 +11,7 @@ export function RequireAuth() {
     // Foydalanuvchi kirishdan keyin avvalgi sahifaga qaytishi kerak —
     // aks holda kirish oynasi har doim `/` ga tashlab ketadi va u
     // kutayotgan sahifa yo'qoladi.
+    if (joylashuv.pathname === '/' && !joylashuv.search) return <Navigate to="/welcome" replace />
     const qaytish = `${joylashuv.pathname}${joylashuv.search}`
     return <Navigate to={`/login?from=${encodeURIComponent(qaytish)}`} replace />
   }
