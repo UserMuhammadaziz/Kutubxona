@@ -65,3 +65,14 @@ button:disabled,
   --color-slate-900: #151c2e;
   --color-slate-950: #0e1424;
 }
+
+/* Landing: sana muhri bosilgandagi effekt (Home.tsx) */
+@keyframes muhr-bos {
+  0% { transform: scale(1.7) rotate(-9deg); opacity: 0; }
+  60% { transform: scale(0.94) rotate(-4deg); opacity: 1; }
+  100% { transform: scale(1) rotate(-4deg); opacity: 0.92; }
+}
+.muhr-bos { animation: muhr-bos 0.28s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .muhr-bos { animation: none; opacity: 0.92; transform: rotate(-4deg); }
+}

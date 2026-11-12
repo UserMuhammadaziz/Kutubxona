@@ -1,207 +1,315 @@
+import { useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  ArrowRight,
-  BarChart3,
-  Bell,
-  BookOpen,
-  Bot,
-  Building2,
-  CheckCircle2,
-  Clock,
-  GraduationCap,
-  Lock,
-  MessageCircle,
-  Repeat,
-  Smartphone,
-  Sparkles,
-  Wallet,
-} from 'lucide-react'
-import type { ComponentType } from 'react'
 import { Logo } from '../components/Logo'
 
-type Ikon = ComponentType<{ className?: string }>
+/*
+ * Landing (/welcome).
+ * G'oya: kutubxona kitobining orqasiga yopishtirilgan formulyar (sana muhrli varaq).
+ * Sahifaning asosiy elementi — shu varaqning jonli nusxasi: "Kitob berish" muhr bosadi,
+ * "Qaytarib olish" qaytgan sanani bosadi. Qolgan hamma narsa jim va sodda.
+ */
 
-const IMKONIYATLAR: { nomi: string; matn: string; ikon: Ikon }[] = [
-  { ikon: Repeat, nomi: 'Berish va qaytarish', matn: 'Kitobni bir necha bosishda bering va qabul qiling. Muddati o‘tganlar o‘zi ajralib turadi.' },
-  { ikon: BookOpen, nomi: 'Kitoblar va nusxalar', matn: 'Har bir nusxa inventar raqami bilan. Qaysi kitob javonda, qaysi biri qo‘lda — bir qarashda.' },
-  { ikon: GraduationCap, nomi: 'O‘quvchi va o‘qituvchilar', matn: 'Ro‘yxat, kartalar, fanlar va arizalar. O‘qituvchi arizasini tasdiqlash yoki rad etish.' },
-  { ikon: Lock, nomi: 'Band qilish va navbat', matn: 'Kitob band bo‘lsa, o‘quvchi navbatga turadi. Bo‘shagach sizga ko‘rinadi.' },
-  { ikon: Wallet, nomi: 'Jarimalar', matn: 'Kechikish uchun jarima o‘zi hisoblanadi. To‘langan va to‘lanmagan summa alohida ko‘rinadi.' },
-  { ikon: BarChart3, nomi: 'Statistika', matn: 'Eng ko‘p o‘qilgan kitoblar, qarzdorlar va fond holati — boshqaruv panelida.' },
+const INK = '#101c38' // kitob muqovasi tusidagi to'q ko'k
+const MUHR = '#5b3a9e' // sana muhri siyohi
+const VARAQ = '#fbf8ef' // formulyar qog'ozi
+const SAHIFA = '#e9eef5'
+
+const DISPLAY: CSSProperties = { fontFamily: "'Fraunces', Georgia, serif", fontWeight: 700 }
+const MONO: CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" }
+
+interface Qator {
+  id: number
+  oquvchi: string
+  kitob: string
+  berilgan: string
+  muddat: string
+  qaytgan?: string
+}
+
+const KUN = 24 * 60 * 60 * 1000
+const sana = (d: Date) =>
+  `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`
+
+// Namuna ma'lumotlar: faqat ko'rsatish uchun, haqiqiy o'quvchi emas.
+const NAMUNA: { oquvchi: string; kitob: string }[] = [
+  { oquvchi: 'Madina Karimova, 7-sinf', kitob: 'O‘tkan kunlar' },
+  { oquvchi: 'Sardor Aliyev, 9-sinf', kitob: 'Sariq devni minib' },
+  { oquvchi: 'Nilufar Tursunova, 5-sinf', kitob: 'Kichkina shahzoda' },
+  { oquvchi: 'Jasur Qodirov, 10-sinf', kitob: 'Mehrobdan chayon' },
+]
+
+function Formulyar() {
+  const [qatorlar, setQatorlar] = useState<Qator[]>(() => {
+    const t = Date.now()
+    return [
+      {
+        id: 0,
+        oquvchi: 'Aziza Rahimova, 6-sinf',
+        kitob: 'Alisher Navoiy. Tanlangan asarlar',
+        berilgan: sana(new Date(t - 9 * KUN)),
+        muddat: sana(new Date(t + 5 * KUN)),
+      },
+    ]
+  })
+  const [keyingi, setKeyingi] = useState(0)
+
+  const ochiqlar = qatorlar.filter((q) => !q.qaytgan).length
+
+  function ber() {
+    const n = NAMUNA[keyingi % NAMUNA.length]
+    const t = Date.now()
+    setQatorlar((old) => [
+      { id: old.length + 1, ...n, berilgan: sana(new Date(t)), muddat: sana(new Date(t + 14 * KUN)) },
+      ...old,
+    ])
+    setKeyingi((k) => k + 1)
+  }
+
+  function qaytar() {
+    setQatorlar((old) => {
+      const i = [...old].reverse().findIndex((q) => !q.qaytgan)
+      if (i < 0) return old
+      const idx = old.length - 1 - i
+      return old.map((q, j) => (j === idx ? { ...q, qaytgan: sana(new Date()) } : q))
+    })
+  }
+
+  return (
+    <div>
+      <div
+        className="relative rounded-sm px-5 pb-5 pt-6 shadow-[0_18px_40px_-18px_rgba(16,28,56,0.45)] sm:px-7"
+        style={{ background: VARAQ, color: INK, transform: 'rotate(0.6deg)' }}
+      >
+        <div className="flex items-baseline justify-between gap-3 border-b-2 pb-2" style={{ borderColor: INK }}>
+          <span className="text-xs font-semibold uppercase tracking-[0.18em]" style={MONO}>
+            Kitob formulyari
+          </span>
+          <span className="text-xs" style={MONO}>
+            Qo‘lda: {ochiqlar} ta
+          </span>
+        </div>
+
+        <ul className="min-h-[19rem]" aria-live="polite">
+          {qatorlar.map((q, i) => (
+            <li
+              key={q.id}
+              className="relative border-b border-dashed py-3 pr-2"
+              style={{ borderColor: 'rgba(16,28,56,0.3)' }}
+            >
+              <div className="text-base font-semibold leading-snug">{q.kitob}</div>
+              <div className="mt-0.5 text-sm" style={{ color: 'rgba(16,28,56,0.75)' }}>
+                {q.oquvchi}
+              </div>
+              <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[13px]" style={MONO}>
+                <span>Berildi {q.berilgan}</span>
+                <span>Muddat {q.muddat}</span>
+              </div>
+              <span
+                key={q.qaytgan ? 'q' : 'b'}
+                className={i === 0 || q.qaytgan ? 'muhr-bos' : ''}
+                style={{
+                  ...MONO,
+                  position: 'absolute',
+                  right: 0,
+                  top: 10,
+                  border: `2px solid ${MUHR}`,
+                  color: MUHR,
+                  padding: '2px 8px',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  letterSpacing: '0.08em',
+                  transform: 'rotate(-4deg)',
+                  opacity: 0.92,
+                }}
+              >
+                {q.qaytgan ? `QAYTDI ${q.qaytgan}` : 'BERILDI'}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={ber}
+          className="min-h-12 rounded-md px-5 text-base font-semibold text-white transition hover:brightness-110 active:translate-y-px"
+          style={{ background: INK }}
+        >
+          Kitob berish
+        </button>
+        <button
+          type="button"
+          onClick={qaytar}
+          disabled={ochiqlar === 0}
+          className="min-h-12 rounded-md border-2 px-5 text-base font-semibold transition hover:bg-white/60 disabled:cursor-not-allowed disabled:opacity-40"
+          style={{ borderColor: INK, color: INK }}
+        >
+          Qaytarib olish
+        </button>
+        <span className="text-sm" style={{ color: 'rgba(16,28,56,0.7)' }}>
+          Bosib ko‘ring. Bu namuna, ma’lumot saqlanmaydi.
+        </span>
+      </div>
+    </div>
+  )
+}
+
+const ISHLAR: { nom: string; matn: string }[] = [
+  { nom: 'Berish va qaytarish', matn: 'O‘quvchini toping, kitobni tanlang, bering. Qaytganda bir bosish bilan qabul qiling.' },
+  { nom: 'Nusxalar', matn: 'Har bir nusxa inventar raqami bilan. Qaysi biri javonda, qaysi biri o‘quvchida — shu zahoti ko‘rinadi.' },
+  { nom: 'Band va navbat', matn: 'Kitob qo‘lda bo‘lsa, o‘quvchi navbatga turadi. Qaytgach navbatdagi kishi ko‘rinib turadi.' },
+  { nom: 'Muddat va jarima', matn: 'Muddati o‘tganlar alohida ajraladi. Kechikish uchun jarima o‘zi hisoblanadi, to‘lovni belgilab borasiz.' },
+  { nom: 'O‘quvchi va o‘qituvchilar', matn: 'Ro‘yxat, fanlar, arizalar. O‘qituvchi arizasini ko‘rib chiqib, tasdiqlaysiz yoki rad etasiz.' },
+  { nom: 'Hisobotlar', matn: 'Eng ko‘p o‘qilgan kitoblar, qarzdorlar, fond holati — boshqaruv panelida, hisoblab o‘tirmasdan.' },
 ]
 
 const QADAMLAR = [
-  { n: '1', nomi: 'Ro‘yxatdan o‘ting', matn: 'Kutubxonangiz nomini kiriting. Ma’lumotlaringiz boshqalarnikidan alohida saqlanadi.' },
-  { n: '2', nomi: 'Kitob va o‘quvchilarni qo‘shing', matn: 'Kitoblarni, nusxalarni va o‘quvchilarni kiriting. O‘quvchilar Telegram bot orqali ham ariza yuboradi.' },
-  { n: '3', nomi: 'Ishlashni boshlang', matn: 'Kitob bering, qaytarib oling, jarimalarni kuzating. Qo‘llanma har bir qadamda yordam beradi.' },
+  { nom: 'Kutubxonani ro‘yxatdan o‘tkazing', matn: 'Nomi va turini kiriting. Ma’lumotlaringiz boshqa kutubxonalardan alohida saqlanadi.' },
+  { nom: 'Kitob va o‘quvchilarni kiriting', matn: 'Kitoblarni qo‘shing. O‘quvchilar Telegram bot orqali o‘zlari ariza yuboradi.' },
+  { nom: 'Kitob bera boshlang', matn: 'Qo‘llanma har bir sahifada yonida. Qiynalsangiz, AI yordamchidan so‘rang.' },
 ]
 
-const QULAYLIKLAR: { nomi: string; matn: string; ikon: Ikon }[] = [
-  { ikon: Bot, nomi: 'AI yordamchi', matn: 'Savolingizni o‘zbekcha yozing — tizim bo‘yicha yo‘l ko‘rsatadi. Ctrl+K bilan buyruq ham bering: «Aliga kitob ber».' },
-  { ikon: MessageCircle, nomi: 'Telegram bot', matn: 'O‘quvchi va o‘qituvchi botdan ro‘yxatdan o‘tadi, arizasi sizga keladi.' },
-  { ikon: Smartphone, nomi: 'Telefonda ham ishlaydi', matn: 'Ilova sifatida o‘rnatiladi, pastki menyu bilan qulay. Yozuv o‘lchamini o‘zingiz tanlaysiz.' },
-  { ikon: Building2, nomi: 'Har kutubxona alohida', matn: 'Kutubxona, maktab, universitet yoki ofis — har biri o‘z ma’lumoti bilan ishlaydi.' },
-]
-
-/** Ochiq landing sahifa (/welcome): imkoniyatlarni ko'rsatadi, ro'yxatdan o'tish va kirishga yo'naltiradi. */
 export function Home() {
   return (
-    <div className="min-h-screen bg-canvas text-slate-900 dark:bg-slate-900 dark:text-slate-100">
-      <header className="sticky top-0 z-20 border-b border-slate-200/70 bg-canvas/90 backdrop-blur dark:border-slate-700/70 dark:bg-slate-900/90">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-          <Logo />
-          <nav className="flex items-center gap-2 sm:gap-4">
-            <a href="#imkoniyatlar" className="hidden text-sm font-medium text-slate-600 hover:text-brand-700 sm:block dark:text-slate-300">
-              Imkoniyatlar
-            </a>
-            <Link to="/yordam" className="hidden text-sm font-medium text-slate-600 hover:text-brand-700 sm:block dark:text-slate-300">
-              Qo‘llanma
-            </Link>
-            <Link to="/login" className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">
-              Kirish
-            </Link>
-            <Link to="/register" className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">
-              Boshlash
-            </Link>
-          </nav>
-        </div>
+    <div className="min-h-screen" style={{ background: SAHIFA, color: INK }}>
+      <header className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+        <Logo />
+        <nav className="flex items-center gap-1 sm:gap-3">
+          <Link to="/yordam" className="hidden rounded-md px-3 py-2 text-sm font-medium hover:bg-white/60 sm:block">
+            Qo‘llanma
+          </Link>
+          <Link to="/login" className="rounded-md px-3 py-2 text-sm font-semibold hover:bg-white/60">
+            Kirish
+          </Link>
+          <Link
+            to="/register"
+            className="rounded-md px-4 py-2 text-sm font-semibold text-white hover:brightness-110"
+            style={{ background: INK }}
+          >
+            Ro‘yxatdan o‘tish
+          </Link>
+        </nav>
       </header>
 
       <main>
         {/* Hero */}
-        <section className="mx-auto max-w-6xl px-4 pb-14 pt-14 sm:pt-20">
-          <div className="grid items-center gap-10 lg:grid-cols-2">
-            <div>
-              <span className="inline-flex items-center gap-2 rounded-full bg-brand-50 px-3 py-1 text-sm font-medium text-brand-800 dark:bg-brand-900/40 dark:text-brand-200">
-                <Sparkles className="h-4 w-4" aria-hidden="true" /> AI yordamchi va Telegram bot bilan
-              </span>
-              <h1 className="mt-5 text-4xl font-bold leading-tight sm:text-5xl">
-                Kutubxonani <span className="text-brand-600 dark:text-brand-400">qog‘ozsiz</span>, oson boshqaring
-              </h1>
-              <p className="mt-5 max-w-xl text-lg text-slate-600 dark:text-slate-300">
-                Kitoblar, o‘quvchilar, berish-qaytarish va jarimalar — hammasi bir joyda. Daftar va Excel o‘rniga,
-                kutubxonachi uchun sodda qilib yasalgan tizim.
-              </p>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <Link to="/register" className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-6 py-3 font-semibold text-white shadow-md shadow-brand-600/20 hover:bg-brand-700">
-                  Ro‘yxatdan o‘tish <ArrowRight className="h-5 w-5" aria-hidden="true" />
-                </Link>
-                <Link to="/login" className="rounded-xl border border-slate-300 px-6 py-3 font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800">
-                  Kirish
-                </Link>
-              </div>
-              <ul className="mt-8 space-y-2 text-slate-600 dark:text-slate-300">
-                {['Kompyuter va telefonda ishlaydi', 'O‘zbek tilida', 'Ma’lumotlar sizniki, boshqalardan alohida'].map((t) => (
-                  <li key={t} className="flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" aria-hidden="true" /> {t}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Ilova ko'rinishi (bezak) */}
-            <div className="rounded-2xl border border-slate-200 bg-paper p-5 shadow-xl dark:border-slate-700 dark:bg-slate-800" aria-hidden="true">
-              <div className="mb-4 flex items-center justify-between">
-                <span className="font-semibold">Boshqaruv paneli</span>
-                <span className="text-sm text-slate-500">Bugungi holat</span>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { l: 'Javonda', i: BookOpen },
-                  { l: 'Berilgan', i: Repeat },
-                  { l: 'Navbatda', i: Clock },
-                  { l: 'Muddati o‘tgan', i: Bell },
-                ].map(({ l, i: Icon }) => (
-                  <div key={l} className="rounded-xl bg-slate-50 p-4 dark:bg-slate-700/60">
-                    <Icon className="h-5 w-5 text-brand-600 dark:text-brand-300" />
-                    <div className="mt-3 h-3 w-16 rounded bg-slate-200 dark:bg-slate-600" />
-                    <div className="mt-2 text-sm text-slate-600 dark:text-slate-300">{l}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 space-y-2">
-                {[70, 55, 40].map((w) => (
-                  <div key={w} className="flex items-center gap-3 rounded-lg bg-slate-50 p-3 dark:bg-slate-700/60">
-                    <div className="h-8 w-8 rounded-full bg-brand-100 dark:bg-brand-900/50" />
-                    <div className="h-3 rounded bg-slate-200 dark:bg-slate-600" style={{ width: `${w}%` }} />
-                  </div>
-                ))}
-              </div>
+        <section className="mx-auto grid max-w-6xl items-start gap-12 px-4 pb-20 pt-10 lg:grid-cols-[1.05fr_1fr] lg:pt-16">
+          <div className="lg:pt-6">
+            <h1 className="text-[2.6rem] leading-[1.05] sm:text-6xl" style={DISPLAY}>
+              Kitob formulyari endi ekranda
+            </h1>
+            <p className="mt-6 max-w-lg text-lg leading-relaxed" style={{ color: 'rgba(16,28,56,0.8)' }}>
+              Berish, qaytarish, muddat va jarima — daftar o‘rniga bitta joyda. Kutubxonachi uchun,
+              o‘zbek tilida, telefonda ham ishlaydi.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                to="/register"
+                className="rounded-md px-6 py-3.5 text-base font-semibold text-white hover:brightness-110"
+                style={{ background: INK }}
+              >
+                Ro‘yxatdan o‘tish
+              </Link>
+              <Link
+                to="/login"
+                className="rounded-md border-2 px-6 py-3.5 text-base font-semibold hover:bg-white/60"
+                style={{ borderColor: INK }}
+              >
+                Kirish
+              </Link>
             </div>
           </div>
+          <Formulyar />
         </section>
 
-        {/* Imkoniyatlar */}
-        <section id="imkoniyatlar" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-14">
-          <h2 className="text-3xl font-bold">Kutubxonachiga kerakli hamma narsa</h2>
-          <p className="mt-3 max-w-2xl text-lg text-slate-600 dark:text-slate-300">
-            Kundalik ish uchun kerak bo‘lgan asosiy imkoniyatlar.
-          </p>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {IMKONIYATLAR.map(({ ikon: Icon, nomi, matn }) => (
-              <div key={nomi} className="rounded-2xl border border-slate-200 bg-paper p-6 dark:border-slate-700 dark:bg-slate-800">
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300">
-                  <Icon className="h-6 w-6" />
-                </span>
-                <h3 className="mt-4 text-lg font-semibold">{nomi}</h3>
-                <p className="mt-2 text-slate-600 dark:text-slate-300">{matn}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Qulayliklar */}
-        <section className="bg-brand-900 text-white">
-          <div className="mx-auto max-w-6xl px-4 py-14">
-            <h2 className="text-3xl font-bold">Ishni yengillashtiradigan qo‘shimchalar</h2>
-            <div className="mt-8 grid gap-4 sm:grid-cols-2">
-              {QULAYLIKLAR.map(({ ikon: Icon, nomi, matn }) => (
-                <div key={nomi} className="flex gap-4 rounded-2xl bg-white/10 p-6">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/15">
-                    <Icon className="h-6 w-6" />
-                  </span>
-                  <div>
-                    <h3 className="text-lg font-semibold">{nomi}</h3>
-                    <p className="mt-1 text-brand-100">{matn}</p>
-                  </div>
+        {/* Nimalar qila olasiz */}
+        <section className="bg-white/55 py-16">
+          <div className="mx-auto grid max-w-6xl gap-10 px-4 lg:grid-cols-[0.8fr_1.4fr]">
+            <h2 className="text-3xl leading-tight sm:text-4xl" style={DISPLAY}>
+              Kutubxonachi kuniga nima qiladi — shu hammasi bor
+            </h2>
+            <dl className="divide-y" style={{ borderColor: 'rgba(16,28,56,0.18)' }}>
+              {ISHLAR.map((i) => (
+                <div
+                  key={i.nom}
+                  className="grid gap-1 py-4 sm:grid-cols-[13rem_1fr] sm:gap-6"
+                  style={{ borderColor: 'rgba(16,28,56,0.18)' }}
+                >
+                  <dt className="text-base font-semibold" style={MONO}>
+                    {i.nom}
+                  </dt>
+                  <dd className="text-base leading-relaxed" style={{ color: 'rgba(16,28,56,0.8)' }}>
+                    {i.matn}
+                  </dd>
                 </div>
               ))}
+            </dl>
+          </div>
+        </section>
+
+        {/* Bot va AI */}
+        <section style={{ background: INK, color: '#eaf0fb' }}>
+          <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 lg:grid-cols-2">
+            <div>
+              <h2 className="text-3xl leading-tight sm:text-4xl" style={DISPLAY}>
+                Yozib bering, qolganini tizim qiladi
+              </h2>
+              <p className="mt-5 max-w-md text-lg leading-relaxed" style={{ color: 'rgba(234,240,251,0.8)' }}>
+                Ctrl+K bosing va oddiy gap bilan yozing. AI yordamchi buyruqni tushunib, kerakli sahifani
+                ochadi. O‘quvchilar esa Telegram bot orqali o‘zlari ro‘yxatdan o‘tadi.
+              </p>
+            </div>
+            <div className="rounded-md p-5" style={{ background: 'rgba(255,255,255,0.07)', ...MONO }}>
+              <div className="text-xs uppercase tracking-[0.18em]" style={{ color: 'rgba(234,240,251,0.6)' }}>
+                Buyruq
+              </div>
+              <div className="mt-2 text-lg">Madinaga «Kichkina shahzoda»ni ber</div>
+              <div className="my-4 border-t border-dashed" style={{ borderColor: 'rgba(234,240,251,0.3)' }} />
+              <div className="text-xs uppercase tracking-[0.18em]" style={{ color: 'rgba(234,240,251,0.6)' }}>
+                Natija
+              </div>
+              <div className="mt-2 text-base" style={{ color: '#f6d77a' }}>
+                Berish oynasi ochildi: o‘quvchi va kitob tanlangan
+              </div>
             </div>
           </div>
         </section>
 
         {/* Qadamlar */}
-        <section className="mx-auto max-w-6xl px-4 py-14">
-          <h2 className="text-3xl font-bold">Qanday boshlanadi</h2>
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
-            {QADAMLAR.map((q) => (
-              <div key={q.n} className="rounded-2xl border border-slate-200 bg-paper p-6 dark:border-slate-700 dark:bg-slate-800">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-600 text-lg font-bold text-white">{q.n}</span>
-                <h3 className="mt-4 text-lg font-semibold">{q.nomi}</h3>
-                <p className="mt-2 text-slate-600 dark:text-slate-300">{q.matn}</p>
-              </div>
+        <section className="mx-auto max-w-6xl px-4 py-16">
+          <h2 className="text-3xl sm:text-4xl" style={DISPLAY}>
+            Qanday boshlanadi
+          </h2>
+          <ol className="mt-8 grid gap-8 md:grid-cols-3">
+            {QADAMLAR.map((q, i) => (
+              <li key={q.nom} className="border-t-2 pt-4" style={{ borderColor: INK }}>
+                <div className="text-sm" style={{ ...MONO, color: MUHR }}>
+                  {i + 1}-qadam
+                </div>
+                <h3 className="mt-2 text-xl font-semibold leading-snug">{q.nom}</h3>
+                <p className="mt-2 text-base leading-relaxed" style={{ color: 'rgba(16,28,56,0.8)' }}>
+                  {q.matn}
+                </p>
+              </li>
             ))}
-          </div>
-        </section>
-
-        {/* CTA */}
-        <section className="mx-auto max-w-6xl px-4 pb-16">
-          <div className="rounded-3xl bg-brand-600 px-6 py-12 text-center text-white">
-            <h2 className="text-3xl font-bold">Bugunoq sinab ko‘ring</h2>
-            <p className="mx-auto mt-3 max-w-xl text-brand-100">Ro‘yxatdan o‘tish bir necha daqiqa oladi.</p>
-            <div className="mt-6 flex flex-wrap justify-center gap-3">
-              <Link to="/register" className="rounded-xl bg-white px-6 py-3 font-semibold text-brand-800 hover:bg-brand-50">
-                Ro‘yxatdan o‘tish
-              </Link>
-              <Link to="/yordam" className="rounded-xl border border-white/50 px-6 py-3 font-semibold hover:bg-white/10">
-                Qo‘llanmani o‘qish
-              </Link>
-            </div>
+          </ol>
+          <div className="mt-12 flex flex-wrap items-center gap-4">
+            <Link
+              to="/register"
+              className="rounded-md px-7 py-4 text-lg font-semibold text-white hover:brightness-110"
+              style={{ background: INK }}
+            >
+              Ro‘yxatdan o‘tish
+            </Link>
+            <Link to="/yordam" className="text-lg font-semibold underline underline-offset-4">
+              Avval qo‘llanmani o‘qiyman
+            </Link>
           </div>
         </section>
       </main>
 
-      <footer className="border-t border-slate-200 py-6 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+      <footer className="border-t py-6 text-center text-sm" style={{ borderColor: 'rgba(16,28,56,0.18)', color: 'rgba(16,28,56,0.7)' }}>
         © {new Date().getFullYear()} Kutubxona
       </footer>
     </div>
