@@ -77,23 +77,23 @@ function buildDataTableTheme(dark: boolean) {
       background: { paper: dark ? '#1e293b' : '#ffffff' },
       text: dark
         ? { primary: '#e2e8f0', secondary: '#94a3b8' }
-        : { primary: '#0f172a', secondary: '#64748b' },
+        : { primary: '#0f172a', secondary: '#475569' },
     },
     typography: { fontFamily: 'inherit' },
     components: {
       MuiTableCell: {
         styleOverrides: {
           root: {
-            padding: '11px 16px',
+            padding: '14px 16px',
+            fontSize: 16,
             borderColor: dark ? '#334155' : '#e2e8f0',
             whiteSpace: 'nowrap',
           },
           head: {
             fontWeight: 600,
-            fontSize: 11,
-            letterSpacing: '0.05em',
-            textTransform: 'uppercase',
-            color: dark ? '#94a3b8' : '#64748b',
+            fontSize: 14,
+            letterSpacing: '0.01em',
+            color: dark ? '#cbd5e1' : '#475569',
             userSelect: 'none',
           },
         },

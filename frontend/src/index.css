@@ -26,6 +26,8 @@ html, body, #root {
    sahifa ~15px sakrardi. Joy doim zaxiralanadi. */
 html {
   scrollbar-gutter: stable;
+  /* Kutubxonachilar uchun: barcha rem o'lchamlar 18px bazadan hisoblanadi. */
+  font-size: 112.5%;
 }
 
 body {
