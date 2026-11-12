@@ -3,19 +3,39 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-brand-50: #eff6ff;
-  --color-brand-100: #dbeafe;
-  --color-brand-200: #bfdbfe;
-  --color-brand-300: #93c5fd;
-  --color-brand-400: #60a5fa;
-  --color-brand-500: #3b82f6;
-  --color-brand-600: #2563eb;
-  --color-brand-700: #1d4ed8;
-  --color-brand-800: #1e40af;
-  --color-brand-900: #1e3a8a;
+  /* Landing bilan bir xil palitra: to'q yashil brend, iliq neytrallar, yumshoq burchaklar. */
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
 
-  --color-canvas: #f4f1ec;
-  --color-paper: #fbf9f5;
+  --color-brand-50: #edf7f1;
+  --color-brand-100: #d3ecdf;
+  --color-brand-200: #a9d8c0;
+  --color-brand-300: #74bf9c;
+  --color-brand-400: #3fa877;
+  --color-brand-500: #1f9d63;
+  --color-brand-600: #17694a;
+  --color-brand-700: #0f5a3d;
+  --color-brand-800: #0f3d2e;
+  --color-brand-900: #0a2c20;
+
+  /* slate -> iliq (stone) neytral shkala */
+  --color-slate-50: #fafaf9;
+  --color-slate-100: #f5f4f0;
+  --color-slate-200: #e7e4dc;
+  --color-slate-300: #d6d2c7;
+  --color-slate-400: #a8a398;
+  --color-slate-500: #78736a;
+  --color-slate-600: #5c554b;
+  --color-slate-700: #44403a;
+  --color-slate-800: #292622;
+  --color-slate-900: #1c1a17;
+  --color-slate-950: #12110f;
+
+  --color-canvas: #ece9de;
+  --color-paper: #faf8f2;
+
+  --radius-lg: 0.75rem;
+  --radius-xl: 1.125rem;
+  --radius-2xl: 1.5rem;
 }
 
 html, body, #root {
