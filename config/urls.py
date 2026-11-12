@@ -27,7 +27,7 @@ from organization.views import (
     password_reset_confirm,
     password_reset_request,
 )
-from oquvchi.views import OquvchiViewSet, ArizaViewSet
+from oquvchi.views import ArizaViewSet, FanViewSet, OquvchiViewSet
 from telegrambot.views import (
     TelegramBotActionView,
     TelegramBotSettingsView,
@@ -40,6 +40,7 @@ router.register("books", KitobViewSet, basename="books")
 router.register("copies", NusxaViewSet, basename="copies")
 router.register("readers", OquvchiViewSet, basename="readers")
 router.register("applications", ArizaViewSet, basename="applications")
+router.register("subjects", FanViewSet, basename="subjects")
 router.register("loans", BerishViewSet, basename="loans")
 router.register("fines", JarimaViewSet, basename="fines")
 router.register("reservations", NavbatViewSet, basename="reservations")

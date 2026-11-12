@@ -16,9 +16,9 @@ from jarima.models import Jarima
 from kitob.models import BandQilish, Kitob
 from navbat.models import Navbat
 from organization.models import Membership
-from oquvchi.models import Ariza, Oquvchi
+from oquvchi.models import Ariza, Fan, Oquvchi
 
-from .client import answer_callback_query
+from .client import answer_callback_query, edit_message_reply_markup
 from .models import TelegramSession
 from .services import xabar_yubor
 
@@ -156,6 +156,96 @@ def _ariza_rol(bot, chat_id, telegram_id, rol):
     _send(bot, chat_id, "Ism va familiyangizni kiriting:", {"remove_keyboard": True})
 
 
+def _fan_klaviatura(tanlangan):
+    """Fanlar ro'yxati: tanlanganlari ✅ bilan, pastda «Tayyor» tugmasi."""
+    tanlangan = set(tanlangan)
+    tugmalar = [
+        {
+            "text": ("✅ " if f.pk in tanlangan else "") + f.nomi,
+            "callback_data": f"fan:{f.pk}",
+        }
+        for f in Fan.objects.filter(faol=True)
+    ]
+    rows = [tugmalar[i : i + 2] for i in range(0, len(tugmalar), 2)]
+    rows.append([{"text": f"✔️ Tayyor ({len(tanlangan)})", "callback_data": "fan_ok"}])
+    return _inline(rows)
+
+
+FAN_SAVOLI = "Qaysi fan(lar)dan dars berasiz? Tugmalardan tanlang, so'ng «Tayyor» ni bosing:"
+
+
+def _ariza_yarat(bot, chat_id, telegram_id, data):
+    rol = data.get("rol", "oquvchi")
+    if Ariza.objects.filter(
+        organization=bot.organization, telegram_id=telegram_id, holati="kutmoqda"
+    ).exists():
+        _send(bot, chat_id, "Arizangiz allaqachon ko'rib chiqilmoqda.")
+        _clear_session(bot, telegram_id)
+        return
+    Ariza.objects.filter(
+        organization=bot.organization, telegram_id=telegram_id
+    ).exclude(holati="kutmoqda").delete()
+    fanlar = []
+    if rol == "oqituvchi":
+        fanlar = list(Fan.objects.filter(faol=True, pk__in=data.get("fanlar", [])))
+    ariza = Ariza.objects.create(
+        organization=bot.organization,
+        telegram_id=telegram_id,
+        fish=data["fish"],
+        telefon=data["telefon"],
+        rol=rol,
+        sinf=data.get("sinf") if rol == "oquvchi" else None,
+        kasb=", ".join(f.nomi for f in fanlar) if rol == "oqituvchi" else "",
+    )
+    if fanlar:
+        ariza.fanlar.set(fanlar)
+    _clear_session(bot, telegram_id)
+    _send(
+        bot,
+        chat_id,
+        "✅ Arizangiz qabul qilindi. Kutubxonachi tasdiqlagach xabar beramiz.",
+        {"remove_keyboard": True},
+    )
+
+
+def _fan_tanlash(bot, callback, fan_id):
+    chat_id = callback["message"]["chat"]["id"]
+    telegram_id = callback["from"]["id"]
+    sessiya = TelegramSession.objects.filter(bot=bot, telegram_id=telegram_id).first()
+    if not sessiya or sessiya.step != "ariza_kasb":
+        return
+    data = sessiya.data or {}
+    tanlangan = list(data.get("fanlar", []))
+    try:
+        fan_id = int(fan_id)
+    except (TypeError, ValueError):
+        return
+    if not Fan.objects.filter(pk=fan_id, faol=True).exists():
+        return
+    if fan_id in tanlangan:
+        tanlangan.remove(fan_id)
+    else:
+        tanlangan.append(fan_id)
+    data["fanlar"] = tanlangan
+    _set_session(bot, telegram_id, chat_id, "ariza_kasb", data)
+    edit_message_reply_markup(
+        bot.get_token(), chat_id, callback["message"]["message_id"], _fan_klaviatura(tanlangan)
+    )
+
+
+def _fan_tayyor(bot, callback):
+    chat_id = callback["message"]["chat"]["id"]
+    telegram_id = callback["from"]["id"]
+    sessiya = TelegramSession.objects.filter(bot=bot, telegram_id=telegram_id).first()
+    if not sessiya or sessiya.step != "ariza_kasb":
+        return
+    data = sessiya.data or {}
+    if not data.get("fanlar"):
+        _send(bot, chat_id, "Kamida bitta fanni tanlang.")
+        return
+    _ariza_yarat(bot, chat_id, telegram_id, data)
+
+
 def _ariza_text(bot, message, sessiya):
     chat_id = message["chat"]["id"]
     telegram_id = message["from"]["id"]
@@ -182,45 +272,20 @@ def _ariza_text(bot, message, sessiya):
         data["telefon"] = matn
         if data.get("rol") == "oqituvchi":
             _set_session(bot, telegram_id, chat_id, "ariza_kasb", data)
-            _send(bot, chat_id, "Qaysi fanni o'qitasiz? (masalan: Matematika)")
+            _send(bot, chat_id, FAN_SAVOLI, _fan_klaviatura([]))
         else:
             _set_session(bot, telegram_id, chat_id, "ariza_sinf", data)
             _send(bot, chat_id, "Sinfingizni kiriting (masalan: 7-A):")
         return
-    if step in ("ariza_sinf", "ariza_kasb"):
-        if len(matn) < 1 or len(matn) > 60:
-            _send(bot, chat_id, "Qiymat 1-60 belgi orasida bo'lishi kerak.")
+    if step == "ariza_kasb":
+        _send(bot, chat_id, FAN_SAVOLI, _fan_klaviatura(data.get("fanlar", [])))
+        return
+    if step == "ariza_sinf":
+        if len(matn) < 1 or len(matn) > 30:
+            _send(bot, chat_id, "Sinf 1-30 belgi orasida bo'lishi kerak.")
             return
-        rol = data.get("rol", "oquvchi")
-        if rol == "oqituvchi":
-            data["kasb"] = matn
-        else:
-            data["sinf"] = matn
-        if Ariza.objects.filter(
-            organization=bot.organization, telegram_id=telegram_id, holati="kutmoqda"
-        ).exists():
-            _send(bot, chat_id, "Arizangiz allaqachon ko'rib chiqilmoqda.")
-            _clear_session(bot, telegram_id)
-            return
-        Ariza.objects.filter(
-            organization=bot.organization, telegram_id=telegram_id
-        ).exclude(holati="kutmoqda").delete()
-        Ariza.objects.create(
-            organization=bot.organization,
-            telegram_id=telegram_id,
-            fish=data["fish"],
-            telefon=data["telefon"],
-            rol=rol,
-            sinf=data.get("sinf") if rol == "oquvchi" else None,
-            kasb=data.get("kasb", "") if rol == "oqituvchi" else "",
-        )
-        _clear_session(bot, telegram_id)
-        _send(
-            bot,
-            chat_id,
-            "✅ Arizangiz qabul qilindi. Kutubxonachi tasdiqlagach xabar beramiz.",
-            {"remove_keyboard": True},
-        )
+        data["sinf"] = matn
+        _ariza_yarat(bot, chat_id, telegram_id, data)
         return
     if step == "qidiruv":
         _clear_session(bot, telegram_id)
@@ -664,6 +729,12 @@ def _callback(bot, callback):
     callback_id = callback.get("id")
     if data.startswith("rol:"):
         _ariza_rol(bot, chat_id, telegram_id, data.split(":", 1)[1])
+    elif data.startswith("fan:"):
+        answer_callback_query(bot.get_token(), callback_id)
+        _fan_tanlash(bot, callback, data.split(":", 1)[1])
+    elif data == "fan_ok":
+        answer_callback_query(bot.get_token(), callback_id)
+        _fan_tayyor(bot, callback)
     elif data.startswith("janr:"):
         janr = data.split(":", 1)[1]
         labels = dict(Kitob.JANR_CHOICES)

@@ -11,6 +11,7 @@ from keyboards import (
     ARIZA_ROL_OQUVCHI,
     ASOSIY_TUGMALAR,
     ariza_rol_tugmalari,
+    fanlar_tugmalari,
     asosiy_tugmalar_klaviaturasi,
     klaviatura_olib_tashla,
     matndan_telefon_keltirish,
@@ -30,7 +31,6 @@ KUTILMOQDA_XABAR = (
 )
 
 SINF_MASALALARI = "7-A, 9-B, 10-V"
-KASB_MASALALARI = "Matematika, Ona tili, Fizika, Tarix"
 
 # Rolga qarab so'raladigan uchinchi maydon nomi.
 ROL_UCHUNCHI_MAYDON = {
@@ -49,7 +49,7 @@ ROL_TASDIQLANDI_XABARI = {
 SAVOL_FISH = "1️⃣ Ism-familiyangizni yozing:"
 SAVOL_TELEFON = "2️⃣ Endi telefon raqamingizni yuboring:"
 SAVOL_SINF = f"3️⃣ Endi sinfingizni yozing (masalan: {SINF_MASALALARI}):"
-SAVOL_KASB = f"3️⃣ Qaysi fanni dars berasiz? (masalan: {KASB_MASALALARI}):"
+SAVOL_KASB = "3️⃣ Qaysi fan(lar)dan dars berasiz? Tugmalardan tanlang, so'ng «Tayyor» ni bosing:"
 
 
 def _menyu_tugmasi_bosilganmi(text: str | None) -> bool:
@@ -301,11 +301,12 @@ async def _telefon_qabul(message: Message, state: FSMContext, telefon: str):
     await state.update_data(telefon=telefon)
     if rol == ARIZA_ROL_OQITUVCHI:
         await state.set_state(Ariza.kasb)
+        await state.update_data(fanlar=[])
         await message.answer(
-            f"✅ Telefon raqamingiz muvaffaqiyatli tasdiqlandi: {telefon}\n\n"
-            f"{SAVOL_KASB}",
+            f"✅ Telefon raqamingiz muvaffaqiyatli tasdiqlandi: {telefon}",
             reply_markup=klaviatura_olib_tashla(),
         )
+        await _fanlar_royxatini_yuborish(message, [])
         return
 
     await state.set_state(Ariza.sinf)
@@ -340,28 +341,78 @@ async def ariza_sinf(message: Message, state: FSMContext):
     )
 
 
+async def _fanlar_royxatini_yuborish(message: Message, tanlangan: list[int]):
+    try:
+        fanlar = await api.fanlar()
+    except ApiXato as e:
+        await message.answer(f"⚠️ Fanlar ro'yxatini olib bo'lmadi: {x(e.detail)}\n/start bilan qayta urinib ko'ring.")
+        return
+    if isinstance(fanlar, dict):
+        fanlar = fanlar.get("results", [])
+    await message.answer(SAVOL_KASB, reply_markup=fanlar_tugmalari(fanlar, tanlangan))
+
+
 @router.message(Ariza.kasb)
 async def ariza_kasb(message: Message, state: FSMContext):
-    """O'qituvchi arizasi uchun o'qitayotgan fanni qabul qiladi."""
-    kasb = (message.text or "").strip()
-    if not kasb:
-        await message.answer(f"Iltimos:\n\n{SAVOL_KASB}")
-        return
-    if _menyu_tugmasi_bosilganmi(kasb):
-        await _menyu_tugmasi_javobi(message, SAVOL_KASB)
-        return
-    if len(kasb) > 60:
-        await message.answer("Kasb nomi juda uzun (maksimum 60 belgi). Qayta yozing:")
-        return
-
+    """O'qituvchi fanlarni matn bilan emas, tugmalar orqali tanlaydi."""
     data = await state.get_data()
+    await message.answer("Iltimos, fanlarni pastdagi tugmalar orqali tanlang.")
+    await _fanlar_royxatini_yuborish(message, data.get("fanlar", []))
+
+
+@router.callback_query(Ariza.kasb, F.data.startswith("fan:"))
+async def fan_tanlandi(callback: CallbackQuery, state: FSMContext):
+    try:
+        fan_id = int((callback.data or "").partition(":")[2])
+    except ValueError:
+        await callback.answer()
+        return
+    data = await state.get_data()
+    tanlangan = list(data.get("fanlar", []))
+    if fan_id in tanlangan:
+        tanlangan.remove(fan_id)
+    else:
+        tanlangan.append(fan_id)
+    await state.update_data(fanlar=tanlangan)
+    await callback.answer()
+    if callback.message is None:
+        return
+    try:
+        fanlar = await api.fanlar()
+        if isinstance(fanlar, dict):
+            fanlar = fanlar.get("results", [])
+        await callback.message.edit_reply_markup(reply_markup=fanlar_tugmalari(fanlar, tanlangan))
+    except Exception:
+        logger.exception("fan tugmalarini yangilab bo'lmadi")
+
+
+@router.callback_query(Ariza.kasb, F.data == "fan_ok")
+async def fanlar_tayyor(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    tanlangan = list(data.get("fanlar", []))
+    if not tanlangan:
+        await callback.answer("Kamida bitta fanni tanlang.", show_alert=True)
+        return
+    await callback.answer()
+    if callback.message is None:
+        return
+    nomlar = []
+    try:
+        fanlar = await api.fanlar()
+        if isinstance(fanlar, dict):
+            fanlar = fanlar.get("results", [])
+        nomlar = [f["nomi"] for f in fanlar if f["id"] in tanlangan]
+    except Exception:
+        logger.exception("fan nomlarini olib bo'lmadi")
     await _arizani_yuborish(
-        message,
+        callback.message,
         state,
         data,
         sinf="",
-        kasb=kasb,
+        kasb=", ".join(nomlar),
+        fanlar=tanlangan,
         savol=SAVOL_KASB,
+        telegram_id=callback.from_user.id,
     )
 
 
@@ -383,8 +434,10 @@ async def _arizani_yuborish(
     sinf: str = "",
     kasb: str = "",
     savol: str = "",
+    fanlar: list[int] | None = None,
+    telegram_id: int | None = None,
 ):
-    telegram_id = message.from_user.id
+    telegram_id = telegram_id or message.from_user.id
     rol = data.get("rol", ARIZA_ROL_OQUVCHI)
     
     # Ma'lumotlar to'liqmi tekshirish
@@ -406,6 +459,7 @@ async def _arizani_yuborish(
             rol=rol,
             sinf=sinf,
             kasb=kasb,
+            fanlar=fanlar,
         )
     except ApiXato as e:
         # Terminal xatolar — holat tozalanadi (yoki ariza allaqon yuborilgan).

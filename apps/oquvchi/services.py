@@ -162,6 +162,8 @@ def arizani_tasdiqla(ariza: Ariza):
             if ariza.kasb and oquvchi.kasb != ariza.kasb:
                 oquvchi.kasb = ariza.kasb
                 yangilangan.append("kasb")
+            if ariza.fanlar.exists():
+                oquvchi.fanlar.set(ariza.fanlar.all())
             if oquvchi.sinf:
                 oquvchi.sinf = ""
                 yangilangan.append("sinf")
@@ -195,6 +197,9 @@ def arizani_tasdiqla(ariza: Ariza):
             tugilgan_sana=ariza.tugilgan_sana,
             manzil=ariza.manzil,
         )
+
+    if ariza.rol == "oqituvchi" and ariza.fanlar.exists():
+        oquvchi.fanlar.set(ariza.fanlar.all())
 
     ariza.holati = "tasdiqlandi"
     ariza.tasdiqlangan_sana = now()
