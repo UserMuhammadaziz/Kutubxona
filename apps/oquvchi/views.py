@@ -1,10 +1,16 @@
+from datetime import date
+
 from django.db import transaction
+from django.db.models import F, Sum
 from rest_framework import permissions, viewsets, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
+from berish.models import Berish
 from berish.serializers import BerishMeniSerializer
+from config.telegram import telegram_escape
+from telegrambot.services import organizatsiya_xabari
 from jarima.models import Jarima
 from jarima.serializers import JarimaMeniSerializer
 from user.permissions import IsLibrarian
@@ -19,6 +25,61 @@ from .serializers import (
     OquvchiYaratishSerializer,
     OquvchiBindSerializer,
 )
+
+
+def _reader_stats(reader):
+    """Aggregate numbers for the reader profile header."""
+    today = date.today()
+    loans = Berish.objects.filter(oquvchi=reader)
+    fines = Jarima.objects.filter(berish__oquvchi=reader)
+    unpaid = fines.filter(tolandimi=False).aggregate(s=Sum("summa"))["s"] or 0
+    paid = fines.filter(tolandimi=True).aggregate(s=Sum("summa"))["s"] or 0
+    return {
+        "total_loans": loans.count(),
+        "active_loans": loans.filter(qaytarilgan_sana__isnull=True).count(),
+        "overdue_loans": loans.filter(
+            qaytarilgan_sana__isnull=True, qaytarish_muddati__lt=today
+        ).count(),
+        "returned_late": loans.filter(
+            qaytarilgan_sana__gt=F("qaytarish_muddati")
+        ).count(),
+        "unpaid_fines_total": unpaid,
+        "paid_fines_total": paid,
+    }
+
+
+def _reader_history(reader, limit=30):
+    """Latest loans (active and returned), newest first."""
+    today = date.today()
+    loans = (
+        Berish.objects.filter(oquvchi=reader)
+        .select_related("kitob", "nusxa")
+        .prefetch_related("jarima")
+        .order_by("-berilgan_sana", "-id")[:limit]
+    )
+    rows = []
+    for loan in loans:
+        returned = loan.qaytarilgan_sana
+        if returned:
+            status_ = "returned"
+        elif loan.qaytarish_muddati < today:
+            status_ = "overdue"
+        else:
+            status_ = "active"
+        fine = getattr(loan, "jarima", None)
+        rows.append(
+            {
+                "id": loan.id,
+                "book_title": loan.kitob.nomi,
+                "issued_at": loan.berilgan_sana,
+                "due_date": loan.qaytarish_muddati,
+                "returned_at": returned,
+                "status": status_,
+                "fine_amount": fine.summa if fine else None,
+                "fine_paid": fine.tolandimi if fine else None,
+            }
+        )
+    return rows
 
 
 class OquvchiViewSet(viewsets.ModelViewSet):
@@ -60,7 +121,27 @@ class OquvchiViewSet(viewsets.ModelViewSet):
         jarimalar = Jarima.objects.filter(berish__oquvchi=oquvchi, tolandimi=False)
         data["jarimalari"] = JarimaMeniSerializer(jarimalar, many=True).data
 
+        # New English keys (profile page): statistics + loan history.
+        data["stats"] = _reader_stats(oquvchi)
+        data["history"] = _reader_history(oquvchi)
+
         return Response(data)
+
+    @action(detail=True, methods=["post"], url_path="message")
+    def message(self, request, pk=None):
+        """POST /api/readers/{id}/message/ {"text": "..."} -> Telegram message to this reader."""
+        reader = self.get_object()
+        text = str(request.data.get("text", "")).strip()
+        if not text:
+            raise ValidationError({"text": "Xabar matni bo‘sh bo‘lmasligi kerak."})
+        if len(text) > 1000:
+            raise ValidationError({"text": "Xabar 1000 belgidan oshmasligi kerak."})
+        if not reader.telegram_id:
+            raise ValidationError({"detail": "O‘quvchi Telegram botga ulanmagan."})
+        sent = organizatsiya_xabari(reader.organization, reader.telegram_id, telegram_escape(text))
+        if not sent:
+            raise ValidationError({"detail": "Xabar yuborilmadi. Bot ulanganini tekshiring."})
+        return Response({"sent": True})
 
     @action(detail=False, methods=["post"], url_path="bind")
     def bind(self, request):

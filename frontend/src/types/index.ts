@@ -179,9 +179,33 @@ export interface Oquvchi {
   faol: boolean
 }
 
+export interface ReaderStats {
+  total_loans: number
+  active_loans: number
+  overdue_loans: number
+  returned_late: number
+  unpaid_fines_total: string | number
+  paid_fines_total: string | number
+}
+
+export type ReaderHistoryStatus = 'active' | 'overdue' | 'returned'
+
+export interface ReaderHistoryItem {
+  id: number
+  book_title: string
+  issued_at: string
+  due_date: string
+  returned_at: string | null
+  status: ReaderHistoryStatus
+  fine_amount: string | number | null
+  fine_paid: boolean | null
+}
+
 export interface OquvchiDetail extends Oquvchi {
   joriy_kitoblari: BerishMeni[]
   jarimalari: JarimaMeni[]
+  stats: ReaderStats
+  history: ReaderHistoryItem[]
 }
 
 export interface OquvchiCreatePayload {

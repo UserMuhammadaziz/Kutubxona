@@ -719,3 +719,29 @@ class OquvchiRolTest(ArizaTestMixin, TestCase):
         )
         self.assertEqual(javob.status_code, 201, javob.data)
         self.assertEqual(javob.data["rol"], "oquvchi")
+
+
+class ReaderProfileTests(ArizaTestMixin, TestCase):
+    """Reader profile: stats + history in retrieve, and the message action."""
+
+    def setUp(self):
+        super().setUp()
+        self.reader = Oquvchi.objects.create(fish="Ali Valiyev", telefon="+998901112233")
+
+    def test_profile_has_stats_and_history(self):
+        res = self.client.get(f"/api/readers/{self.reader.id}/")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.data["stats"]["total_loans"], 0)
+        self.assertEqual(res.data["history"], [])
+
+    @patch("oquvchi.views.organizatsiya_xabari", return_value=True)
+    def test_message_sent(self, send):
+        self.reader.telegram_id = 555
+        self.reader.save()
+        res = self.client.post(f"/api/readers/{self.reader.id}/message/", {"text": "Salom"}, format="json")
+        self.assertEqual(res.status_code, 200)
+        send.assert_called_once()
+
+    def test_message_without_telegram_rejected(self):
+        res = self.client.post(f"/api/readers/{self.reader.id}/message/", {"text": "Salom"}, format="json")
+        self.assertEqual(res.status_code, 400)

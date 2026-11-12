@@ -116,6 +116,8 @@ export const readersApi = {
   create: (payload: OquvchiCreatePayload) => api.post<Oquvchi>('/readers/', payload).then((r) => r.data),
   update: (id: number, payload: Partial<Oquvchi>) =>
     api.patch<Oquvchi>(`/readers/${id}/`, payload).then((r) => r.data),
+  sendMessage: (id: number, text: string) =>
+    api.post<{ sent: boolean }>(`/readers/${id}/message/`, { text }).then((r) => r.data),
 }
 
 // ---- Applications (Arizalar) ----
