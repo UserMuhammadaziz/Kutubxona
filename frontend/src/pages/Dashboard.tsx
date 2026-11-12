@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { loansApi, statsApi } from '../api/resources'
 import { errorMessage } from '../api/client'
 import { Icons } from '../components/icons'
-import { Card, EmptyState, ErrorState, PageHeader, Spinner } from '../components/ui'
+import { Button, Card, EmptyState, ErrorState, PageHeader, Spinner } from '../components/ui'
 import { formatDate, formatMoney } from '../lib/format'
 import { isAdmin, useAuthStore } from '../store/auth'
 
@@ -71,30 +71,14 @@ export function Dashboard() {
     <div>
       <PageHeader title="Boshqaruv paneli" subtitle="Bugungi holat" />
 
-      <div className="mb-6 grid gap-3 sm:max-w-2xl sm:grid-cols-2">
-        <Link
-          to="/loans?berish=1"
-          className="flex items-center gap-4 rounded-2xl bg-brand-600 px-5 py-5 text-white shadow-md shadow-brand-600/20 transition hover:bg-brand-700 active:scale-[0.99]"
-        >
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white/15">
-            <Icons.books className="h-8 w-8" />
-          </span>
-          <span>
-            <span className="block text-xl font-bold">Kitob berish</span>
-            <span className="block text-sm text-brand-100">O‘quvchiga kitob topshirish</span>
-          </span>
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:max-w-md">
+        <Link to="/loans?berish=1">
+          <Button className="w-full py-3">Kitob berish</Button>
         </Link>
-        <Link
-          to="/loans?holat=faol"
-          className="flex items-center gap-4 rounded-2xl border-2 border-brand-600 bg-paper px-5 py-5 text-brand-800 transition hover:bg-brand-50 active:scale-[0.99] dark:bg-slate-800 dark:text-brand-300 dark:hover:bg-slate-700"
-        >
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-brand-50 dark:bg-brand-900/30">
-            <Icons.arrowsRightLeft className="h-8 w-8" />
-          </span>
-          <span>
-            <span className="block text-xl font-bold">Qaytarib olish</span>
-            <span className="block text-sm text-slate-600 dark:text-slate-300">Kitobni qabul qilish</span>
-          </span>
+        <Link to="/loans?holat=faol">
+          <Button variant="secondary" className="w-full py-3">
+            Qaytarib olish
+          </Button>
         </Link>
       </div>
 
@@ -152,7 +136,7 @@ export function Dashboard() {
                         {qaytdi ? 'qaytardi' : 'oldi'}: {l.kitob_nomi}
                       </span>
                     </div>
-                    <span className="shrink-0 text-sm text-slate-500">{formatDate(qaytdi ? l.qaytarilgan_sana : l.berilgan_sana)}</span>
+                    <span className="shrink-0 text-xs text-slate-400">{formatDate(qaytdi ? l.qaytarilgan_sana : l.berilgan_sana)}</span>
                   </li>
                 )
               })}
