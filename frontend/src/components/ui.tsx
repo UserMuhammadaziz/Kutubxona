@@ -36,13 +36,13 @@ export function Button({
     ghost: 'bg-transparent text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
   }
   const sizes = {
-    sm: 'px-2.5 py-1.5 text-sm',
-    md: 'px-4 py-2 text-sm',
+    sm: 'min-h-10 px-3 py-2 text-sm',
+    md: 'min-h-12 px-5 py-2.5 text-base',
   }
   return (
     <button
       className={clsx(
-        'inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition-colors disabled:cursor-not-allowed',
+        'inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-colors disabled:cursor-not-allowed',
         variants[variant],
         sizes[size],
         className,
@@ -66,7 +66,7 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
   return (
     <input
       className={clsx(
-        'w-full rounded-lg border border-slate-300 bg-paper px-3 py-2 text-sm outline-none placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:focus:border-brand-400 dark:focus:ring-brand-900',
+        'w-full rounded-lg border border-slate-400 bg-paper px-3.5 py-2.5 text-base outline-none placeholder:text-slate-500 focus:border-brand-500 focus:ring-4 focus:ring-brand-100 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:focus:border-brand-400 dark:focus:ring-brand-900',
         className,
       )}
       {...props}
@@ -78,7 +78,7 @@ export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTex
   return (
     <textarea
       className={clsx(
-        'w-full rounded-lg border border-slate-300 bg-paper px-3 py-2 text-sm outline-none placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:focus:border-brand-400 dark:focus:ring-brand-900',
+        'w-full rounded-lg border border-slate-400 bg-paper px-3.5 py-2.5 text-base outline-none placeholder:text-slate-500 focus:border-brand-500 focus:ring-4 focus:ring-brand-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:focus:border-brand-400 dark:focus:ring-brand-900',
         className,
       )}
       {...props}
@@ -90,7 +90,7 @@ export function Select({ className, children, ...props }: SelectHTMLAttributes<H
   return (
     <select
       className={clsx(
-        'w-full rounded-lg border border-slate-300 bg-paper px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:focus:border-brand-400 dark:focus:ring-brand-900',
+        'w-full rounded-lg border border-slate-400 bg-paper px-3.5 py-2.5 text-base outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:focus:border-brand-400 dark:focus:ring-brand-900',
         className,
       )}
       {...props}
@@ -102,7 +102,7 @@ export function Select({ className, children, ...props }: SelectHTMLAttributes<H
 
 export function Label({ children, htmlFor }: { children: ReactNode; htmlFor?: string }) {
   return (
-    <label htmlFor={htmlFor} className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+    <label htmlFor={htmlFor} className="mb-1.5 block text-base font-medium text-slate-800 dark:text-slate-300">
       {children}
     </label>
   )
@@ -129,7 +129,7 @@ export function Badge({
   return (
     <span
       className={clsx(
-        'inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium',
+        'inline-flex items-center whitespace-nowrap rounded-full px-3 py-1 text-sm font-medium',
         tones[tone],
       )}
     >
