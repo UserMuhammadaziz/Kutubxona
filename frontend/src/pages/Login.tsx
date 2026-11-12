@@ -90,7 +90,7 @@ export function Login() {
                 </span>
                 <span>
                   <span className="block text-sm font-semibold">{title}</span>
-                  <span className="block text-sm leading-snug text-brand-100/80">{text}</span>
+                  <span className="block text-[13px] leading-snug text-brand-100/80">{text}</span>
                 </span>
               </li>
             ))}
