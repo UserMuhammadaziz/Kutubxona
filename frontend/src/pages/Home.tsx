@@ -1,136 +1,190 @@
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Logo } from '../components/Logo'
 
 /*
- * Landing (/welcome). Qoidalar: burchaklar to'g'ri (radius 0), soya yo'q, bitta shrift,
- * bitta aksent rang, 1px qora chiziqlar. Asosiy "rasm" — ilovaning haqiqiy skrinshoti.
+ * Landing (/welcome). Iliq bej fon, to'q yashil aksent, yumshoq burchaklar (16-24px),
+ * bitta shrift. Imkoniyatlar bir xil kartalarda emas, turli o'lchamdagi mozaikada.
+ * Raqamlar — lokal demo ma'lumotdan (skrinshotdagi bilan bir xil).
  */
 
-const INK = '#0b1220'
-const AKSENT = '#1d4ed8'
-const CHIZIQ = '1px solid #0b1220'
+const FON = '#ece9de'
+const QUM = '#e2d6c0'
+const OQ = '#faf8f2'
+const YASHIL = '#0f3d2e'
+const YASHIL_OCH = '#1f9d63'
+const INK = '#1f1b16'
+const SOYA = '#5c554b'
 const SHRIFT: CSSProperties = { fontFamily: "'IBM Plex Sans', system-ui, sans-serif" }
 
-const btn = 'inline-flex min-h-12 items-center px-6 text-base font-semibold'
+const btn = 'inline-flex min-h-12 items-center rounded-full px-6 text-base font-semibold'
 
-const BORLAR: { nom: string; matn: string }[] = [
-  { nom: 'Berish va qaytarish', matn: 'O‘quvchini toping, kitobni tanlang, bering. Qaytganda qatordagi tugmani bosing.' },
-  { nom: 'Nusxalar', matn: 'Har bir nusxaning inventar raqami bor. Qaysi biri javonda, qaysi biri o‘quvchida — ro‘yxatda ko‘rinadi.' },
-  { nom: 'Muddati o‘tganlar', matn: 'Qaytarilmagan kitoblar boshqaruv panelida qizil raqam bilan alohida chiqadi.' },
-  { nom: 'Jarimalar', matn: 'Kechikish uchun jarima hisoblanadi. To‘langan va to‘lanmagan summa alohida turadi.' },
-  { nom: 'Band va navbat', matn: 'Kitob qo‘lda bo‘lsa, o‘quvchi navbatga turadi. Navbatdagilar sonini panelda ko‘rasiz.' },
-  { nom: 'O‘quvchi va o‘qituvchilar', matn: 'Ikkalasi alohida ro‘yxatda. O‘qituvchilar Telegram bot orqali ariza yuboradi, siz tasdiqlaysiz.' },
-  { nom: 'Kutubxonalar alohida', matn: 'Har bir kutubxonaning ma’lumoti boshqalarnikidan ajratilgan. Kutubxona, maktab, universitet yoki ofis bo‘lishi mumkin.' },
-  { nom: 'AI yordamchi', matn: 'Tizim bo‘yicha savolga o‘zbekcha javob beradi. Ctrl+K orqali oddiy gap bilan buyruq berasiz.' },
-]
+function Tile({
+  className = '',
+  bg,
+  color = INK,
+  children,
+}: {
+  className?: string
+  bg: string
+  color?: string
+  children: ReactNode
+}) {
+  return (
+    <div className={'flex flex-col overflow-hidden rounded-[22px] p-6 ' + className} style={{ background: bg, color }}>
+      {children}
+    </div>
+  )
+}
 
 export function Home() {
   return (
-    <div className="min-h-screen bg-white" style={{ ...SHRIFT, color: INK }}>
-      <header style={{ borderBottom: CHIZIQ }}>
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-          <Logo />
-          <nav className="flex items-center gap-1 sm:gap-2">
-            <Link to="/yordam" className="hidden px-3 py-2 text-sm font-medium hover:underline sm:block">
-              Qo‘llanma
-            </Link>
-            <Link to="/login" className="px-3 py-2 text-sm font-medium hover:underline">
-              Kirish
-            </Link>
-            <Link to="/register" className="px-4 py-2 text-sm font-semibold text-white" style={{ background: INK }}>
-              Ro‘yxatdan o‘tish
-            </Link>
-          </nav>
-        </div>
+    <div className="min-h-screen" style={{ ...SHRIFT, background: FON, color: INK }}>
+      <header className="mx-auto flex h-20 max-w-6xl items-center justify-between px-4">
+        <Logo />
+        <nav className="flex items-center gap-1 sm:gap-2">
+          <Link to="/yordam" className="hidden px-3 py-2 text-sm font-medium hover:underline sm:block">
+            Qo‘llanma
+          </Link>
+          <Link to="/login" className="px-3 py-2 text-sm font-medium hover:underline">
+            Kirish
+          </Link>
+          <Link to="/register" className="rounded-full px-5 py-2.5 text-sm font-semibold text-white" style={{ background: YASHIL }}>
+            Ro‘yxatdan o‘tish
+          </Link>
+        </nav>
       </header>
 
       <main>
         {/* Hero */}
-        <section className="mx-auto max-w-6xl px-4 pt-14 sm:pt-20">
-          <h1 className="max-w-4xl text-4xl font-bold leading-[1.08] tracking-tight sm:text-6xl">
-            Kim qaysi kitobni olgan — bir qarashda.
+        <section className="mx-auto max-w-6xl px-4 pt-10 sm:pt-16">
+          <h1 className="max-w-4xl text-4xl font-bold leading-[1.06] tracking-tight sm:text-6xl">
+            Kim qaysi kitobni olgan — <span style={{ color: YASHIL_OCH }}>bir qarashda.</span>
           </h1>
-          <p className="mt-6 max-w-2xl text-lg leading-relaxed sm:text-xl" style={{ color: '#3b4558' }}>
+          <p className="mt-6 max-w-2xl text-lg leading-relaxed sm:text-xl" style={{ color: SOYA }}>
             Kutubxonachi uchun berish, qaytarish, muddat va jarima hisobi. Daftar va Excel o‘rniga. O‘zbek tilida,
             kompyuter va telefonda.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link to="/register" className={btn + ' text-white'} style={{ background: AKSENT }}>
+            <Link to="/register" className={btn + ' text-white'} style={{ background: YASHIL }}>
               Ro‘yxatdan o‘tish
             </Link>
-            <Link to="/login" className={btn} style={{ border: CHIZIQ }}>
+            <Link to="/login" className={btn} style={{ background: OQ }}>
               Kirish
             </Link>
           </div>
 
-          <figure className="mt-14" style={{ border: CHIZIQ }}>
+          <figure className="mt-12 overflow-hidden rounded-[24px] p-2 sm:p-3" style={{ background: QUM }}>
             <img
               src="/landing/panel.jpg"
               alt="Boshqaruv paneli: muddati o‘tgan berishlar, navbatlar, jarimalar, fond holati, so‘nggi harakatlar"
-              className="block h-auto w-full"
+              className="block h-auto w-full rounded-[16px]"
               width={1311}
               height={758}
             />
           </figure>
-          <p className="mt-2 text-sm" style={{ color: '#3b4558' }}>
+          <p className="mt-2 text-sm" style={{ color: SOYA }}>
             Boshqaruv paneli. Ishlab turgan tizimdan olingan ekran, namunaviy ma’lumotlar bilan.
           </p>
         </section>
 
-        {/* Berish / qaytarish */}
-        <section className="mx-auto mt-20 max-w-6xl px-4">
-          <div className="grid items-center gap-10 lg:grid-cols-[1fr_1.4fr]">
-            <div>
-              <h2 className="text-3xl font-bold leading-tight sm:text-4xl">Qaytarish — qator oxiridagi bitta tugma</h2>
-              <p className="mt-4 text-lg leading-relaxed" style={{ color: '#3b4558' }}>
-                Faol berishlar jadvalida kim, qaysi nusxani, qachon olgani va muddati ko‘rinadi. Kitob qaytganda tugmani
-                bosasiz — nusxa yana javonga qaytadi.
+        {/* Raqamlar */}
+        <section className="mx-auto mt-12 grid max-w-6xl gap-3 px-4 sm:grid-cols-3">
+          {[
+            ['47', 'muddati o‘tgan berish — panelda qizil raqam bilan ajralib turadi'],
+            ['114', 'nusxa — qaysi biri javonda, qaysi biri o‘quvchida ko‘rinadi'],
+            ['475 000 so‘m', 'to‘lanmagan jarima — kechikish bo‘yicha o‘zi hisoblanadi'],
+          ].map(([n, m]) => (
+            <div key={n} className="rounded-[22px] p-5" style={{ background: OQ }}>
+              <div className="text-2xl font-bold sm:text-3xl">{n}</div>
+              <p className="mt-1 text-sm leading-snug" style={{ color: SOYA }}>
+                {m}
               </p>
             </div>
-            <figure style={{ border: CHIZIQ }}>
+          ))}
+        </section>
+
+        {/* Mozaika */}
+        <section className="mx-auto mt-24 max-w-6xl px-4">
+          <h2 className="text-3xl font-bold sm:text-4xl">Kundalik ish uchun nimalar bor</h2>
+
+          <div className="mt-8 grid gap-3 lg:grid-cols-6">
+            <Tile bg={OQ} className="lg:col-span-4 lg:row-span-2">
+              <h3 className="text-2xl font-bold sm:text-3xl">Berish va qaytarish</h3>
+              <p className="mt-2 max-w-md text-base leading-relaxed" style={{ color: SOYA }}>
+                O‘quvchini toping, kitobni tanlang, bering. Qaytganda qator oxiridagi tugmani bosasiz — nusxa
+                javonga qaytadi.
+              </p>
               <img
                 src="/landing/berish.jpg"
                 alt="Berish va qaytarish jadvali: kitob, o‘quvchi, berilgan sana, muddat, Qaytarish tugmasi"
-                className="block h-auto w-full"
+                className="mt-5 block h-auto w-full rounded-[14px]"
                 loading="lazy"
                 width={1311}
                 height={758}
               />
-            </figure>
-          </div>
-        </section>
+            </Tile>
 
-        {/* Nimalar bor */}
-        <section className="mx-auto mt-24 max-w-6xl px-4">
-          <h2 className="text-3xl font-bold sm:text-4xl">Nimalar bor</h2>
-          <dl className="mt-8 grid sm:grid-cols-2" style={{ borderTop: CHIZIQ, borderLeft: CHIZIQ }}>
-            {BORLAR.map((b) => (
-              <div key={b.nom} className="p-6" style={{ borderRight: CHIZIQ, borderBottom: CHIZIQ }}>
-                <dt className="text-lg font-semibold">{b.nom}</dt>
-                <dd className="mt-2 text-base leading-relaxed" style={{ color: '#3b4558' }}>
-                  {b.matn}
-                </dd>
-              </div>
-            ))}
-          </dl>
+            <Tile bg={YASHIL} color="#fff" className="lg:col-span-2">
+              <h3 className="text-xl font-bold">AI yordamchi</h3>
+              <p className="mt-2 text-base leading-relaxed" style={{ color: '#cfe5da' }}>
+                Tizim bo‘yicha savolga o‘zbekcha javob beradi. Ctrl+K orqali oddiy gap bilan buyruq berasiz.
+              </p>
+            </Tile>
+
+            <Tile bg={QUM} className="lg:col-span-2">
+              <h3 className="text-xl font-bold">Band va navbat</h3>
+              <p className="mt-2 text-base leading-relaxed" style={{ color: SOYA }}>
+                Kitob qo‘lda bo‘lsa, o‘quvchi navbatga turadi. Navbatdagilar sonini panelda ko‘rasiz.
+              </p>
+            </Tile>
+
+            <Tile bg={QUM} className="lg:col-span-2">
+              <h3 className="text-xl font-bold">Nusxalar</h3>
+              <p className="mt-2 text-base leading-relaxed" style={{ color: SOYA }}>
+                Har bir nusxaning inventar raqami bor. Qaysi biri javonda, qaysi biri qo‘lda — ro‘yxatda.
+              </p>
+            </Tile>
+
+            <Tile bg={OQ} className="lg:col-span-2">
+              <h3 className="text-xl font-bold">Jarimalar</h3>
+              <p className="mt-2 text-base leading-relaxed" style={{ color: SOYA }}>
+                Kechikish uchun jarima hisoblanadi. To‘langan va to‘lanmagan summa alohida turadi.
+              </p>
+            </Tile>
+
+            <Tile bg={OQ} className="lg:col-span-2">
+              <h3 className="text-xl font-bold">O‘quvchi va o‘qituvchilar</h3>
+              <p className="mt-2 text-base leading-relaxed" style={{ color: SOYA }}>
+                Ikkalasi alohida ro‘yxatda. O‘qituvchilar Telegram bot orqali ariza yuboradi, siz tasdiqlaysiz.
+              </p>
+            </Tile>
+
+            <Tile bg={QUM} className="lg:col-span-6">
+              <h3 className="text-xl font-bold">Kutubxonalar alohida</h3>
+              <p className="mt-2 text-base leading-relaxed" style={{ color: SOYA }}>
+                Har bir kutubxonaning ma’lumoti boshqalarnikidan ajratilgan. Kutubxona, maktab, universitet yoki ofis
+                bo‘lishi mumkin.
+              </p>
+            </Tile>
+          </div>
         </section>
 
         {/* Boshlash */}
         <section className="mx-auto mt-24 max-w-6xl px-4">
           <h2 className="text-3xl font-bold sm:text-4xl">Boshlash</h2>
-          <ol className="mt-8 grid md:grid-cols-3" style={{ borderTop: CHIZIQ, borderLeft: CHIZIQ }}>
+          <ol className="mt-8 grid gap-3 md:grid-cols-3">
             {[
               ['Ro‘yxatdan o‘ting', 'Kutubxona nomi va turini kiriting.'],
               ['Kitoblarni kiriting', 'Kitob va nusxalarni qo‘shing. O‘quvchilar Telegram bot orqali o‘zlari ariza yuboradi.'],
               ['Kitob bera boshlang', 'Qo‘llanma tizim ichida. Savol bo‘lsa, AI yordamchidan so‘rang.'],
             ].map(([n, m], i) => (
-              <li key={n} className="p-6" style={{ borderRight: CHIZIQ, borderBottom: CHIZIQ }}>
-                <div className="text-sm font-semibold" style={{ color: AKSENT }}>
+              <li key={n} className="rounded-[22px] p-6" style={{ background: OQ }}>
+                <div className="text-sm font-semibold" style={{ color: YASHIL_OCH }}>
                   {i + 1}-qadam
                 </div>
                 <div className="mt-1 text-lg font-semibold">{n}</div>
-                <p className="mt-2 text-base leading-relaxed" style={{ color: '#3b4558' }}>
+                <p className="mt-2 text-base leading-relaxed" style={{ color: SOYA }}>
                   {m}
                 </p>
               </li>
@@ -139,14 +193,19 @@ export function Home() {
         </section>
 
         {/* CTA */}
-        <section className="mt-24" style={{ background: INK, color: '#fff' }}>
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-6 px-4 py-14">
-            <h2 className="max-w-xl text-3xl font-bold leading-tight sm:text-4xl">Kutubxonangizni bugun ro‘yxatdan o‘tkazing</h2>
+        <section className="mx-auto mt-24 max-w-6xl px-4">
+          <div
+            className="flex flex-wrap items-center justify-between gap-6 rounded-[28px] px-6 py-12 sm:px-12"
+            style={{ background: YASHIL, color: '#fff' }}
+          >
+            <h2 className="max-w-xl text-3xl font-bold leading-tight sm:text-4xl">
+              Kutubxonangizni bugun ro‘yxatdan o‘tkazing
+            </h2>
             <div className="flex flex-wrap gap-3">
-              <Link to="/register" className={btn} style={{ background: '#fff', color: INK }}>
+              <Link to="/register" className={btn} style={{ background: '#fff', color: YASHIL }}>
                 Ro‘yxatdan o‘tish
               </Link>
-              <Link to="/yordam" className={btn} style={{ border: '1px solid #fff' }}>
+              <Link to="/yordam" className={btn} style={{ border: '1px solid #ffffff80' }}>
                 Qo‘llanma
               </Link>
             </div>
@@ -154,7 +213,7 @@ export function Home() {
         </section>
       </main>
 
-      <footer className="py-6 text-center text-sm" style={{ color: '#3b4558' }}>
+      <footer className="py-8 text-center text-sm" style={{ color: SOYA }}>
         © {new Date().getFullYear()} Kutubxona
       </footer>
     </div>
