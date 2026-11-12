@@ -37,10 +37,12 @@ interface LogoProps {
   withWordmark?: boolean
   markClassName?: string
   className?: string
+  /** Kutubxona nomi (bo'sh bo'lsa standart yozuv). */
+  subtitle?: string
 }
 
 /** Yagona brend lockup: belgi + «Kutubxona» matni. */
-export function Logo({ withWordmark = true, markClassName, className }: LogoProps) {
+export function Logo({ withWordmark = true, markClassName, className, subtitle }: LogoProps) {
   if (!withWordmark) return <LogoMark className={markClassName} />
   return (
     <span className={`flex items-center gap-2 ${className ?? ''}`}>
@@ -49,9 +51,15 @@ export function Logo({ withWordmark = true, markClassName, className }: LogoProp
         <span className="text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-100">
           Kutubxona
         </span>
-        <span className="mt-0.5 text-[9.5px] font-medium tracking-[0.16em] text-slate-500 uppercase dark:text-slate-400">
-          Tuman kutubxonasi
-        </span>
+        {subtitle ? (
+          <span className="mt-1 max-w-44 truncate text-sm font-medium text-slate-600 dark:text-slate-300">
+            {subtitle}
+          </span>
+        ) : (
+          <span className="mt-0.5 text-[9.5px] font-medium tracking-[0.16em] text-slate-500 uppercase dark:text-slate-400">
+            Tuman kutubxonasi
+          </span>
+        )}
       </span>
     </span>
   )

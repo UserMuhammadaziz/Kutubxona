@@ -43,10 +43,21 @@ export interface RegisterPayload {
   password_confirm: string
 }
 
+export interface OrganizationInfo {
+  id: number
+  nomi: string
+  turi: string
+  manzil?: string
+  telefon?: string
+  email?: string
+  tavsif?: string
+}
+
 export const authApi = {
   login: (username: string, password: string) =>
     api.post<{ access: string; refresh: string }>('/auth/token/', { username, password }).then((r) => r.data),
   me: () => api.get<User>('/auth/me/').then((r) => r.data),
+  organization: () => api.get<OrganizationInfo | null>('/auth/organization/').then((r) => r.data),
   register: (payload: RegisterPayload) =>
     api.post<{ access: string; refresh: string; user: User; organization: any }>('/auth/register/', payload).then((r) => r.data),
 }
