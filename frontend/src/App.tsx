@@ -32,10 +32,11 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/yordam" element={<PublicGuide />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/welcome" element={<Home />} />
 
       <Route element={<RequireAuth />}>
         <Route element={<Layout />}>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<Dashboard />} />
           <Route path="/books" element={<Books />} />
           <Route path="/books/:id" element={<BookDetail />} />
           <Route path="/copies" element={<Copies />} />

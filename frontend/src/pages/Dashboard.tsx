@@ -5,7 +5,7 @@ import { errorMessage } from '../api/client'
 import { Icons } from '../components/icons'
 import { Button, Card, EmptyState, ErrorState, PageHeader, Spinner } from '../components/ui'
 import { formatDate, formatMoney } from '../lib/format'
-import { isAdmin } from '../store/auth'
+import { isAdmin, useAuthStore } from '../store/auth'
 
 function StatCard({ label, value, hint, tone }: { label: string; value: string | number; hint?: string; tone?: 'red' | 'amber' }) {
   return (
@@ -40,6 +40,7 @@ function Panel({ title, to, children }: { title: string; to: string; children: R
 }
 
 export function Dashboard() {
+  const admin = isAdmin(useAuthStore((s) => s.user))
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['stats', 'dashboard'],
     queryFn: statsApi.dashboard,
@@ -108,7 +109,7 @@ export function Dashboard() {
         </Link>
       </div>
 
-      {isAdmin() && (
+      {admin && (
         <div className="mt-3 grid grid-cols-2 gap-3">
           <StatCard label="O'quvchilar" value={data.oquvchi_soni || 0} hint="faol o'quvchilar" />
           <StatCard label="O'qituvchilar" value={data.oqituvchi_soni || 0} hint="faol o'qituvchilar" />
