@@ -83,7 +83,9 @@ export function Loans() {
   const kechikkanRejim = params.get('kechikkan') === '1'
   const [holati, setHolati] = useState<BerishHolati | ''>(() => {
     const h = params.get('holat')
-    return h === 'faol' || h === 'qaytarilgan' || h === 'yoqolgan' ? h : ''
+    if (h === 'faol' || h === 'qaytarilgan' || h === 'yoqolgan') return h
+    // Havola holat bermasa, standart bo'yicha faol (qaytarilmagan) berishlar ko'rsatiladi.
+    return 'faol'
   })
   const [modalOpen, setModalOpen] = useState(false)
   const [readerSearch, setReaderSearch] = useState('')
