@@ -34,7 +34,7 @@ const tabItems = [
 ]
 
 function BottomTabs({ onMenu }: { onMenu: () => void }) {
-  const tab = 'flex min-h-16 flex-1 flex-col items-center justify-center gap-1 py-2 text-xs font-semibold'
+  const tab = 'flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium'
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-paper pb-[env(safe-area-inset-bottom)] lg:hidden dark:border-slate-700 dark:bg-slate-800">
       {tabItems.map((item) => (
@@ -63,7 +63,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     clsx(
-      'flex items-center gap-3 rounded-lg px-3.5 py-3 text-base font-medium transition-colors',
+      'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
       isActive
         ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400'
         : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700',
@@ -73,7 +73,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
     <nav className="flex-1 space-y-1 overflow-y-auto p-3">
       {navItems.map((item) => (
         <NavLink key={item.to} to={item.to} end={item.end} className={linkClass} onClick={onNavigate}>
-          <span aria-hidden>{item.icon({ className: 'h-6 w-6' })}</span>
+          <span aria-hidden>{item.icon({ className: 'h-5 w-5' })}</span>
           {item.label}
         </NavLink>
       ))}
@@ -111,7 +111,7 @@ function UserBlock({ onLogout, onNavigate }: { onLogout: () => void; onNavigate?
       </NavLink>
       <button
         onClick={onLogout}
-        className="w-full rounded-lg bg-slate-100 px-3 py-2.5 text-base font-medium text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+        className="w-full rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
       >
         Chiqish
       </button>
@@ -169,7 +169,7 @@ export function Layout() {
 
       <div className="flex">
         {/* Desktop yon panel */}
-        <aside className="sticky top-0 hidden h-dvh w-72 shrink-0 flex-col border-r border-slate-200 bg-paper lg:flex dark:border-slate-700 dark:bg-slate-800">
+        <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-slate-200 bg-paper lg:flex dark:border-slate-700 dark:bg-slate-800">
           <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-700">
             <div className="flex items-center gap-2">
               <Logo subtitle={org?.nomi} />

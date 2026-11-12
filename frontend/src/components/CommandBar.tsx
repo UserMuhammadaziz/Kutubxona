@@ -293,7 +293,7 @@ export function CommandBar() {
             ))}
           </ul>
         )}
-        <p className="mt-3 flex items-center gap-1 text-xs text-slate-400">
+        <p className="mt-3 flex items-center gap-1 text-[11px] text-slate-400">
           {Icons.search({ className: 'h-3.5 w-3.5' })} Ctrl+K — ochish/yopish · ↑↓ + Enter yoki raqam + Enter — bo‘limga o‘tish · Esc — yopish
         </p>
       </div>
