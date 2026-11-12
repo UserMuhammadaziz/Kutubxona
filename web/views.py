@@ -76,11 +76,11 @@ MAX_COMMAND_LEN = 300
 MAX_HISTORY = 20
 
 
-MAX_SAQLANGAN = 100
-
-
 def _chat_saqlash(user, savol: str, javob: str) -> None:
-    """Savol-javobni bazaga yozadi; xato chatni buzmasin."""
+    """Savol-javobni faqat statistika va AI'ni yaxshilash uchun yozadi.
+
+    Foydalanuvchiga qaytarilmaydi (GET yo'q); xato chatni buzmasin.
+    """
     from user.models import ChatXabar
 
     try:
@@ -90,14 +90,6 @@ def _chat_saqlash(user, savol: str, javob: str) -> None:
                 ChatXabar(user=user, rol="model", matn=javob),
             ]
         )
-        # Eskilarini tozalaymiz: har foydalanuvchida oxirgi MAX_SAQLANGAN ta.
-        chegara = (
-            ChatXabar.objects.filter(user=user)
-            .order_by("-id")
-            .values_list("id", flat=True)[MAX_SAQLANGAN : MAX_SAQLANGAN + 1]
-        )
-        if chegara:
-            ChatXabar.objects.filter(user=user, id__lte=chegara[0]).delete()
     except Exception:
         logger.exception("Chat tarixini saqlab bo'lmadi")
 
@@ -219,26 +211,6 @@ class ChatbotView(APIView):
 
         _chat_saqlash(request.user, message, text)
         return Response({"response": text, "history": updated_history})
-
-    def get(self, request):
-        """Foydalanuvchining oxirgi suhbati (eskidan yangiga)."""
-        from user.models import ChatXabar
-
-        oxirgilar = list(
-            ChatXabar.objects.filter(user=request.user).order_by("-id")[:MAX_SAQLANGAN]
-        )[::-1]
-        return Response(
-            [
-                {"role": x.rol, "content": x.matn, "sana": x.yaratilgan}
-                for x in oxirgilar
-            ]
-        )
-
-    def delete(self, request):
-        from user.models import ChatXabar
-
-        ChatXabar.objects.filter(user=request.user).delete()
-        return Response(status=204)
 
 
 class LibrarianCommandView(APIView):
