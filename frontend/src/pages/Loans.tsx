@@ -244,7 +244,7 @@ function onSubmit(e: FormEvent) {
         title="Berish / Qaytarish"
         subtitle={kechikkanRejim ? 'Muddati o‘tgan kitoblar' : 'Kitob berish va qaytarish jarayonlari'}
         actions={
-          <Button onClick={openCreate} className="w-full sm:w-auto">
+          <Button onClick={openCreate}>
             + Kitob berish
           </Button>
         }

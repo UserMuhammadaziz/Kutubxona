@@ -83,7 +83,7 @@ export function Staff() {
         title="Xodimlar"
         subtitle="Kutubxonachi va administrator hisoblari"
         actions={
-          <Button onClick={openCreate} className="w-full sm:w-auto">
+          <Button onClick={openCreate}>
             + Yangi xodim
           </Button>
         }

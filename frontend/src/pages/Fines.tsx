@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { finesApi } from '../api/resources'
@@ -10,6 +11,7 @@ import {
   Button,
   Card,
   ConfirmDialog,
+  Input,
   EmptyState,
   ErrorState,
   PageHeader,
@@ -27,12 +29,18 @@ export function Fines() {
   const toast = useToast()
   const [page, setPage] = useState(1)
   const [tolandimi, setTolandimi] = useState('')
+  const [search, setSearch] = useState('')
+  const debouncedSearch = useDebouncedValue(search)
   const [tasdiqlanadigan, setTasdiqlanadigan] = useState<Jarima | null>(null)
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ['fines', page, tolandimi],
+    queryKey: ['fines', page, tolandimi, debouncedSearch],
     queryFn: () =>
-      finesApi.list({ page, tolandimi: tolandimi === '' ? undefined : tolandimi === 'true' }),
+      finesApi.list({
+        page,
+        tolandimi: tolandimi === '' ? undefined : tolandimi === 'true',
+        search: debouncedSearch || undefined,
+      }),
   })
 
   const payMut = useMutation({
@@ -45,14 +53,23 @@ export function Fines() {
     onError: (err) => toast.error(errorMessage(err)),
   })
 
-  const filtrBor = tolandimi !== ''
+  const filtrBor = tolandimi !== '' || debouncedSearch !== ''
 
   return (
     <div>
       <PageHeader title="Jarimalar" subtitle="Kechiktirib qaytarilgan kitoblar uchun jarimalar" />
 
       <Card className="mb-4 p-3 sm:p-4">
-        <div className="sm:w-64">
+        <div className="grid gap-3 sm:grid-cols-[1fr_16rem]">
+          <Input
+            placeholder="O'quvchi yoki kitob nomi bo'yicha qidirish..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setPage(1)
+            }}
+            aria-label="Qidirish"
+          />
           <Select
             value={tolandimi}
             onChange={(e) => {

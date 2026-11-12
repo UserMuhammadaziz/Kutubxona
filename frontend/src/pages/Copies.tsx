@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { booksApi, copiesApi } from '../api/resources'
 import { errorMessage } from '../api/client'
@@ -41,14 +42,16 @@ export function Copies() {
   const toast = useToast()
   const [page, setPage] = useState(1)
   const [holati, setHolati] = useState<NusxaHolati | ''>('')
+  const [search, setSearch] = useState('')
+  const debouncedSearch = useDebouncedValue(search)
   const [modalOpen, setModalOpen] = useState(false)
   const [form, setForm] = useState<NusxaCreatePayload>(emptyForm)
   const [error, setError] = useState<string | null>(null)
   const [ochiriladigan, setOchiriladigan] = useState<Nusxa | null>(null)
 
   const { data, isLoading, isError, error: listError, refetch, isFetching } = useQuery({
-    queryKey: ['copies', page, holati],
-    queryFn: () => copiesApi.list({ page, holati: holati || undefined }),
+    queryKey: ['copies', page, holati, debouncedSearch],
+    queryFn: () => copiesApi.list({ page, holati: holati || undefined, search: debouncedSearch || undefined }),
   })
 
   const { data: books, isLoading: booksLoading } = useQuery({
@@ -117,14 +120,23 @@ export function Copies() {
         title="Nusxalar"
         subtitle="Har bir kitobning jismoniy nusxalari"
         actions={
-          <Button onClick={openCreate} className="w-full sm:w-auto">
+          <Button onClick={openCreate}>
             + Yangi nusxa
           </Button>
         }
       />
 
       <Card className="mb-4 p-3 sm:p-4">
-        <div className="sm:w-64">
+        <div className="grid gap-3 sm:grid-cols-[1fr_16rem]">
+          <Input
+            placeholder="Inventar raqam, kitob yoki javon bo'yicha qidirish..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setPage(1)
+            }}
+            aria-label="Qidirish"
+          />
           <Select
             value={holati}
             onChange={(e) => {

@@ -92,6 +92,7 @@ export interface CopyListParams {
   kitob?: number
   holati?: NusxaHolati
   javon?: string
+  search?: string
 }
 
 export const copiesApi = {
@@ -171,6 +172,7 @@ export interface FineListParams {
   page?: number
   tolandimi?: boolean
   berish__oquvchi?: number
+  search?: string
 }
 
 export const finesApi = {

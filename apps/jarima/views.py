@@ -21,6 +21,7 @@ class JarimaViewSet(viewsets.ModelViewSet):
     queryset = Jarima.objects.select_related("berish__oquvchi", "berish__kitob").order_by("-id")
     serializer_class = JarimaSerializer
     filterset_fields = ["tolandimi", "berish__oquvchi"]
+    search_fields = ["berish__oquvchi__fish", "berish__kitob__nomi"]
     http_method_names = ["get", "post"]
 
     def get_permissions(self):

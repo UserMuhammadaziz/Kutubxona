@@ -140,14 +140,14 @@ export function Badge({
 
 export function PageHeader({ title, subtitle, actions }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="min-w-0">
+    <div className="mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+      <div className="min-w-0 flex-1 basis-48">
         <h1 className="flex items-center gap-2 text-xl font-semibold text-slate-900 sm:text-2xl dark:text-slate-100">
           {title}
         </h1>
         {subtitle && <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
     </div>
   )
 }

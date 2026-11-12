@@ -22,6 +22,7 @@ class NusxaViewSet(viewsets.ModelViewSet):
     permission_classes = [IsLibrarian]
     queryset = Nusxa.objects.select_related("kitob").order_by("-qabul_sana", "-id")
     filterset_fields = ["kitob", "holati", "javon", "inventar_raqami"]
+    search_fields = ["inventar_raqami", "kitob__nomi", "kitob__muallif", "javon"]
     http_method_names = ["get", "post", "patch", "delete"]
 
     def get_organization(self):
