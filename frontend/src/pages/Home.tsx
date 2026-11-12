@@ -1,11 +1,12 @@
 import type { CSSProperties, ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Logo } from '../components/Logo'
+import { LiveDemo } from '../components/LiveDemo'
 
 /*
  * Landing (/welcome). Iliq bej fon, to'q yashil aksent, yumshoq burchaklar (16-24px),
  * bitta shrift. Imkoniyatlar bir xil kartalarda emas, turli o'lchamdagi mozaikada.
- * Raqamlar — lokal demo ma'lumotdan (skrinshotdagi bilan bir xil).
+ * Hero'dagi panel — LiveDemo (jonli namuna), skrinshot emas.
  */
 
 const FON = '#ece9de'
@@ -82,25 +83,23 @@ export function Home() {
           </div>
 
           <figure className="mt-12 overflow-hidden rounded-[24px] p-2 sm:p-3" style={{ background: QUM }}>
-            <img
-              src="/landing/panel.jpg"
-              alt="Boshqaruv paneli: muddati o‘tgan berishlar, navbatlar, jarimalar, fond holati, so‘nggi harakatlar"
-              className="block h-auto w-full rounded-[16px]"
-              width={1311}
-              height={758}
-            />
+            <LiveDemo />
           </figure>
           <p className="mt-2 text-sm" style={{ color: SOYA }}>
-            Boshqaruv paneli. Ishlab turgan tizimdan olingan ekran, namunaviy ma’lumotlar bilan.
+            Bu ishlaydigan namuna: tugmalarni bosib ko‘ring. To‘liq sinov uchun{' '}
+            <Link to="/demo" className="font-semibold underline">
+              sinab ko‘rish sahifasiga
+            </Link>{' '}
+            o‘ting.
           </p>
         </section>
 
         {/* Raqamlar */}
         <section className="mx-auto mt-12 grid max-w-6xl gap-3 px-4 sm:grid-cols-3">
           {[
-            ['47', 'muddati o‘tgan berish — panelda qizil raqam bilan ajralib turadi'],
-            ['114', 'nusxa — qaysi biri javonda, qaysi biri o‘quvchida ko‘rinadi'],
-            ['475 000 so‘m', 'to‘lanmagan jarima — kechikish bo‘yicha o‘zi hisoblanadi'],
+            ['Qizil', 'raqam: muddati o‘tgan berishlar panelda darrov ko‘rinadi'],
+            ['Nusxa', 'har birining inventar raqami bor: javonda yoki o‘quvchida ekani ko‘rinadi'],
+            ['Jarima', 'kechikkan kunga qarab o‘zi hisoblanadi'],
           ].map(([n, m]) => (
             <div key={n} className="rounded-[22px] p-5" style={{ background: OQ }}>
               <div className="text-2xl font-bold sm:text-3xl">{n}</div>
@@ -122,14 +121,6 @@ export function Home() {
                 O‘quvchini toping, kitobni tanlang, bering. Qaytganda qator oxiridagi tugmani bosasiz — nusxa
                 javonga qaytadi.
               </p>
-              <img
-                src="/landing/berish.jpg"
-                alt="Berish va qaytarish jadvali: kitob, o‘quvchi, berilgan sana, muddat, Qaytarish tugmasi"
-                className="mt-5 block h-auto w-full rounded-[14px]"
-                loading="lazy"
-                width={1311}
-                height={758}
-              />
             </Tile>
 
             <Tile bg={YASHIL} color="#fff" className="lg:col-span-2">
