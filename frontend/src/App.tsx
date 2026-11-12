@@ -17,6 +17,8 @@ import { Reservations } from './pages/Reservations'
 import { Fines } from './pages/Fines'
 import { Staff } from './pages/Staff'
 import { Guide, PublicGuide } from './pages/Guide'
+import { Register } from './pages/Register'
+import { Home } from './pages/Home'
 
 function App() {
   const hydrate = useAuthStore((s) => s.hydrate)
@@ -29,10 +31,11 @@ function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/yordam" element={<PublicGuide />} />
+      <Route path="/register" element={<Register />} />
 
       <Route element={<RequireAuth />}>
         <Route element={<Layout />}>
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/" element={<Home />} />
           <Route path="/books" element={<Books />} />
           <Route path="/books/:id" element={<BookDetail />} />
           <Route path="/copies" element={<Copies />} />

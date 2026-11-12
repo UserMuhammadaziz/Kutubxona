@@ -18,8 +18,22 @@ from jarima.views import JarimaViewSet
 from kitob.views import BandQilishViewSet, KitobViewSet
 from navbat.views import NavbatViewSet
 from nusxa.views import NusxaViewSet
+from organization.views import (
+    OrganizationViewSet,
+    RegisterView,
+    SaaSOrganizationViewSet,
+    current_organization,
+    my_memberships,
+    password_reset_confirm,
+    password_reset_request,
+)
 from oquvchi.views import OquvchiViewSet, ArizaViewSet
-from user.views import UserViewSet, me
+from telegrambot.views import (
+    TelegramBotActionView,
+    TelegramBotSettingsView,
+    TelegramWebhookView,
+)
+from user.views import LogoutView, UserViewSet, me
 
 router = DefaultRouter()
 router.register("books", KitobViewSet, basename="books")
@@ -31,6 +45,8 @@ router.register("fines", JarimaViewSet, basename="fines")
 router.register("reservations", NavbatViewSet, basename="reservations")
 router.register("holds", BandQilishViewSet, basename="holds")
 router.register("staff", UserViewSet, basename="staff")
+router.register("organizations", OrganizationViewSet, basename="organizations")
+router.register("saas/organizations", SaaSOrganizationViewSet, basename="saas-organizations")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -39,5 +55,14 @@ urlpatterns = [
     path("api/auth/token/", ThrottledTokenView.as_view()),
     path("api/auth/token/refresh/", TokenRefreshView.as_view()),
     path("api/auth/me/", me),
+    path("api/auth/register/", RegisterView.as_view()),
+    path("api/auth/logout/", LogoutView.as_view()),
+    path("api/auth/password-reset/", password_reset_request),
+    path("api/auth/password-reset/confirm/", password_reset_confirm),
+    path("api/auth/organization/", current_organization),
+    path("api/auth/memberships/", my_memberships),
+    path("api/telegram/settings/", TelegramBotSettingsView.as_view()),
+    path("api/telegram/actions/<str:action>/", TelegramBotActionView.as_view()),
+    path("api/telegram/webhook/<str:path>/", TelegramWebhookView.as_view()),
     path("", include("web.urls")),
 ]

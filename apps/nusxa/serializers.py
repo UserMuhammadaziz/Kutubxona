@@ -1,9 +1,10 @@
 from rest_framework import serializers
 from kitob.models import Kitob
 from nusxa.models import Nusxa
+from organization.tenancy import TenantSerializerMixin
 
 
-class NusxaSerializer(serializers.ModelSerializer):
+class NusxaSerializer(TenantSerializerMixin, serializers.ModelSerializer):
     """Nusxalar ro'yxati / yaratish / holat o'zgartirish uchun."""
 
     kitob_nomi = serializers.CharField(source="kitob.nomi", read_only=True)
@@ -46,7 +47,7 @@ class NusxaSerializer(serializers.ModelSerializer):
         return value
 
 
-class NusxaYaratishSerializer(serializers.ModelSerializer):
+class NusxaYaratishSerializer(TenantSerializerMixin, serializers.ModelSerializer):
     """POST /api/copies/ — inventar raqami bilan yangi nusxa qo'shish."""
 
     class Meta:

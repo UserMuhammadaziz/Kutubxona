@@ -20,17 +20,14 @@ def eslatma_yuborish():
          yuborilmasa, keyingi kunda qayta urinishadi.
     """
     bugun = now().date()
-    nishon_sana = bugun + timedelta(days=settings.ESLATMA_KUNLAR_OLDIN)
     # Sana ANIQ tengligi bilan emas, oyna (range) bilan izlanadi. Aks holda
     # celery beat kechiksa yoki server o'sha kuni o'chib qolsa, o'sha kuni
     # yuborilmagan eslatma butunlay o'tib ketardi: belgi qo'yilmagan bo'lsa
     # ham, keyingi chaqiruvda nishon_sana boshqacha bo'lgani uchun berish
     # qayta topilmasdi.
     qs = (
-        Berish.objects.select_related("oquvchi", "nusxa", "kitob")
+        Berish.objects.select_related("organization", "oquvchi", "nusxa", "kitob")
         .filter(
-            qaytarish_muddati__lte=nishon_sana,
-            qaytarish_muddati__gte=nishon_sana - timedelta(days=5),
             qaytarilgan_sana__isnull=True,
             eslatma_yuborilgan=False,
         )
@@ -38,6 +35,14 @@ def eslatma_yuborish():
 
     yuborildi = 0
     for berish in qs.iterator():
+        oldin = (
+            berish.organization.eslatma_kunlar_oldin
+            if berish.organization
+            else settings.ESLATMA_KUNLAR_OLDIN
+        )
+        nishon_sana = bugun + timedelta(days=oldin)
+        if not (nishon_sana - timedelta(days=5) <= berish.qaytarish_muddati <= nishon_sana):
+            continue
         oquvchi = berish.oquvchi
         if not oquvchi.telegram_id:
             # Telegramga bog'lanmagan o'quvchiga eslatma yuborib bo'lmaydi —
@@ -70,7 +75,9 @@ def eslatma_yuborish():
         )
 
         try:
-            yuborildi_hali = telegram_xabar_yubor(oquvchi.telegram_id, matn)
+            yuborildi_hali = telegram_xabar_yubor(
+                oquvchi.telegram_id, matn, organization=berish.organization
+            )
         except Exception:
             # TelegramForbiddenError va sh.k. holatlarda vazifa yiqilmasin
             continue

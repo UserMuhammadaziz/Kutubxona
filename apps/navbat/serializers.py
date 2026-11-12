@@ -3,6 +3,7 @@ from rest_framework import serializers
 
 from kitob.models import Kitob
 from oquvchi.models import Oquvchi
+from organization.tenancy import TenantSerializerMixin
 from .models import Navbat
 
 
@@ -42,7 +43,7 @@ class NavbatSerializer(serializers.ModelSerializer):
         ]
 
 
-class NavbatYaratishSerializer(serializers.Serializer):
+class NavbatYaratishSerializer(TenantSerializerMixin, serializers.Serializer):
     """POST /api/reservations/ — kitob navbatiga turish.
     Javobida nechanchi o'rin ekani orin maydonida qaytariladi.
     O'quvchi bot orqali qo'shilsa telegram_id, kutubxonachi veb-orginal
@@ -60,8 +61,12 @@ class NavbatYaratishSerializer(serializers.Serializer):
             )
         oquvchi = attrs.get("oquvchi")
         if oquvchi is None and "telegram_id" in attrs:
+            qs = Oquvchi.objects.all()
+            org = self.context.get("organization")
+            if org is not None:
+                qs = qs.filter(organization=org)
             try:
-                oquvchi = Oquvchi.objects.get(telegram_id=attrs["telegram_id"])
+                oquvchi = qs.get(telegram_id=attrs["telegram_id"])
             except Oquvchi.DoesNotExist:
                 raise serializers.ValidationError(
                     {"error": "oquvchi_topilmadi", "detail": "O'quvchi bog'lanmagan"}

@@ -105,4 +105,6 @@ Write-Host "  Celery worker   -> logs\celery_worker.out.log"   -ForegroundColor 
 Write-Host "  Celery beat     -> logs\celery_beat.out.log"     -ForegroundColor Gray
 Write-Host "  Telegram bot    -> logs\bot.out.log"             -ForegroundColor Gray
 Write-Host "  Django server   -> logs\django.out.log"          -ForegroundColor Gray
+Write-Host ""
+Write-Host "  Kutubxona SaaS  -> http://127.0.0.1:8000/"         -ForegroundColor Green
 Write-Host "To'xtatish uchun: powershell -ExecutionPolicy Bypass -File .\stop_all.ps1" -ForegroundColor Yellow

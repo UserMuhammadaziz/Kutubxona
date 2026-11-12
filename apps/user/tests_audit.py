@@ -43,6 +43,7 @@ from navbat.services import (
 from navbat.tasks import ochiq_navbatlarni_tekshir
 from nusxa.models import Nusxa
 from oquvchi.models import Oquvchi
+from organization.models import Membership, Organization
 
 User = get_user_model()
 
@@ -51,20 +52,27 @@ class AuditTestBase(TestCase):
     def setUp(self):
         super().setUp()
         self.client = APIClient()
+        self.org = Organization.objects.first()
+        if not self.org:
+            self.org = Organization.objects.create(nomi="Test kutubxona", slug="test-kutubxona")
         self.xodim = User.objects.create_user(
             username="kutubxonachi", password="parol12345", full_name="K", rol="kutubxonachi"
         )
+        Membership.objects.get_or_create(
+            organization=self.org, user=self.xodim, defaults={"rol": "kutubxonachi", "faol": True}
+        )
         self.kitob = Kitob.objects.create(
-            nomi="O'tkan kunlar", muallif="Abdulla Qodiriy", janr="badiiy", nashr_yili=2015
+            nomi="O'tkan kunlar", muallif="Abdulla Qodiriy", janr="badiiy", nashr_yili=2015, organization=self.org
         )
         self.nusxa = Nusxa.objects.create(
             kitob=self.kitob,
             inventar_raqami="INV-1",
             holati="mavjud",
             qabul_sana=date(2020, 1, 1),
+            organization=self.org,
         )
         self.oquvchi = Oquvchi.objects.create(
-            fish="Alisher", telefon="+998901234567", telegram_id=111, karta_raqami="K-1"
+            fish="Alisher", telefon="+998901234567", telegram_id=111, karta_raqami="K-1", organization=self.org
         )
 
     def url(self, nomi, *args):
@@ -269,7 +277,8 @@ class KitobniOchirishTest(AuditTestBase):
         """Nusxasi yo'q kitob «asli» holda berilgan bo'lishi mumkin —
         Berish PROTECT bo'lgani uchun o'chirish 500 berardi."""
         asl_kitob = Kitob.objects.create(
-            nomi="Sarob", muallif="Sadriddin Ayni", janr="badiiy", nashr_yili=2020
+            nomi="Sarob", muallif="Sadriddin Ayni", janr="badiiy", nashr_yili=2020,
+            organization=self.org
         )
         kitob_ber(None, self.oquvchi, self.xodim, kitob=asl_kitob)
         self.client.force_authenticate(self.xodim)
@@ -280,7 +289,8 @@ class KitobniOchirishTest(AuditTestBase):
 
     def test_nusxasi_yoq_kitob_ochiriladi(self):
         asl_kitob = Kitob.objects.create(
-            nomi="Sarob", muallif="Sadriddin Ayni", janr="badiiy", nashr_yili=2020
+            nomi="Sarob", muallif="Sadriddin Ayni", janr="badiiy", nashr_yili=2020,
+            organization=self.org
         )
         self.client.force_authenticate(self.xodim)
         javob = self.client.delete(self.url("books-detail", asl_kitob.id))
@@ -304,7 +314,8 @@ class StatsTest(AuditTestBase):
         """Nusxasi yo'q kitobni berish reytingda ko'rinishi kerak — avval
         faqat nusxa orqali berishlar hisoblanardi."""
         asl_kitob = Kitob.objects.create(
-            nomi="Sarob", muallif="Sadriddin Ayni", janr="badiiy", nashr_yili=2020
+            nomi="Sarob", muallif="Sadriddin Ayni", janr="badiiy", nashr_yili=2020,
+            organization=self.org
         )
         kitob_ber(None, self.oquvchi, self.xodim, kitob=asl_kitob)
         self.client.force_authenticate(self.xodim)

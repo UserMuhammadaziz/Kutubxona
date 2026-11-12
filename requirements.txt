@@ -20,6 +20,9 @@ aiogram==3.31.0
 # .env o'qish
 python-dotenv==1.2.3
 
+# Bot tokenlarini shifrlash
+cryptography==50.0.2
+
 # Google Generative AI (Gemini) for chatbot
 google-generativeai==0.8.5
 

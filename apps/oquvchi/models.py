@@ -1,7 +1,10 @@
 from django.db import models
 from django.core.validators import RegexValidator
 
-class Oquvchi(models.Model):
+from organization.models import TenantModel
+
+
+class Oquvchi(TenantModel):
     # O'quvchi yoki o'qituvchi. Ariza tasdiqlanganda arizadagi roldan olinadi
     # ("O'qituvchilar" bo'limi shu maydon orqali ajratiladi).
     rol = models.CharField(
@@ -13,7 +16,6 @@ class Oquvchi(models.Model):
     fish = models.CharField(max_length=130)
     telefon = models.CharField(
     max_length=20,
-    unique=True,
     validators=[
         RegexValidator(
             regex=r'^\+998\d{9}$',
@@ -21,8 +23,8 @@ class Oquvchi(models.Model):
         )
     ]
 )
-    telegram_id = models.BigIntegerField(unique=True, null=True, blank=True)
-    karta_raqami = models.CharField(max_length=20, unique=True)
+    telegram_id = models.BigIntegerField(null=True, blank=True)
+    karta_raqami = models.CharField(max_length=20)
     sinf = models.CharField(max_length=30, blank=True)
     # Faqat o'qituvchilar uchun: o'qitayotgan fani (arizadagi `kasb`).
     kasb = models.CharField(max_length=60, blank=True)
@@ -31,8 +33,26 @@ class Oquvchi(models.Model):
     royxat_sanasi = models.DateField(auto_now_add=True)
     faol = models.BooleanField(default=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "telefon"], name="org_bitta_telefon"
+            ),
+            models.UniqueConstraint(
+                fields=["organization", "karta_raqami"], name="org_bitta_karta"
+            ),
+            models.UniqueConstraint(
+                fields=["organization", "telegram_id"],
+                condition=models.Q(telegram_id__isnull=False),
+                name="org_bitta_oquvchi_telegram",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["organization", "rol", "faol"], name="oquvchi_org_rol_idx"),
+        ]
 
-class Ariza(models.Model):
+
+class Ariza(TenantModel):
     """Telegram bot orqali a'zolik arizasi. Kutubxonachi tasdiqlagach
     Oquvchi yaratiladi va telegram_id bog'lanadi."""
 
@@ -47,7 +67,7 @@ class Ariza(models.Model):
         ("oqituvchi", "O'qituvchi"),
     ]
 
-    telegram_id = models.BigIntegerField(unique=True)
+    telegram_id = models.BigIntegerField()
     fish = models.CharField(max_length=130)
     telefon = models.CharField(
         max_length=20,
@@ -77,4 +97,13 @@ class Ariza(models.Model):
 
     class Meta:
         ordering = ["-ariza_sanasi"]
-        indexes = [models.Index(fields=["holati", "-ariza_sanasi"], name="ariza_holati_sana_idx")]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "telegram_id"],
+                name="org_bitta_ariza_telegram",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["holati", "-ariza_sanasi"], name="ariza_holati_sana_idx"),
+            models.Index(fields=["organization", "holati"], name="ariza_org_holat_idx"),
+        ]

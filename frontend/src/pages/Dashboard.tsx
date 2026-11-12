@@ -5,6 +5,7 @@ import { errorMessage } from '../api/client'
 import { Icons } from '../components/icons'
 import { Button, Card, EmptyState, ErrorState, PageHeader, Spinner } from '../components/ui'
 import { formatDate, formatMoney } from '../lib/format'
+import { isAdmin } from '../store/auth'
 
 function StatCard({ label, value, hint, tone }: { label: string; value: string | number; hint?: string; tone?: 'red' | 'amber' }) {
   return (
@@ -106,6 +107,13 @@ export function Dashboard() {
           <StatCard label="Berilgan" value={data.berilgan_nusxalar} hint="o'quvchilarda turgan nusxalar" />
         </Link>
       </div>
+
+      {isAdmin() && (
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <StatCard label="O'quvchilar" value={data.oquvchi_soni || 0} hint="faol o'quvchilar" />
+          <StatCard label="O'qituvchilar" value={data.oqituvchi_soni || 0} hint="faol o'qituvchilar" />
+        </div>
+      )}
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <Panel title="So‘nggi harakatlar" to="/loans">

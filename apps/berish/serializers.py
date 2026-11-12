@@ -3,6 +3,7 @@ from rest_framework import serializers
 from kitob.models import Kitob
 from nusxa.models import Nusxa
 from oquvchi.models import Oquvchi
+from organization.tenancy import TenantSerializerMixin
 from .models import Berish
 
 
@@ -54,7 +55,7 @@ class BerishSerializer(serializers.ModelSerializer):
         return obj.nusxa_id is None
 
 
-class BerishYaratishSerializer(serializers.Serializer):
+class BerishYaratishSerializer(TenantSerializerMixin, serializers.Serializer):
     """POST /api/loans/ — kitob berish. Barcha biznes cheklovlar
     (limit_oshdi, tolanmagan_jarima, nusxa_band, barcha_nusxalar_berilgan,
     oquvchi_bloklangan) services qatlamida tekshiriladi; bu serializer

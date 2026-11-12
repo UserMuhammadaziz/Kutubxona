@@ -34,10 +34,20 @@ import type {
 
 // ---- Auth ----
 
+export interface RegisterPayload {
+  username: string
+  password: string
+  full_name: string
+  organization_name: string
+  organization_type: 'library' | 'school' | 'university' | 'office' | 'other'
+}
+
 export const authApi = {
   login: (username: string, password: string) =>
     api.post<{ access: string; refresh: string }>('/auth/token/', { username, password }).then((r) => r.data),
   me: () => api.get<User>('/auth/me/').then((r) => r.data),
+  register: (payload: RegisterPayload) =>
+    api.post<{ access: string; refresh: string; user: User; organization: any }>('/auth/register/', payload).then((r) => r.data),
 }
 
 // ---- Books ----

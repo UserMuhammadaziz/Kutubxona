@@ -5,6 +5,8 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from navbat.serializers import NavbatSerializer
+from oquvchi.models import Oquvchi
+from organization.tenancy import joriy_kutubxonani_aniqla, scope
 from user.permissions import IsLibrarian
 from .models import BandQilish, Kitob
 from .serializers import (
@@ -41,11 +43,12 @@ class KitobViewSet(viewsets.ModelViewSet):
         return [permissions.IsAuthenticated()]
 
     def get_queryset(self):
+        org = joriy_kutubxonani_aniqla(self.request, required=True)
         if self.action in ("retrieve",):
-            return Kitob.objects.prefetch_related("nusxalar")
+            return scope(Kitob.objects.prefetch_related("nusxalar"), org)
         if self.action == "list":
             return (
-                Kitob.objects.all()
+                scope(Kitob.objects, org)
                 .order_by("nomi")
                 .annotate(
                     mavjud_nusxalar=Count("nusxalar", filter=Q(nusxalar__holati="mavjud")),
@@ -53,13 +56,33 @@ class KitobViewSet(viewsets.ModelViewSet):
                     faol_navbatlar=Count("navbat", filter=Q(navbat__holati__in=NAVBAT_FAQOL)),
                 )
             )
-        return super().get_queryset()
+        return scope(super().get_queryset(), org)
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        try:
+            context["organization"] = joriy_kutubxonani_aniqla(
+                self.request, required=False
+            )
+        except Exception:
+            context["organization"] = None
+        return context
+
+    def perform_create(self, serializer):
+        org = joriy_kutubxonani_aniqla(self.request, required=True)
+        kitob = serializer.save(organization=org)
+        try:
+            from telegrambot.tasks import yangi_kitob_xabari_yubor
+            from telegrambot.models import KitobXabari
+
+            KitobXabari.objects.get_or_create(
+                organization=org, kitob=kitob, tur="yangi"
+            )
+            yangi_kitob_xabari_yubor.delay(kitob_id=kitob.pk)
+        except Exception:
+            pass
 
     def perform_destroy(self, instance):
-        # Nusxa, Berish va Navbat `kitob` maydoni PROTECT/CASCADE bilan
-        # bog'langan: shu sababli faol berish yoki navbat bor kitobni
-        # o'chirish `ProtectedError` berib, 500 qaytarardi. Oldindan
-        # tekshirib, foydalanuvchiga tushunarli xato qaytaramiz.
         if instance.nusxalar.exists():
             raise ValidationError(
                 {"error": "nusxa_mavjud", "detail": "Kitobda hali nusxalar bor, o'chirib bo'lmaydi"}
@@ -86,9 +109,6 @@ class KitobViewSet(viewsets.ModelViewSet):
                 }
             )
 
-        # Berish tarihi PROTECT — o'quvchilarda qaytarilgan, lekin tarixi
-        # bor kitobni o'chirish ham ma'lumot butunligini buzadi. Bu yerda
-        # aniq xabar beramiz (aks holda Django "500" qaytarardi).
         if instance.berishlar.exists():
             raise ValidationError(
                 {
@@ -171,8 +191,11 @@ class BandQilishViewSet(viewsets.GenericViewSet):
             return [permissions.IsAuthenticated()]
         return [IsLibrarian()]
 
+    def _org(self):
+        return joriy_kutubxonani_aniqla(self.request, required=True)
+
     def get_queryset(self):
-        qs = self.queryset
+        qs = scope(self.queryset, self._org())
         holati = self.request.query_params.get("holati")
         if holati:
             qs = qs.filter(holati=holati)
@@ -197,21 +220,24 @@ class BandQilishViewSet(viewsets.GenericViewSet):
             raise ValidationError(
                 {"error": "kitob_kerak", "detail": "kitob (id) kiritilishi shart"}
             )
-        kitob = Kitob.objects.filter(pk=kitob_id).first()
+        org = self._org()
+        kitob = scope(Kitob.objects, org).filter(pk=kitob_id).first()
         if not kitob:
             return Response(
                 {"error": "kitob_topilmadi", "detail": "Kitob topilmadi"},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        serializer = BandQilishYaratishSerializer(data=request.data)
+        serializer = BandQilishYaratishSerializer(
+            data=request.data, context={"organization": org, "request": request}
+        )
         serializer.is_valid(raise_exception=True)
         oquvchi = serializer.validated_data["oquvchi"]
 
         band, yangi = services.band_qilish(
             kitob, oquvchi, serializer.validated_data.get("izoh", "")
         )
-        band = self.queryset.get(pk=band.pk)
+        band = self.get_queryset().get(pk=band.pk)
         return Response(
             BandQilishSerializer(band).data,
             status=status.HTTP_201_CREATED if yangi else status.HTTP_200_OK,
@@ -222,13 +248,15 @@ class BandQilishViewSet(viewsets.GenericViewSet):
         from oquvchi.models import Oquvchi
 
         telegram_id = request.query_params.get("telegram_id")
-        oquvchi = Oquvchi.objects.filter(telegram_id=telegram_id).first()
+        oquvchi = scope(Oquvchi.objects, self._org()).filter(
+            telegram_id=telegram_id
+        ).first()
         if not oquvchi:
             return Response(
                 {"error": "topilmadi", "detail": "O'quvchi bog'lanmagan"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        qs = self.queryset.filter(oquvchi=oquvchi)[:50]
+        qs = self.get_queryset().filter(oquvchi=oquvchi)[:50]
         return Response(BandQilishMeniSerializer(qs, many=True).data)
 
     @action(detail=True, methods=["post"])
@@ -238,33 +266,33 @@ class BandQilishViewSet(viewsets.GenericViewSet):
         services.band_qilishni_tasdiqla(
             band, request.user, request.data.get("izoh", "")
         )
-        return Response(BandQilishSerializer(self.queryset.get(pk=band.pk)).data)
+        return Response(BandQilishSerializer(self.get_queryset().get(pk=band.pk)).data)
 
     @action(detail=True, methods=["post"])
     def reject(self, request, pk=None):
         """Rad etish: kitob banddan chiqadi va yana berishga ochiq bo'ladi."""
         band = self._band(pk)
         services.band_qilishni_rad_et(band, request.user, request.data.get("izoh", ""))
-        return Response(BandQilishSerializer(self.queryset.get(pk=band.pk)).data)
+        return Response(BandQilishSerializer(self.get_queryset().get(pk=band.pk)).data)
 
     @action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):
         """O'quvchi o'z kutilayotgan so'rovini bekor qiladi."""
-        from oquvchi.models import Oquvchi
-
         band = self._band(pk)
         telegram_id = request.data.get("telegram_id")
-        oquvchi = Oquvchi.objects.filter(telegram_id=telegram_id).first()
+        oquvchi = scope(Oquvchi.objects, self._org()).filter(
+            telegram_id=telegram_id
+        ).first()
         if not oquvchi:
             return Response(
                 {"error": "topilmadi", "detail": "O'quvchi bog'lanmagan"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         services.band_qilishni_bekor_qil(band, oquvchi)
-        return Response(BandQilishSerializer(self.queryset.get(pk=band.pk)).data)
+        return Response(BandQilishSerializer(self.get_queryset().get(pk=band.pk)).data)
 
     def _band(self, pk):
-        band = self.queryset.filter(pk=pk).first()
+        band = self.get_queryset().filter(pk=pk).first()
         if not band:
             raise ValidationError({"error": "topilmadi", "detail": "So'rov topilmadi"})
         return band

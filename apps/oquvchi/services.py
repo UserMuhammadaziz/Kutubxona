@@ -18,14 +18,13 @@ from .models import Ariza, Oquvchi
 _KARTA_URINISH_SONI = 5
 
 
-def keyingi_karta_raqami() -> str:
+def keyingi_karta_raqami(organization=None) -> str:
     """LIB-{yil}-{4 xonali tartib raqam} formatida keyingi bo'sh raqam."""
     prefiks = f"LIB-{date.today().year}-"
-    oxirgi = (
-        Oquvchi.objects.filter(karta_raqami__startswith=prefiks)
-        .order_by("-karta_raqami")
-        .first()
-    )
+    qs = Oquvchi.objects.filter(karta_raqami__startswith=prefiks)
+    if organization is not None:
+        qs = qs.filter(organization=organization)
+    oxirgi = qs.order_by("-karta_raqami").first()
     if oxirgi:
         try:
             tartib = int(oxirgi.karta_raqami.split("-")[-1]) + 1
@@ -45,11 +44,12 @@ def oquvchi_yarat(**maydonlar) -> Oquvchi:
     qayta urinib, keyingi raqam bilan yana urinishadi. Boshqa sababli
     xatolar (masalan, takrorlanuvchi telefon) o'zgarishsiz qaytariladi.
     """
+    organization = maydonlar.get("organization")
     for _ in range(_KARTA_URINISH_SONI):
         try:
             with transaction.atomic():
                 return Oquvchi.objects.create(
-                    karta_raqami=keyingi_karta_raqami(), **maydonlar
+                    karta_raqami=keyingi_karta_raqami(organization), **maydonlar
                 )
         except IntegrityError as xato:
             karta_urindi = "karta_raqami" in str(xato)
@@ -122,7 +122,11 @@ def ariza_holatini_yubor(ariza: Ariza, matn: str) -> bool:
     telegram_id = ariza.telegram_id
     if not telegram_id:
         return False
-    transaction.on_commit(lambda: telegram_xabar_yubor(telegram_id, matn))
+    transaction.on_commit(
+        lambda: telegram_xabar_yubor(
+            telegram_id, matn, organization=ariza.organization
+        )
+    )
     return True
 
 
@@ -138,7 +142,9 @@ def arizani_tasdiqla(ariza: Ariza):
     if ariza.holati != "kutmoqda":
         raise ValueError("Faqat 'kutmoqda' holatidagi ariza tasdiqlanadi")
 
-    oquvchi = Oquvchi.objects.filter(telefon=ariza.telefon).first()
+    oquvchi = Oquvchi.objects.filter(
+        organization=ariza.organization, telefon=ariza.telefon
+    ).first()
     yangi_karta = oquvchi is None
 
     if oquvchi:
@@ -178,6 +184,7 @@ def arizani_tasdiqla(ariza: Ariza):
         oquvchi.save(update_fields=yangilangan)
     else:
         oquvchi = oquvchi_yarat(
+            organization=ariza.organization,
             rol=ariza.rol,
             fish=ariza.fish,
             telefon=ariza.telefon,
