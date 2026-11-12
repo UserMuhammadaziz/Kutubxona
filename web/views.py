@@ -181,6 +181,7 @@ class ChatbotView(APIView):
         if not history:
             kalit = "chatbot:" + hashlib.sha256(message.lower().encode()).hexdigest()
             if (kesh := cache.get(kalit)) is not None:
+                _chat_saqlash(request.user, message, kesh)
                 return Response({
                     "response": kesh,
                     "history": [
