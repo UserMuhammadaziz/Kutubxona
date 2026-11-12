@@ -332,23 +332,6 @@ export function Readers({ rol = 'oquvchi' }: ReadersProps = {}) {
               }
             />
           </Field>
-          <Field>
-            <Label htmlFor="y-tugilgan">Tug'ilgan sana</Label>
-            <Input
-              id="y-tugilgan"
-              type="date"
-              value={form.tugilgan_sana}
-              onChange={(e) => setForm({ ...form, tugilgan_sana: e.target.value })}
-            />
-          </Field>
-          <Field>
-            <Label htmlFor="y-manzil">Manzil</Label>
-            <Input
-              id="y-manzil"
-              value={form.manzil}
-              onChange={(e) => setForm({ ...form, manzil: e.target.value })}
-            />
-          </Field>
           <div className="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>
               Bekor qilish
