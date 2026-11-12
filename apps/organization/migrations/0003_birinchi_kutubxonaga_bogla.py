@@ -8,6 +8,10 @@ def birinchi_kutubxonaga_bogla(apps, schema_editor):
 
     if Organization.objects.exists():
         return
+    # Bo'sh bazada (yangi o'rnatish, test bazasi) kutubxona yaratilmaydi:
+    # aks holda legacy rejim o'chib, global rollar ishlamay qoladi.
+    if not User.objects.exists():
+        return
     # Eski ma'lumotlar bitta kutubxonaga bog'lanadi (faqat ma'lumotlarni
     # saqlash maqsadida — tizim hech qachon barcha ma'lumotlarni bir
     # kutubxonaga majburan ko'chirmaydi, bu data migration shunchaki

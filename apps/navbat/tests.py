@@ -27,7 +27,7 @@ User = get_user_model()
 YUBORILGAN = []
 
 
-def _yubor(chat_id, matn, parse_mode="HTML"):
+def _yubor(chat_id, matn, parse_mode="HTML", **kwargs):
     YUBORILGAN.append({"chat_id": chat_id, "matn": matn})
     return True
 

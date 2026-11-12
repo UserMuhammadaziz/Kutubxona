@@ -12,7 +12,7 @@ from .views import (
 )
 
 urlpatterns = [
-    path("top-books/", top_books),
+    path("top-books/", top_books, name="stats-top-books"),
     path("dashboard/", dashboard),
     path("ratings/", library_ratings),
     path("ratings/overall/", library_overall),
