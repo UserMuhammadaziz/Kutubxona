@@ -62,21 +62,6 @@ export function Chatbot() {
     }
   }
 
-  // Saqlangan suhbatni bir marta yuklaymiz (ochilganda).
-  const yuklandi = useRef(false)
-  useEffect(() => {
-    if (!isOpen || yuklandi.current) return
-    yuklandi.current = true
-    api
-      .get<Array<{ role: 'user' | 'model'; content: string }>>('/chatbot/')
-      .then((r) => {
-        if (!r.data.length) return
-        setMessages(r.data.map((m) => ({ role: m.role === 'model' ? 'assistant' : 'user', content: m.content })))
-        setHistory(r.data.map((m) => ({ role: m.role, parts: [m.content] })))
-      })
-      .catch(() => {})
-  }, [isOpen])
-
   const toggleChat = () => {
     setIsOpen((prev) => !prev)
     if (!isOpen && messages.length === 0) {
@@ -90,7 +75,6 @@ export function Chatbot() {
   }
 
   const clearChat = () => {
-    api.delete('/chatbot/').catch(() => {})
     setMessages([])
     setHistory([])
   }
