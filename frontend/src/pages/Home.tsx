@@ -223,6 +223,32 @@ export function Home() {
           <Formulyar />
         </section>
 
+        {/* Ilovaning o'zi: haqiqiy skrinshotlar */}
+        <section className="mx-auto max-w-6xl px-4 pb-20">
+          <h2 className="max-w-2xl text-3xl leading-tight sm:text-4xl" style={DISPLAY}>
+            Ilovaning o‘zi shunday ko‘rinadi
+          </h2>
+          <p className="mt-3 max-w-xl text-base" style={{ color: 'rgba(16,28,56,0.75)' }}>
+            Bu rasm emas, ishlab turgan tizimdan olingan ekranlar (namunaviy ma’lumotlar bilan).
+          </p>
+          <div className="mt-8 grid items-start gap-6 lg:grid-cols-2">
+            {[
+              { src: '/landing/panel.jpg', nom: 'Boshqaruv paneli', alt: 'Boshqaruv paneli: muddati o‘tgan berishlar, navbatlar, jarimalar va fond holati' },
+              { src: '/landing/berish.jpg', nom: 'Berish / Qaytarish', alt: 'Berish va qaytarish jadvali, har qatorda Qaytarish tugmasi' },
+            ].map((k) => (
+              <figure key={k.src} className="overflow-hidden rounded-lg border bg-white shadow-[0_18px_40px_-22px_rgba(16,28,56,0.5)]" style={{ borderColor: 'rgba(16,28,56,0.18)' }}>
+                <div className="flex items-center gap-1.5 border-b px-3 py-2" style={{ borderColor: 'rgba(16,28,56,0.12)', background: '#f3f5f9' }}>
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: '#d9dde6' }} />
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: '#d9dde6' }} />
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: '#d9dde6' }} />
+                  <figcaption className="ml-2 text-xs" style={MONO}>{k.nom}</figcaption>
+                </div>
+                <img src={k.src} alt={k.alt} loading="lazy" className="block h-auto w-full" />
+              </figure>
+            ))}
+          </div>
+        </section>
+
         {/* Nimalar qila olasiz */}
         <section className="bg-white/55 py-16">
           <div className="mx-auto grid max-w-6xl gap-10 px-4 lg:grid-cols-[0.8fr_1.4fr]">
