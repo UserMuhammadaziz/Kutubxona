@@ -1,5 +1,5 @@
 from django.db import transaction
-from rest_framework import viewsets, status
+from rest_framework import permissions, viewsets, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
@@ -9,11 +9,12 @@ from jarima.models import Jarima
 from jarima.serializers import JarimaMeniSerializer
 from user.permissions import IsLibrarian
 from . import services
-from .models import Ariza, Oquvchi
+from .models import Ariza, Fan, Oquvchi
 from .serializers import (
     ArizaSerializer,
     ArizaStatusSerializer,
     ArizaYaratishSerializer,
+    FanSerializer,
     OquvchiSerializer,
     OquvchiYaratishSerializer,
     OquvchiBindSerializer,
@@ -154,3 +155,12 @@ class ArizaViewSet(viewsets.ModelViewSet):
             services.ariza_holatini_yubor(ariza, services.rad_etilgan_xabari(ariza, ariza.izoh))
 
         return Response(ArizaSerializer(ariza).data)
+
+
+class FanViewSet(viewsets.ReadOnlyModelViewSet):
+    """GET /api/subjects/ — o'qituvchi ariza berayotganda tanlaydigan fanlar ro'yxati."""
+
+    serializer_class = FanSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = None
+    queryset = Fan.objects.filter(faol=True)

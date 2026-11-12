@@ -216,12 +216,13 @@ class ApiClient:
         rol: str = "oquvchi",
         sinf: str = "",
         kasb: str = "",
+        fanlar: list[int] | None = None,
     ):
         """POST /applications/ — a'zolik arizasi.
 
         Rolga qarab bitta qo'shimcha maydon to'ladi:
         • oquvchi    → `sinf` (masalan: 7-A)
-        • oqituvchi  → `kasb` (o'qitayotgan fan, masalan: Matematika)
+        • oqituvchi  → `fanlar` (oldindan ro'yxatga olingan fanlar ID si)
         """
         return await self._so_rov(
             "POST",
@@ -233,8 +234,13 @@ class ApiClient:
                 "rol": rol,
                 "sinf": sinf,
                 "kasb": kasb,
+                "fanlar": fanlar or [],
             },
         )
+
+    async def fanlar(self):
+        """GET /subjects/ — o'qituvchi tanlaydigan fanlar ro'yxati."""
+        return await self._so_rov("GET", "/subjects/")
 
     # ---------- Kitob qidiruv ----------
     async def kitob_qidir(self, q: str):

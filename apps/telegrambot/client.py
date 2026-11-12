@@ -78,3 +78,11 @@ def answer_callback_query(token, callback_query_id, text=""):
     return _chaqir(
         token, "answerCallbackQuery", {"callback_query_id": callback_query_id, "text": text}
     )
+
+
+def edit_message_reply_markup(token, chat_id, message_id, reply_markup):
+    return _chaqir(
+        token,
+        "editMessageReplyMarkup",
+        {"chat_id": chat_id, "message_id": message_id, "reply_markup": reply_markup},
+    )

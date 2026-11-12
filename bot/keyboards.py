@@ -125,6 +125,23 @@ ARIZA_ROL_TUGMA_MATNLARI = {
 }
 
 
+def fanlar_tugmalari(fanlar: list[dict], tanlangan: list[int]) -> InlineKeyboardMarkup:
+    """O'qituvchi arizasi: fanlarni tanlash (✅ — tanlangan) va «Tayyor» tugmasi."""
+    tanlangan_set = set(tanlangan)
+    tugmalar = [
+        InlineKeyboardButton(
+            text=("✅ " if f["id"] in tanlangan_set else "") + f["nomi"],
+            callback_data=f"fan:{f['id']}",
+        )
+        for f in fanlar
+    ]
+    qatorlar = [tugmalar[i : i + 2] for i in range(0, len(tugmalar), 2)]
+    qatorlar.append(
+        [InlineKeyboardButton(text=f"✔️ Tayyor ({len(tanlangan_set)})", callback_data="fan_ok")]
+    )
+    return InlineKeyboardMarkup(inline_keyboard=qatorlar)
+
+
 def ariza_rol_tugmalari() -> InlineKeyboardMarkup:
     """/start da ariza yuboruvchi rolini tanlaydigan inline tugmalar."""
     return InlineKeyboardMarkup(

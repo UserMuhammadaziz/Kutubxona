@@ -3,7 +3,7 @@ from datetime import date
 
 from rest_framework import serializers
 
-from .models import Ariza, Oquvchi
+from .models import Fan, Ariza, Oquvchi
 from .services import oquvchi_yarat
 
 # Ariza.rol va Oquvchi.rol uchun bir xil qiymatlar (models.RUL_CHOICES ga
@@ -12,8 +12,16 @@ from .services import oquvchi_yarat
 ROL_CHOICES = [("oquvchi", "Oquvchi"), ("oqituvchi", "O'qituvchi")]
 
 
+class FanSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Fan
+        fields = ["id", "nomi"]
+
+
 class OquvchiSerializer(serializers.ModelSerializer):
     """O'quvchilar ro'yxati / kartochkasi uchun asosiy serializer."""
+
+    fanlar = FanSerializer(many=True, read_only=True)
 
     class Meta:
         model = Oquvchi
@@ -26,6 +34,7 @@ class OquvchiSerializer(serializers.ModelSerializer):
             "karta_raqami",
             "sinf",
             "kasb",
+            "fanlar",
             "tugilgan_sana",
             "manzil",
             "royxat_sanasi",
@@ -106,6 +115,8 @@ class OquvchiBindSerializer(serializers.Serializer):
 class ArizaSerializer(serializers.ModelSerializer):
     """Arizalar ro'yxati / tasdiqlash uchun (kutubxonachi)."""
 
+    fanlar = FanSerializer(many=True, read_only=True)
+
     class Meta:
         model = Ariza
         fields = [
@@ -116,6 +127,7 @@ class ArizaSerializer(serializers.ModelSerializer):
             "rol",
             "sinf",
             "kasb",
+            "fanlar",
             "tugilgan_sana",
             "manzil",
             "holati",
@@ -145,7 +157,13 @@ class ArizaYaratishSerializer(serializers.ModelSerializer):
         max_length=30, required=False, allow_blank=True, allow_null=True
     )
     kasb = serializers.CharField(
-        max_length=60, required=False, allow_blank=True, allow_null=True
+        max_length=200, required=False, allow_blank=True, allow_null=True
+    )
+    # O'qituvchi dars beradigan fanlari: oldindan ro'yxatga olingan Fan'lar ID si.
+    fanlar = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Fan.objects.filter(faol=True),
+        required=False,
     )
 
     class Meta:
@@ -157,6 +175,7 @@ class ArizaYaratishSerializer(serializers.ModelSerializer):
             "rol",
             "sinf",
             "kasb",
+            "fanlar",
             "tugilgan_sana",
             "manzil",
         ]
@@ -168,6 +187,13 @@ class ArizaYaratishSerializer(serializers.ModelSerializer):
             )
         return value
 
+    def create(self, validated_data):
+        fanlar = validated_data.pop("fanlar", [])
+        ariza = super().create(validated_data)
+        if fanlar:
+            ariza.fanlar.set(fanlar)
+        return ariza
+
     def validate(self, attrs):
         rol = attrs.get("rol") or "oquvchi"
         attrs["rol"] = rol
@@ -175,15 +201,14 @@ class ArizaYaratishSerializer(serializers.ModelSerializer):
         if rol == "oqituvchi":
             # O'qituvchi uchun sinf kerak emas, faqat kasb majburiy.
             attrs["sinf"] = None
-            kasb = (attrs.get("kasb") or "").strip()
-            if not kasb:
+            fanlar = list(dict.fromkeys(attrs.get("fanlar") or []))
+            if not fanlar:
                 raise serializers.ValidationError(
-                    {"kasb": "Kasbingizni ko'rsating (masalan: Matematika)."}
+                    {"fanlar": "Kamida bitta fanni tanlang."}
                 )
-            if len(kasb) > 60:
-                raise serializers.ValidationError(
-                    {"kasb": "Kasb nomi juda uzun (maksimum 60 belgi)."}
-                )
+            attrs["fanlar"] = fanlar
+            # `kasb` — tanlangan fanlar nomi (ro'yxatlarda ko'rsatish uchun).
+            kasb = ", ".join(f.nomi for f in fanlar)
             attrs["kasb"] = kasb
         else:
             # Oquvchi uchun sinf majburiy, kasb kerak emas.
@@ -196,6 +221,7 @@ class ArizaYaratishSerializer(serializers.ModelSerializer):
                 )
             attrs["sinf"] = sinf
             attrs["kasb"] = ""
+            attrs["fanlar"] = []
 
         telegram_id = attrs["telegram_id"]
         if Oquvchi.objects.filter(telegram_id=telegram_id).exists():

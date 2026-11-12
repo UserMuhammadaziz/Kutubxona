@@ -1,7 +1,7 @@
 from django.contrib import admin, messages
 from django.db import transaction
 
-from .models import Ariza, Oquvchi
+from .models import Ariza, Fan, Oquvchi
 from . import services
 
 
@@ -77,3 +77,10 @@ class ArizaAdmin(admin.ModelAdmin):
                 )
             rad += 1
         self.message_user(request, f"{rad} ta ariza rad etildi", level=messages.SUCCESS)
+
+
+@admin.register(Fan)
+class FanAdmin(admin.ModelAdmin):
+    list_display = ("nomi", "faol", "tartib")
+    list_editable = ("faol", "tartib")
+    search_fields = ("nomi",)

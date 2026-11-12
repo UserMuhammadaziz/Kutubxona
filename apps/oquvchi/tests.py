@@ -440,34 +440,59 @@ class OqituvchiArizaTest(ArizaTestMixin, TestCase):
         ma_lumot.update(qoshimcha)
         return APIClient().post(self.url(), ma_lumot, format="json")
 
-    def test_kasb_bilan_ariza_qabul_qilinadi(self):
-        javob = self.yubor(kasb="Matematika")
+    def _fan(self, nomi):
+        from oquvchi.models import Fan
+
+        return Fan.objects.get_or_create(nomi=nomi)[0]
+
+    def test_fanlar_bilan_ariza_qabul_qilinadi(self):
+        mat, ona = self._fan("Matematika"), self._fan("Ona tili")
+        javob = self.yubor(fanlar=[mat.pk, ona.pk])
         self.assertEqual(javob.status_code, 201, javob.data)
 
         ariza = Ariza.objects.get()
         self.assertEqual(ariza.rol, "oqituvchi")
-        self.assertEqual(ariza.kasb, "Matematika")
+        self.assertEqual(set(ariza.fanlar.values_list("nomi", flat=True)), {"Matematika", "Ona tili"})
+        self.assertEqual(ariza.kasb, "Matematika, Ona tili")
         self.assertIsNone(ariza.sinf)
         self.assertEqual(ariza.holati, "kutmoqda")
 
-    def test_kasb_majburiy(self):
+    def test_fanlar_majburiy(self):
         javob = self.yubor()
         self.assertEqual(javob.status_code, 400)
-        self.assertIn("kasb", javob.data["detail"])
+        self.assertIn("fanlar", javob.data["detail"])
         self.assertEqual(Ariza.objects.count(), 0)
 
     def test_bot_yuboradigan_bo_sh_sinf_buzilmaydi(self):
         """Bot o'qituvchi uchun `sinf: ""` yuboradi (u so'ramaydi) — bunday
         ariza "maydan bo'sh" xatosi bilan rad etilmasligi kerak."""
-        javob = self.yubor(sinf="", kasb="Matematika")
+        javob = self.yubor(sinf="", fanlar=[self._fan("Matematika").pk])
 
         self.assertEqual(javob.status_code, 201, javob.data)
         self.assertIsNone(Ariza.objects.get().sinf)
 
-    def test_uzun_kasb_rad_etiladi(self):
-        javob = self.yubor(kasb="x" * 61)
-        self.assertEqual(javob.status_code, 400)
-        self.assertIn("kasb", javob.data["detail"])
+    def test_nofaol_yoki_yoq_fan_rad_etiladi(self):
+        fan = self._fan("Eski fan")
+        fan.faol = False
+        fan.save()
+        self.assertEqual(self.yubor(fanlar=[fan.pk]).status_code, 400)
+        self.assertEqual(self.yubor(fanlar=[999999]).status_code, 400)
+
+    def test_tasdiqlashda_fanlar_oqituvchiga_koshadi(self):
+        from oquvchi import services
+
+        mat = self._fan("Matematika")
+        self.assertEqual(self.yubor(fanlar=[mat.pk]).status_code, 201)
+        ariza = Ariza.objects.get()
+        _, oquvchi, _ = services.arizani_tasdiqla(ariza)
+        self.assertEqual(list(oquvchi.fanlar.values_list("nomi", flat=True)), ["Matematika"])
+        self.assertEqual(oquvchi.kasb, "Matematika")
+
+    def test_fanlar_royxati_endpointi(self):
+        self._fan("Fizika")
+        javob = self.client.get("/api/subjects/")
+        self.assertEqual(javob.status_code, 200)
+        self.assertIn("Fizika", [f["nomi"] for f in javob.data])
 
     def test_tasdiqlashda_karta_ochiladi_va_kasb_xabarida_korishi(self):
         ariza = Ariza.objects.create(
