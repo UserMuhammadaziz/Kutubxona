@@ -428,4 +428,6 @@ export interface DashboardStats {
   faol_navbatlar: number
   tolanmagan_jarimalar_soni: number
   umumiy_qarz: string
+  oquvchi_soni?: number
+  oqituvchi_soni?: number
 }

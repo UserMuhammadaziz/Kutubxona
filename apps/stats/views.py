@@ -1,3 +1,4 @@
+from django.core.cache import cache
 from django.db.models import Avg, Count, Q
 from django.utils.timezone import now
 from rest_framework.decorators import api_view, permission_classes
@@ -13,9 +14,12 @@ from nusxa.models import Nusxa
 from organization.models import Organization
 from organization.tenancy import joriy_kutubxonani_aniqla, scope
 from oquvchi.models import Oquvchi
+from config.cache import stats_versiyasi
 from user.permissions import IsLibrarian
 
 from .models import LibraryActivityRating, LibraryRating
+
+STATS_TTL = 60  # soniya; yozuv o'zgarsa signal versiyani oshirib, keshni darrov eskirtiradi
 
 
 def _faollik_hisobla(organization):
@@ -70,6 +74,10 @@ def top_books(request):
     if limit < 1 or limit > 100:
         raise ValidationError({"limit": "1 dan 100 gacha son kiritishingiz kerak."})
 
+    kalit = f"stats:top:{stats_versiyasi()}:{org.pk if org else 0}:{limit}"
+    if (kesh := cache.get(kalit)) is not None:
+        return Response(kesh)
+
     berishlar_soni = Count("nusxalar__berish", distinct=True) + Count(
         "berishlar", filter=Q(berishlar__nusxa__isnull=True), distinct=True
     )
@@ -80,6 +88,7 @@ def top_books(request):
         {"id": k.id, "nomi": k.nomi, "muallif": k.muallif, "berishlar_soni": k.berishlar_soni}
         for k in qs
     ]
+    cache.set(kalit, data, STATS_TTL)
     return Response(data)
 
 
@@ -87,6 +96,9 @@ def top_books(request):
 @permission_classes([IsLibrarian])
 def dashboard(request):
     org = joriy_kutubxonani_aniqla(request, required=False)
+    kalit = f"stats:dashboard:{stats_versiyasi()}:{org.pk if org else 0}:{now().date()}"
+    if (kesh := cache.get(kalit)) is not None:
+        return Response(kesh)
     jami_nusxalar = scope(Nusxa.objects, org).count()
     mavjud_nusxalar = scope(Nusxa.objects, org).filter(holati="mavjud").count()
     berilgan_nusxalar = scope(Nusxa.objects, org).filter(holati="berilgan").count()
@@ -102,20 +114,20 @@ def dashboard(request):
     oquvchi_soni = Oquvchi.objects.filter(organization=org, rol='oquvchi', faol=True).count()
     oqituvchi_soni = Oquvchi.objects.filter(organization=org, rol='oqituvchi', faol=True).count()
 
-    return Response(
-        {
-            "jami_kitoblar": scope(Kitob.objects, org).count(),
-            "jami_nusxalar": jami_nusxalar,
-            "mavjud_nusxalar": mavjud_nusxalar,
-            "berilgan_nusxalar": berilgan_nusxalar,
-            "muddati_otgan_berishlar": muddati_otgan,
-            "faol_navbatlar": faol_navbatlar,
-            "tolanmagan_jarimalar_soni": tolanmagan_jarima.count(),
-            "umumiy_qarz": umumiy_qarz,
-            "oquvchi_soni": oquvchi_soni,
-            "oqituvchi_soni": oqituvchi_soni,
-        }
-    )
+    data = {
+        "jami_kitoblar": scope(Kitob.objects, org).count(),
+        "jami_nusxalar": jami_nusxalar,
+        "mavjud_nusxalar": mavjud_nusxalar,
+        "berilgan_nusxalar": berilgan_nusxalar,
+        "muddati_otgan_berishlar": muddati_otgan,
+        "faol_navbatlar": faol_navbatlar,
+        "tolanmagan_jarimalar_soni": tolanmagan_jarima.count(),
+        "umumiy_qarz": umumiy_qarz,
+        "oquvchi_soni": oquvchi_soni,
+        "oqituvchi_soni": oqituvchi_soni,
+    }
+    cache.set(kalit, data, STATS_TTL)
+    return Response(data)
 
 
 @api_view(["GET"])

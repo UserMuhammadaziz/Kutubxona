@@ -16,7 +16,7 @@ import { Bandlar } from './pages/Bandlar'
 import { Reservations } from './pages/Reservations'
 import { Fines } from './pages/Fines'
 import { Staff } from './pages/Staff'
-import { Guide } from './pages/Guide'
+import { Guide, PublicGuide } from './pages/Guide'
 import { Register } from './pages/Register'
 import { Home } from './pages/Home'
 
@@ -30,11 +30,13 @@ function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/yordam" element={<PublicGuide />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/welcome" element={<Home />} />
 
       <Route element={<RequireAuth />}>
         <Route element={<Layout />}>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<Dashboard />} />
           <Route path="/books" element={<Books />} />
           <Route path="/books/:id" element={<BookDetail />} />
           <Route path="/copies" element={<Copies />} />

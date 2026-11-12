@@ -1,30 +1,33 @@
+import { useId } from 'react'
+
 interface LogoMarkProps {
   className?: string
 }
 
 /** Ilova belgisi — ochiq kitob va bookmark belgisi gradient kare ichida. */
 export function LogoMark({ className = 'h-7 w-7' }: LogoMarkProps) {
+  const gid = `logo-mark-bg-${useId().replace(/:/g, '')}`
   return (
     <svg viewBox="0 0 64 64" className={className} role="img" aria-label="Kutubxona">
       <defs>
-        <linearGradient id="logo-mark-bg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#9B5CFF" />
-          <stop offset="0.55" stopColor="#863BFF" />
-          <stop offset="1" stopColor="#5B15E0" />
+        <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#60A5FA" />
+          <stop offset="0.55" stopColor="#2563EB" />
+          <stop offset="1" stopColor="#1E40AF" />
         </linearGradient>
       </defs>
-      <rect width="64" height="64" rx="15" fill="url(#logo-mark-bg)" />
+      <rect width="64" height="64" rx="15" fill={`url(#${gid})`} />
       <path
-        d="M31 24.5C27.5 21.6 22.5 20.2 17 20v22.5c5.5-.2 10.5 1.2 14 4z"
+        d="M31 22.5C27 19 20 17.5 12 18v27.5c8-.5 15 1 19 4.5z"
         fill="#fff"
         fillOpacity=".96"
       />
       <path
-        d="M33 24.5c3.5-2.9 8.5-4.3 14-4.5V42c-5.5.2-10.5 1.6-14 4.5z"
+        d="M33 22.5c4-3.5 11-5 19-4.5v27.5c-8-.5-15 1-19 4.5z"
         fill="#fff"
         fillOpacity=".76"
       />
-      <path d="M37 22.4h5V34l-2.5-2.8L37 34z" fill="#FBBF24" />
+      <path d="M40 18.2h6V32l-3-3-3 3z" fill="#FBBF24" />
     </svg>
   )
 }

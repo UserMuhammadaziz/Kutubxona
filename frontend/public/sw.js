@@ -1,6 +1,6 @@
 // Service worker: PWA uchun offline qobiq (app shell) va statik assetlar keshi.
 // Manzili /sw.js — scope barcha sahifalarni qamrab oladi (Django route qiladi).
-const VERSION = 'v1'
+const VERSION = 'v2'
 const SHELL_CACHE = `kutubxona-shell-${VERSION}`
 // Hash'langan build fayllari immutable, shuning uchun kesh versiyasiz —
 // aks holda yangi buildda eski tab ochiq turganda assetlar o'chib ketardi.
@@ -12,9 +12,13 @@ self.addEventListener('install', (event) => {
     caches
       .open(SHELL_CACHE)
       .then((cache) => cache.add(new Request(SHELL_URL, { cache: 'reload' })))
-      .catch(() => undefined)
-      .then(() => self.skipWaiting()),
+      .catch(() => undefined),
   )
+})
+
+// Foydalanuvchi «Yangilash» bosganda yangi versiya darrov faollashadi.
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting()
 })
 
 self.addEventListener('activate', (event) => {

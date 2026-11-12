@@ -20,13 +20,13 @@ import {
   Pagination,
   ResponsiveList,
   Select,
-  Table,
   TableSkeleton,
   Textarea,
 } from '../components/ui'
 import { useToast } from '../components/Toast'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { formatDate } from '../lib/format'
+import DataTable, { type DataTableColumn } from '../components/DataTable'
 
 const TONE: Record<ArizaHolati, 'amber' | 'green' | 'red'> = {
   kutmoqda: 'amber',
@@ -256,39 +256,74 @@ export function Applications() {
             </div>
           )}
         >
-          <Table>
-            <thead className="border-b border-slate-200 bg-canvas text-xs uppercase text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
-              <tr>
-                <th className="px-4 py-3">F.I.Sh.</th>
-                <th className="px-4 py-3">Rol</th>
-                <th className="px-4 py-3">Sinf / Kasb</th>
-                <th className="px-4 py-3">Telefon</th>
-                <th className="px-4 py-3">Holati</th>
-                <th className="px-4 py-3">Sana</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-              {data.results.map((a) => (
-                <tr key={a.id} className="hover:bg-canvas dark:hover:bg-slate-800/50">
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-slate-900 dark:text-slate-100">{a.fish}</div>
-                    <div className="text-xs text-slate-400">Telegram: {a.telegram_id}</div>
-                  </td>
-                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{ARIZA_ROL_LABELS[a.rol]}</td>
-                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
-                    {a.rol === 'oqituvchi' ? a.kasb || '—' : a.sinf || '—'}
-                  </td>
-                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{a.telefon}</td>
-                  <td className="px-4 py-3">
-                    <Badge tone={TONE[a.holati]}>{ARIZA_HOLATI_LABELS[a.holati]}</Badge>
-                    {a.izoh && <div className="mt-1 text-xs text-slate-400">{a.izoh}</div>}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-slate-500 dark:text-slate-400">
-                    {formatDate(a.ariza_sanasi)}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {a.holati === 'kutmoqda' && (
+          <DataTable<Ariza>
+            data={data.results}
+            getRowId={(a) => a.id}
+            emptyText="Ariza topilmadi"
+            pagination={{
+              count: data.count,
+              page: page - 1,
+              rowsPerPage: 20,
+              onPageChange: (p) => setPage(p + 1),
+            }}
+            columns={
+              [
+                {
+                  id: 'fish',
+                  label: 'F.I.Sh.',
+                  sortBy: (a) => a.fish,
+                  render: (a) => (
+                    <div>
+                      <div className="font-medium text-slate-900 dark:text-slate-100">{a.fish}</div>
+                      <div className="text-xs text-slate-400">Telegram: {a.telegram_id}</div>
+                    </div>
+                  ),
+                },
+                {
+                  id: 'rol',
+                  label: 'Rol',
+                  sortBy: (a) => a.rol,
+                  render: (a) => <span className="text-slate-700 dark:text-slate-200">{ARIZA_ROL_LABELS[a.rol]}</span>,
+                },
+                {
+                  id: 'sinf_kasb',
+                  label: 'Sinf / Kasb',
+                  sortBy: (a) => (a.rol === 'oqituvchi' ? (a.kasb ?? '') : (a.sinf ?? '')),
+                  render: (a) => (
+                    <span className="text-slate-700 dark:text-slate-200">
+                      {a.rol === 'oqituvchi' ? a.kasb || '—' : a.sinf || '—'}
+                    </span>
+                  ),
+                },
+                { id: 'telefon', label: 'Telefon', sortBy: (a) => a.telefon },
+                {
+                  id: 'holati',
+                  label: 'Holati',
+                  sortBy: (a) => a.holati,
+                  render: (a) => (
+                    <>
+                      <Badge tone={TONE[a.holati]}>{ARIZA_HOLATI_LABELS[a.holati]}</Badge>
+                      {a.izoh && <div className="mt-1 text-xs text-slate-400">{a.izoh}</div>}
+                    </>
+                  ),
+                },
+                {
+                  id: 'sana',
+                  label: 'Sana',
+                  sortBy: (a) => a.ariza_sanasi,
+                  render: (a) => (
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                      {formatDate(a.ariza_sanasi)}
+                    </span>
+                  ),
+                },
+                {
+                  id: 'amallar',
+                  label: '',
+                  sortable: false,
+                  align: 'right',
+                  render: (a) =>
+                    a.holati === 'kutmoqda' && (
                       <div className="flex justify-end gap-2">
                         <Button
                           size="sm"
@@ -304,16 +339,20 @@ export function Applications() {
                           Qabul qilish
                         </Button>
                       </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
+                    ),
+                },
+              ] as DataTableColumn<Ariza>[]
+            }
+          />
         </ResponsiveList>
       )}
 
-      {data && <Pagination count={data.count} page={page} onChange={setPage} />}
+      {/* Mobilda jadvaldagi MUI pagination ko'rinmaydi */}
+      {data && (
+        <div className="md:hidden">
+          <Pagination count={data.count} page={page} onChange={setPage} />
+        </div>
+      )}
 
       <ConfirmDialog
         open={!!qabulAriza}

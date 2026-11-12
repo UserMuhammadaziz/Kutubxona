@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useState, type ReactNode, type SVGProps } from 'react'
 import clsx from 'clsx'
 import { Icons } from '../components/icons'
@@ -1095,7 +1096,7 @@ export function Guide() {
             Qo‘llanma
           </>
         }
-        subtitle="Saytdan foydalanish bo‘icha qo‘llanma"
+        subtitle="Saytdan foydalanish bo‘yicha qo‘llanma"
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[16rem_1fr]">
@@ -1192,6 +1193,23 @@ export function Guide() {
             ) : null}
           </div>
         </Card>
+      </div>
+    </div>
+  )
+}
+
+/** Login'dan oldin ochiladigan qo'llanma: kirmasdan ham ko'rish mumkin. */
+export function PublicGuide() {
+  return (
+    <div className="min-h-dvh bg-canvas px-4 py-6 dark:bg-slate-900">
+      <div className="mx-auto max-w-6xl">
+        <Link
+          to="/login"
+          className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-brand-700 hover:underline dark:text-brand-300"
+        >
+          ← Kirish sahifasiga qaytish
+        </Link>
+        <Guide />
       </div>
     </div>
   )

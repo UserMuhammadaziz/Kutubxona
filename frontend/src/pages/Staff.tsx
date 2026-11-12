@@ -18,10 +18,10 @@ import {
   PageHeader,
   ResponsiveList,
   Select,
-  Table,
   TableSkeleton,
 } from '../components/ui'
 import { useToast } from '../components/Toast'
+import DataTable, { type DataTableColumn } from '../components/DataTable'
 
 const emptyForm: UserCreatePayload = {
   username: '',
@@ -142,38 +142,53 @@ export function Staff() {
             </div>
           )}
         >
-          <Table>
-            <thead className="border-b border-slate-200 bg-canvas text-xs uppercase text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
-              <tr>
-                <th className="px-4 py-3">F.I.Sh.</th>
-                <th className="px-4 py-3">Foydalanuvchi nomi</th>
-                <th className="px-4 py-3">Lavozim</th>
-                <th className="px-4 py-3">Telefon</th>
-                <th className="px-4 py-3">Holati</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-              {data.results.map((u) => (
-                <tr key={u.id} className="hover:bg-canvas dark:hover:bg-slate-800/50">
-                  <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">
-                    {u.full_name}
-                  </td>
-                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{u.username}</td>
-                  <td className="px-4 py-3">
+          <DataTable<User>
+            data={data.results}
+            getRowId={(u) => u.id}
+            emptyText="Xodim topilmadi"
+            columns={
+              [
+                {
+                  id: 'full_name',
+                  label: 'F.I.Sh.',
+                  sortBy: (u) => u.full_name,
+                  render: (u) => (
+                    <span className="font-medium text-slate-900 dark:text-slate-100">{u.full_name}</span>
+                  ),
+                },
+                { id: 'username', label: 'Foydalanuvchi nomi', sortBy: (u) => u.username },
+                {
+                  id: 'rol',
+                  label: 'Lavozim',
+                  sortBy: (u) => u.rol,
+                  render: (u) => (
                     <Badge tone={u.rol === 'administrator' ? 'blue' : 'slate'}>
                       {u.rol === 'administrator' ? 'Administrator' : 'Kutubxonachi'}
                     </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
-                    {u.telefon || '—'}
-                  </td>
-                  <td className="px-4 py-3">
+                  ),
+                },
+                {
+                  id: 'telefon',
+                  label: 'Telefon',
+                  sortBy: (u) => u.telefon,
+                  render: (u) => <span className="text-slate-700 dark:text-slate-200">{u.telefon || '—'}</span>,
+                },
+                {
+                  id: 'is_active',
+                  label: 'Holati',
+                  sortBy: (u) => (u.is_active ? 1 : 0),
+                  render: (u) => (
                     <Badge tone={u.is_active ? 'green' : 'red'}>
                       {u.is_active ? 'Faol' : 'Faol emas'}
                     </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-right">
+                  ),
+                },
+                {
+                  id: 'amallar',
+                  label: '',
+                  sortable: false,
+                  align: 'right',
+                  render: (u) => (
                     <Button
                       size="sm"
                       variant="secondary"
@@ -182,11 +197,11 @@ export function Staff() {
                     >
                       {u.is_active ? 'Bloklash' : 'Faollashtirish'}
                     </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
+                  ),
+                },
+              ] as DataTableColumn<User>[]
+            }
+          />
         </ResponsiveList>
       )}
 

@@ -13,6 +13,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramAPIError
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.fsm.storage.redis import DefaultKeyBuilder, RedisStorage
 from aiogram.types import ErrorEvent, MenuButtonCommands
 
 import config
@@ -96,6 +97,26 @@ async def menyu_tugmasini_yoqish(bot: Bot) -> None:
     )
 
 
+async def _fsm_storage():
+    """FSM holati Redis'da: bot qayta ishga tushsa ham ariza to'ldirayotganlar yo'qolmaydi.
+
+    Redis yo'q bo'lsa xotira storage'iga tushadi (bot baribir ishlaydi).
+    """
+    try:
+        storage = RedisStorage.from_url(
+            config.FSM_REDIS_URL,
+            key_builder=DefaultKeyBuilder(prefix="kutubxona-bot"),
+            state_ttl=86400,
+            data_ttl=86400,
+        )
+        await storage.redis.ping()
+        logging.getLogger(__name__).info("FSM: Redis")
+        return storage
+    except Exception:
+        logging.getLogger(__name__).warning("Redis topilmadi — FSM xotirada (qayta ishga tushganda yo'qoladi)")
+        return MemoryStorage()
+
+
 async def main():
     logging.basicConfig(
         level=logging.INFO,
@@ -106,7 +127,7 @@ async def main():
         token=config.BOT_TOKEN,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
-    dp = Dispatcher(storage=MemoryStorage())
+    dp = Dispatcher(storage=await _fsm_storage())
 
     dp.errors.register(xatolik_handler)
 

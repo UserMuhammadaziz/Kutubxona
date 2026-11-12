@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState, type FormEvent } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { readersApi } from '../api/resources'
 import { errorMessage } from '../api/client'
@@ -19,9 +19,9 @@ import {
   PageHeader,
   Pagination,
   ResponsiveList,
-  Table,
   TableSkeleton,
 } from '../components/ui'
+import DataTable, { type DataTableColumn } from '../components/DataTable'
 import { useToast } from '../components/Toast'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 
@@ -48,6 +48,12 @@ export function Readers({ rol = 'oquvchi' }: ReadersProps = {}) {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const kechikkanQidiruv = useDebouncedValue(search)
+  // AI buyruq paneli (Ctrl+K) qidiruvni `?q=` orqali to'ldiradi.
+  const [urlParams] = useSearchParams()
+  useEffect(() => {
+    const q = urlParams.get('q')
+    if (q !== null) setSearch(q)
+  }, [urlParams])
   const [modalOpen, setModalOpen] = useState(false)
   const [form, setForm] = useState<OquvchiCreatePayload>({ ...emptyForm, rol: rol ?? 'oquvchi' })
   const [error, setError] = useState<string | null>(null)
@@ -216,37 +222,48 @@ export function Readers({ rol = 'oquvchi' }: ReadersProps = {}) {
             </div>
           )}
         >
-          <Table>
-            <thead className="border-b border-slate-200 bg-canvas text-xs uppercase text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
-              <tr>
-                <th className="px-4 py-3">F.I.Sh.</th>
-                <th className="px-4 py-3">{oqituvchilar ? 'Fan' : 'Sinf'}</th>
-                <th className="px-4 py-3">Telefon</th>
-                <th className="px-4 py-3">Karta raqami</th>
-                <th className="px-4 py-3">Holati</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-              {data.results.map((r) => (
-                <tr key={r.id} className="hover:bg-canvas dark:hover:bg-slate-800/50">
-                  <td className="px-4 py-3">
-                    <Link
-                      to={`/readers/${r.id}`}
-                      className="font-medium text-brand-700 hover:underline dark:text-brand-400"
-                    >
+          <DataTable<Oquvchi>
+            data={data.results}
+            getRowId={(r) => r.id}
+            emptyText="O'quvchi topilmadi"
+            pagination={{
+              count: data.count,
+              page: page - 1,
+              rowsPerPage: 20,
+              onPageChange: (p) => setPage(p + 1),
+            }}
+            columns={
+              [
+                {
+                  id: 'fish',
+                  label: 'F.I.Sh.',
+                  sortBy: (r) => r.fish,
+                  render: (r) => (
+                    <Link to={`/readers/${r.id}`} className="font-medium text-brand-700 hover:underline dark:text-brand-400">
                       {r.fish}
                     </Link>
-                  </td>
-                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
-                    {oqituvchilar ? r.kasb || '—' : r.sinf || '—'}
-                  </td>
-                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{r.telefon}</td>
-                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{r.karta_raqami}</td>
-                  <td className="px-4 py-3">
-                    <Badge tone={r.faol ? 'green' : 'red'}>{r.faol ? 'Faol' : 'Bloklangan'}</Badge>
-                  </td>
-                  <td className="px-4 py-3 text-right">
+                  ),
+                },
+                {
+                  id: 'sinf',
+                  label: oqituvchilar ? 'Fan' : 'Sinf',
+                  sortBy: (r) => (oqituvchilar ? r.kasb : r.sinf),
+                  render: (r) => (oqituvchilar ? r.kasb || '—' : r.sinf || '—'),
+                },
+                { id: 'telefon', label: 'Telefon', sortBy: (r) => r.telefon },
+                { id: 'karta_raqami', label: 'Karta raqami', sortBy: (r) => r.karta_raqami },
+                {
+                  id: 'faol',
+                  label: 'Holati',
+                  sortBy: (r) => (r.faol ? 1 : 0),
+                  render: (r) => <Badge tone={r.faol ? 'green' : 'red'}>{r.faol ? 'Faol' : 'Bloklangan'}</Badge>,
+                },
+                {
+                  id: 'amallar',
+                  label: '',
+                  sortable: false,
+                  align: 'right',
+                  render: (r) => (
                     <Button
                       size="sm"
                       variant="secondary"
@@ -255,15 +272,21 @@ export function Readers({ rol = 'oquvchi' }: ReadersProps = {}) {
                     >
                       {r.faol ? 'Bloklash' : 'Faollashtirish'}
                     </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
+                  ),
+                },
+              ] as DataTableColumn<Oquvchi>[]
+            }
+          />
         </ResponsiveList>
       )}
 
-      {data && <Pagination count={data.count} page={page} onChange={setPage} />}
+      {/* Mobilda jadvaldagi MUI pagination ko'rinmaydi */}
+      {data && (
+        <div className="md:hidden">
+          <Pagination count={data.count} page={page} onChange={setPage} />
+        </div>
+      )}
+
 
       <Modal
         open={modalOpen}

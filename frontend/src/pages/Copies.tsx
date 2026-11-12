@@ -21,10 +21,10 @@ import {
   ResponsiveList,
   Select,
   Spinner,
-  Table,
   TableSkeleton,
 } from '../components/ui'
 import { useToast } from '../components/Toast'
+import DataTable, { type DataTableColumn } from '../components/DataTable'
 
 const emptyForm: NusxaCreatePayload = { kitob: 0, inventar_raqami: '', javon: '', izoh: '' }
 
@@ -228,28 +228,51 @@ export function Copies() {
             </div>
           )}
         >
-          <Table>
-            <thead className="border-b border-slate-200 bg-canvas text-xs uppercase text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
-              <tr>
-                <th className="px-4 py-3">Kitob</th>
-                <th className="px-4 py-3">Inventar №</th>
-                <th className="px-4 py-3">Javon</th>
-                <th className="px-4 py-3">Holati</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-              {data.results.map((c) => (
-                <tr key={c.id} className="hover:bg-canvas dark:hover:bg-slate-800/50">
-                  <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">
-                    {c.kitob_nomi}
-                  </td>
-                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{c.inventar_raqami}</td>
-                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{c.javon || '—'}</td>
-                  <td className="px-4 py-3">
-                    <Badge tone={TONE[c.holati]}>{NUSXA_HOLATI_LABELS[c.holati]}</Badge>
-                  </td>
-                  <td className="px-4 py-3 text-right">
+          <DataTable<Nusxa>
+            data={data.results}
+            getRowId={(c) => c.id}
+            emptyText="Nusxa topilmadi"
+            pagination={{
+              count: data.count,
+              page: page - 1,
+              rowsPerPage: 20,
+              onPageChange: (p) => setPage(p + 1),
+            }}
+            columns={
+              [
+                {
+                  id: 'kitob',
+                  label: 'Kitob',
+                  sortBy: (c) => c.kitob_nomi,
+                  render: (c) => (
+                    <div className="font-medium text-slate-900 dark:text-slate-100">
+                      {c.kitob_nomi}
+                    </div>
+                  ),
+                },
+                {
+                  id: 'inventar_raqami',
+                  label: 'Inventar №',
+                  sortBy: (c) => c.inventar_raqami,
+                },
+                {
+                  id: 'javon',
+                  label: 'Javon',
+                  sortBy: (c) => c.javon,
+                  render: (c) => c.javon || '—',
+                },
+                {
+                  id: 'holati',
+                  label: 'Holati',
+                  sortBy: (c) => c.holati,
+                  render: (c) => <Badge tone={TONE[c.holati]}>{NUSXA_HOLATI_LABELS[c.holati]}</Badge>,
+                },
+                {
+                  id: 'amallar',
+                  label: '',
+                  sortable: false,
+                  align: 'right',
+                  render: (c) => (
                     <div className="flex justify-end gap-2">
                       {(c.holati === 'mavjud' || c.holati === 'tamirda') && (
                         <Button
@@ -274,7 +297,7 @@ export function Copies() {
                             disabled={statusMut.isPending}
                             onClick={() => statusMut.mutate({ id: c.id, holati: 'yoqolgan' })}
                           >
-                            Yo'qolgan deb belgilash
+                            Yo'qolgan
                           </Button>
                           <Button size="sm" variant="danger" onClick={() => setOchiriladigan(c)}>
                             O'chirish
@@ -282,15 +305,20 @@ export function Copies() {
                         </>
                       )}
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
+                  ),
+                },
+              ] as DataTableColumn<Nusxa>[]
+            }
+          />
         </ResponsiveList>
       )}
 
-      {data && <Pagination count={data.count} page={page} onChange={setPage} />}
+      {/* Mobilda jadvaldagi MUI pagination ko'rinmaydi */}
+      {data && (
+        <div className="md:hidden">
+          <Pagination count={data.count} page={page} onChange={setPage} />
+        </div>
+      )}
 
       <Modal
         open={modalOpen}
