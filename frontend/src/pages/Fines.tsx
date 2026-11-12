@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { finesApi } from '../api/resources'
 import { errorMessage } from '../api/client'
@@ -106,7 +107,12 @@ export function Fines() {
             <div className="flex flex-col gap-2">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 font-medium text-slate-900 dark:text-slate-100">
-                  {f.oquvchi_fish}
+                  <Link to={`/readers/${f.oquvchi_id}`} className="hover:underline">
+                    {f.oquvchi_fish}
+                  </Link>
+                  {f.oquvchi_sinf && (
+                    <span className="ml-2 text-xs font-normal text-slate-500">{f.oquvchi_sinf}</span>
+                  )}
                 </div>
                 <Badge tone={f.tolandimi ? 'green' : 'red'}>
                   {f.tolandimi ? 'To‘langan' : 'To‘lanmagan'}
@@ -154,7 +160,12 @@ export function Fines() {
                   id: 'oquvchi_fish',
                   label: "O'quvchi",
                   sortBy: (f) => f.oquvchi_fish,
-                  render: (f) => <span className="font-medium text-slate-900 dark:text-slate-100">{f.oquvchi_fish}</span>,
+                  render: (f) => (
+                    <Link to={`/readers/${f.oquvchi_id}`} className="font-medium text-slate-900 hover:underline dark:text-slate-100">
+                      {f.oquvchi_fish}
+                      {f.oquvchi_sinf && <span className="ml-2 text-xs font-normal text-slate-500">{f.oquvchi_sinf}</span>}
+                    </Link>
+                  ),
                 },
                 { id: 'kitob_nomi', label: 'Kitob', sortBy: (f) => f.kitob_nomi },
                 { id: 'kechikkan_kunlar', label: 'Kechikkan kun', numeric: true, sortBy: (f) => f.kechikkan_kunlar },

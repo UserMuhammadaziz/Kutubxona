@@ -53,7 +53,7 @@ export function Chatbot() {
       )
 
       setMessages((prev) => [...prev, { role: 'assistant', content: response.data.response }])
-      setHistory((prev) => [...prev, ...response.data.history])
+      setHistory(response.data.history)
     } catch (error) {
       setMessages((prev) => [...prev, { role: 'assistant', content: "Xatolik yuz berdi. Qayta urinib ko'ring." }])
       console.error('Chatbot error:', error)
@@ -61,6 +61,21 @@ export function Chatbot() {
       setIsLoading(false)
     }
   }
+
+  // Saqlangan suhbatni bir marta yuklaymiz (ochilganda).
+  const yuklandi = useRef(false)
+  useEffect(() => {
+    if (!isOpen || yuklandi.current) return
+    yuklandi.current = true
+    api
+      .get<Array<{ role: 'user' | 'model'; content: string }>>('/chatbot/')
+      .then((r) => {
+        if (!r.data.length) return
+        setMessages(r.data.map((m) => ({ role: m.role === 'model' ? 'assistant' : 'user', content: m.content })))
+        setHistory(r.data.map((m) => ({ role: m.role, parts: [m.content] })))
+      })
+      .catch(() => {})
+  }, [isOpen])
 
   const toggleChat = () => {
     setIsOpen((prev) => !prev)
@@ -75,6 +90,7 @@ export function Chatbot() {
   }
 
   const clearChat = () => {
+    api.delete('/chatbot/').catch(() => {})
     setMessages([])
     setHistory([])
   }

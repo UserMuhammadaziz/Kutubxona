@@ -212,20 +212,21 @@ class LimitTekshiruvTest(AuditTestBase):
         self.assertIn("Oquvchi.objects.select_for_update()", manba)
 
     def test_limit_oshganda_xato(self):
-        from django.test import override_settings
-
-        with override_settings(LIMIT_KITOB=1):
-            kitob_ber(self.nusxa, self.oquvchi, self.xodim)
-            ikkinchi = Nusxa.objects.create(
-                kitob=self.kitob,
-                inventar_raqami="INV-2",
-                holati="mavjud",
-                qabul_sana=date(2020, 1, 1),
-            )
-            with self.assertRaises(Exception) as kontekst:
-                kitob_ber(ikkinchi, self.oquvchi, self.xodim)
-            self.assertIn("limit_oshdi", str(kontekst.exception))
-            self.assertEqual(Berish.objects.count(), 1)
+        # Limit endi kutubxona (Organization.limit_kitob) bo'yicha.
+        self.org.limit_kitob = 1
+        self.org.save(update_fields=["limit_kitob"])
+        self.oquvchi.refresh_from_db()
+        kitob_ber(self.nusxa, self.oquvchi, self.xodim)
+        ikkinchi = Nusxa.objects.create(
+            kitob=self.kitob,
+            inventar_raqami="INV-2",
+            holati="mavjud",
+            qabul_sana=date(2020, 1, 1),
+        )
+        with self.assertRaises(Exception) as kontekst:
+            kitob_ber(ikkinchi, self.oquvchi, self.xodim)
+        self.assertIn("limit_oshdi", str(kontekst.exception))
+        self.assertEqual(Berish.objects.count(), 1)
 
 
 # ------------------------------------------------------------ holat / o'chirish

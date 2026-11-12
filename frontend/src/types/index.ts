@@ -293,7 +293,10 @@ export interface QaytarishResponse {
 export interface Jarima {
   id: number
   berish: number
+  oquvchi_id: number
   oquvchi_fish: string
+  oquvchi_telefon: string
+  oquvchi_sinf: string
   kitob_nomi: string
   kechikkan_kunlar: number
   kunlik_stavka: string

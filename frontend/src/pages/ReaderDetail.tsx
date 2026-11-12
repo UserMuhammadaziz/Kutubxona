@@ -135,16 +135,6 @@ export function ReaderDetail() {
               </dd>
             </div>
             <div>
-              <dt className="text-slate-500 dark:text-slate-400">Tug'ilgan sana</dt>
-              <dd className="font-medium text-slate-900 dark:text-slate-100">
-                {formatDate(reader.tugilgan_sana)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-slate-500 dark:text-slate-400">Manzil</dt>
-              <dd className="font-medium text-slate-900 dark:text-slate-100">{reader.manzil || '—'}</dd>
-            </div>
-            <div>
               <dt className="text-slate-500 dark:text-slate-400">Telegram</dt>
               <dd className="font-medium text-slate-900 dark:text-slate-100">
                 {reader.telegram_id ? `#${reader.telegram_id}` : 'Bog‘lanmagan'}

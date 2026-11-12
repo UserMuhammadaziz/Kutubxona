@@ -29,7 +29,7 @@ KUTILMOQDA_XABAR = (
     "foydalanishingiz mumkin."
 )
 
-SINF_MASALALARI = "7-A, 9-B, 10-"
+SINF_MASALALARI = "7-A, 9-B, 10-V"
 KASB_MASALALARI = "Matematika, Ona tili, Fizika, Tarix"
 
 # Rolga qarab so'raladigan uchinchi maydon nomi.
@@ -218,6 +218,12 @@ async def ariza_fish(message: Message, state: FSMContext):
     if _menyu_tugmasi_bosilganmi(fish):
         await _menyu_tugmasi_javobi(message, SAVOL_FISH)
         return
+    if matndan_telefon_keltirish(fish) or sum(c.isdigit() for c in fish) >= 5:
+        await message.answer(
+            "❌ Bu telefon raqamga o'xshaydi. Avval ism-familiyangizni harflar bilan yozing "
+            "(masalan: Ali Valiyev):"
+        )
+        return
     if len(fish) > 130:
         await message.answer("Ism-familiya juda uzun (maksimum 130 belgi). Qayta yozing:")
         return
@@ -225,7 +231,7 @@ async def ariza_fish(message: Message, state: FSMContext):
     await state.update_data(fish=fish)
     await state.set_state(Ariza.telefon)
     await message.answer(
-        f"2️⃣ Rahmat. {SAVOL_TELEFON}",
+        SAVOL_TELEFON,
         reply_markup=telefon_sorash(),
     )
 

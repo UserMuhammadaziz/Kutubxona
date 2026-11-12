@@ -115,7 +115,7 @@ def joriy_kutubxonani_aniqla(request, required=True, allow_inactive=False):
         if org:
             return org
 
-    if legacy_rejimmi() and not required:
+    if legacy_rejimmi():
         return None
 
     # Bitta a'zolik bor, lekin u faol emas — aniq sabab bilan 403.

@@ -76,6 +76,32 @@ MAX_COMMAND_LEN = 300
 MAX_HISTORY = 20
 
 
+MAX_SAQLANGAN = 100
+
+
+def _chat_saqlash(user, savol: str, javob: str) -> None:
+    """Savol-javobni bazaga yozadi; xato chatni buzmasin."""
+    from user.models import ChatXabar
+
+    try:
+        ChatXabar.objects.bulk_create(
+            [
+                ChatXabar(user=user, rol="user", matn=savol),
+                ChatXabar(user=user, rol="model", matn=javob),
+            ]
+        )
+        # Eskilarini tozalaymiz: har foydalanuvchida oxirgi MAX_SAQLANGAN ta.
+        chegara = (
+            ChatXabar.objects.filter(user=user)
+            .order_by("-id")
+            .values_list("id", flat=True)[MAX_SAQLANGAN : MAX_SAQLANGAN + 1]
+        )
+        if chegara:
+            ChatXabar.objects.filter(user=user, id__lte=chegara[0]).delete()
+    except Exception:
+        logger.exception("Chat tarixini saqlab bo'lmadi")
+
+
 class ChatbotThrottle(UserRateThrottle):
     scope = "chatbot"
 
@@ -155,6 +181,7 @@ class ChatbotView(APIView):
         if not history:
             kalit = "chatbot:" + hashlib.sha256(message.lower().encode()).hexdigest()
             if (kesh := cache.get(kalit)) is not None:
+                _chat_saqlash(request.user, message, kesh)
                 return Response({
                     "response": kesh,
                     "history": [
@@ -190,7 +217,28 @@ class ChatbotView(APIView):
         updated_history.append({"role": "user", "parts": [message]})
         updated_history.append({"role": "model", "parts": [text]})
 
+        _chat_saqlash(request.user, message, text)
         return Response({"response": text, "history": updated_history})
+
+    def get(self, request):
+        """Foydalanuvchining oxirgi suhbati (eskidan yangiga)."""
+        from user.models import ChatXabar
+
+        oxirgilar = list(
+            ChatXabar.objects.filter(user=request.user).order_by("-id")[:MAX_SAQLANGAN]
+        )[::-1]
+        return Response(
+            [
+                {"role": x.rol, "content": x.matn, "sana": x.yaratilgan}
+                for x in oxirgilar
+            ]
+        )
+
+    def delete(self, request):
+        from user.models import ChatXabar
+
+        ChatXabar.objects.filter(user=request.user).delete()
+        return Response(status=204)
 
 
 class LibrarianCommandView(APIView):

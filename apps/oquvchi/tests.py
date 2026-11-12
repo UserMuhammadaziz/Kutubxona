@@ -19,7 +19,7 @@ User = get_user_model()
 YUBORILGAN_XABARLAR = []
 
 
-def _xabar_yuborilgan(chat_id, matn, parse_mode="HTML"):
+def _xabar_yuborilgan(chat_id, matn, parse_mode="HTML", **kwargs):
     YUBORILGAN_XABARLAR.append({"chat_id": chat_id, "matn": matn})
     return True
 
