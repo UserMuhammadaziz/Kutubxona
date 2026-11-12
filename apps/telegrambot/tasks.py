@@ -38,6 +38,7 @@ def yangi_kitob_xabari_yubor(kitob_id):
         return "no_bot"
 
     qisqa = _qisqa_avail_nomi(kitob)
+    mavjudligi = "Mavjud" if kitob.nusxalar.filter(holati="mavjud").exists() else "Hozirda yo'q"
     batafsil = (
         f"📚 <b>YANGI KITOB QO'SHILDI</b>\n\n"
         f"Nom: <b>{telegram_escape(kitob.nomi)}</b>\n"
@@ -47,7 +48,7 @@ def yangi_kitob_xabari_yubor(kitob_id):
         f"Til: {telegram_escape(kitob.get_til_display()) if kitob.til else '-'}\n"
         f"ISBN: {telegram_escape(kitob.isbn) if kitob.isbn else '-'}\n\n"
         f"<b>Holati (batafsil):</b> {telegram_escape(qisqa)}\n"
-        f"<b>Qisqacha:</b> {'Mavjud' if kitob.nusxalar.filter(holati='mavjud').count() else 'Hozirda yo\\'q'}\n"
+        f"<b>Qisqacha:</b> {mavjudligi}\n"
     )
     if kitob.tavsif:
         batafsil += f"\nTavsif: {telegram_escape(kitob.tavsif[:200])}"
