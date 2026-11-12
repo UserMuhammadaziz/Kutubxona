@@ -458,3 +458,32 @@ export interface DashboardStats {
   oquvchi_soni?: number
   oqituvchi_soni?: number
 }
+
+// ---- Announcements (bulk Telegram messages) ----
+
+export type AnnouncementAudience = 'all' | 'students' | 'teachers' | 'overdue' | 'debtors'
+
+export const ANNOUNCEMENT_AUDIENCE_LABELS: Record<AnnouncementAudience, string> = {
+  all: 'Barcha o‘quvchilar',
+  students: 'Faqat o‘quvchilar',
+  teachers: 'Faqat o‘qituvchilar',
+  overdue: 'Muddati o‘tgan kitobi borlar',
+  debtors: 'Jarimasi borlar',
+}
+
+export interface Announcement {
+  id: number
+  text: string
+  audience: AnnouncementAudience
+  grade: string
+  created_at: string
+  recipients_count: number
+  sent_count: number
+  failed_count: number
+}
+
+export interface AnnouncementPreview {
+  recipients: number
+  sent_today: number
+  daily_limit: number
+}

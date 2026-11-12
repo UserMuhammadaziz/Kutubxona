@@ -13,6 +13,7 @@ class ThrottledTokenView(TokenObtainPairView):
     """Parol terishdan himoya: IP bo'yicha daqiqasiga 10 urinish (Redis'da umumiy)."""
 
     throttle_classes = [LoginThrottle]
+from announcement.views import AnnouncementViewSet
 from berish.views import BerishViewSet
 from jarima.views import JarimaViewSet
 from kitob.views import BandQilishViewSet, KitobViewSet
@@ -45,6 +46,7 @@ router.register("loans", BerishViewSet, basename="loans")
 router.register("fines", JarimaViewSet, basename="fines")
 router.register("reservations", NavbatViewSet, basename="reservations")
 router.register("holds", BandQilishViewSet, basename="holds")
+router.register("announcements", AnnouncementViewSet, basename="announcements")
 router.register("staff", UserViewSet, basename="staff")
 router.register("organizations", OrganizationViewSet, basename="organizations")
 router.register("saas/organizations", SaaSOrganizationViewSet, basename="saas-organizations")

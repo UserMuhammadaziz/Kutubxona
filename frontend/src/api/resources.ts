@@ -1,6 +1,9 @@
 import { api } from './client'
 import type {
   Paginated,
+  Announcement,
+  AnnouncementAudience,
+  AnnouncementPreview,
   User,
   UserCreatePayload,
   Kitob,
@@ -230,4 +233,15 @@ export const staffApi = {
 export const statsApi = {
   topBooks: (limit = 10) => api.get<TopBook[]>('/stats/top-books/', { params: { limit } }).then((r) => r.data),
   dashboard: () => api.get<DashboardStats>('/stats/dashboard/').then((r) => r.data),
+}
+
+// ---- Announcements ----
+
+export const announcementsApi = {
+  list: (page = 1) =>
+    api.get<Paginated<Announcement>>('/announcements/', { params: { page } }).then((r) => r.data),
+  preview: (audience: AnnouncementAudience, grade: string) =>
+    api.post<AnnouncementPreview>('/announcements/preview/', { audience, grade }).then((r) => r.data),
+  send: (payload: { text: string; audience: AnnouncementAudience; grade: string }) =>
+    api.post<Announcement>('/announcements/send/', payload).then((r) => r.data),
 }

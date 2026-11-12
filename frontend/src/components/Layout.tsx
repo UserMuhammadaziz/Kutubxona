@@ -21,6 +21,7 @@ const navItems = [
   { to: '/bandlar', label: 'Bandlar', icon: Icons.lock },
   { to: '/reservations', label: 'Navbatlar', icon: Icons.clock },
   { to: '/fines', label: 'Jarimalar', icon: Icons.money },
+  { to: '/announcements', label: 'E‘lonlar', icon: Icons.bell },
   { to: '/guide', label: "Qo'llanma", icon: Icons.bookClosed },
   { to: '/profile', label: 'Profil va sozlamalar', icon: Icons.user },
 ]

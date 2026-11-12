@@ -76,6 +76,7 @@ INSTALLED_APPS = [
     'berish',
     'navbat',
     'jarima',
+    'announcement',
     'oquvchi',
     'stats',
     'web',

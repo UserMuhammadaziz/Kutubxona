@@ -15,6 +15,7 @@ import { Applications } from './pages/Applications'
 import { Loans } from './pages/Loans'
 import { Bandlar } from './pages/Bandlar'
 import { Reservations } from './pages/Reservations'
+import { Announcements } from './pages/Announcements'
 import { Fines } from './pages/Fines'
 import { Staff } from './pages/Staff'
 import { Guide, PublicGuide } from './pages/Guide'
@@ -48,6 +49,7 @@ function App() {
           <Route path="/loans" element={<Loans />} />
           <Route path="/bandlar" element={<Bandlar />} />
           <Route path="/reservations" element={<Reservations />} />
+          <Route path="/announcements" element={<Announcements />} />
           <Route path="/fines" element={<Fines />} />
           <Route path="/guide" element={<Guide />} />
           <Route path="/profile" element={<Profile />} />
