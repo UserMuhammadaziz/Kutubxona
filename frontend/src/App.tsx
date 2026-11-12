@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuthStore } from './store/auth'
 import { Layout } from './components/Layout'
+import { Profile } from './pages/Profile'
 import { RequireAdmin, RequireAuth } from './components/RequireAuth'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
@@ -49,6 +50,7 @@ function App() {
           <Route path="/reservations" element={<Reservations />} />
           <Route path="/fines" element={<Fines />} />
           <Route path="/guide" element={<Guide />} />
+          <Route path="/profile" element={<Profile />} />
 
           <Route element={<RequireAdmin />}>
             <Route path="/staff" element={<Staff />} />
