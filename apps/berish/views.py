@@ -7,6 +7,7 @@ from oquvchi.models import Oquvchi
 from organization.tenancy import joriy_kutubxonani_aniqla, scope
 from user.permissions import IsLibrarian
 from . import services
+from .filters import LoanFilter
 from berish.models import Berish
 from berish.serializers import BerishSerializer, BerishYaratishSerializer, BerishMeniSerializer
 
@@ -15,7 +16,7 @@ class BerishViewSet(viewsets.ModelViewSet):
     permission_classes = [IsLibrarian]
     queryset = Berish.objects.select_related("nusxa", "kitob", "oquvchi").order_by("-id")
     serializer_class = BerishSerializer
-    filterset_fields = ["holati", "oquvchi"]
+    filterset_class = LoanFilter
     http_method_names = ["get", "post"]
 
     def get_permissions(self):

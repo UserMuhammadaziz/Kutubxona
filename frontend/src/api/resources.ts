@@ -107,6 +107,10 @@ export interface ReaderListParams {
   search?: string
   rol?: OquvchiRol | ''
   faol?: boolean
+  sinf?: string
+  has_telegram?: boolean
+  has_debt?: boolean
+  has_active_loans?: boolean
 }
 
 export const readersApi = {
@@ -144,6 +148,11 @@ export interface LoanListParams {
   page?: number
   holati?: BerishHolati | ''
   oquvchi?: number
+  q?: string
+  grade?: string
+  issued_from?: string
+  issued_to?: string
+  overdue?: boolean
 }
 
 export const loansApi = {

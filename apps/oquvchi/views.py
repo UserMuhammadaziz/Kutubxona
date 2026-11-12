@@ -15,6 +15,7 @@ from jarima.models import Jarima
 from jarima.serializers import JarimaMeniSerializer
 from user.permissions import IsLibrarian
 from . import services
+from .filters import ReaderFilter
 from .models import Ariza, Fan, Oquvchi
 from .serializers import (
     ArizaSerializer,
@@ -95,7 +96,7 @@ class OquvchiViewSet(viewsets.ModelViewSet):
     permission_classes = [IsLibrarian]
     queryset = Oquvchi.objects.all().order_by("-royxat_sanasi", "-id")
     search_fields = ["fish", "telefon", "karta_raqami"]
-    filterset_fields = ["rol", "faol", "sinf"]
+    filterset_class = ReaderFilter
     http_method_names = ["get", "post", "patch"]
 
     def get_serializer_class(self):

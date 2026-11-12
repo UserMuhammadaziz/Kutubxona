@@ -745,3 +745,17 @@ class ReaderProfileTests(ArizaTestMixin, TestCase):
     def test_message_without_telegram_rejected(self):
         res = self.client.post(f"/api/readers/{self.reader.id}/message/", {"text": "Salom"}, format="json")
         self.assertEqual(res.status_code, 400)
+
+
+class ReaderFilterTests(ArizaTestMixin, TestCase):
+    def test_has_telegram_filter(self):
+        Oquvchi.objects.create(fish="A", telefon="+998900000001", telegram_id=7)
+        Oquvchi.objects.create(fish="B", telefon="+998900000002")
+        res = self.client.get("/api/readers/?has_telegram=true")
+        self.assertEqual([r["fish"] for r in res.data["results"]], ["A"])
+        res = self.client.get("/api/readers/?has_telegram=false&has_debt=false")
+        self.assertEqual([r["fish"] for r in res.data["results"]], ["B"])
+
+    def test_loan_filters_accepted(self):
+        res = self.client.get("/api/loans/?overdue=true&issued_from=2026-01-01&q=x&grade=5")
+        self.assertEqual(res.status_code, 200)

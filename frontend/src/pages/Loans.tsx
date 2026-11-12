@@ -87,6 +87,10 @@ export function Loans() {
     // Havola holat bermasa, standart bo'yicha faol (qaytarilmagan) berishlar ko'rsatiladi.
     return 'faol'
   })
+  const [loanQuery, setLoanQuery] = useState('')
+  const debouncedLoanQuery = useDebouncedValue(loanQuery)
+  const [issuedFrom, setIssuedFrom] = useState('')
+  const [issuedTo, setIssuedTo] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [readerSearch, setReaderSearch] = useState('')
   const kechikkanReaderSearch = useDebouncedValue(readerSearch)
@@ -98,13 +102,19 @@ export function Loans() {
   const [qaytariladigan, setQaytariladigan] = useState<Berish | null>(null)
 
   const { data, isLoading, isError, error: listError, refetch, isFetching } = useQuery({
-    queryKey: ['loans', page, holati, kechikkanRejim],
+    queryKey: ['loans', page, holati, kechikkanRejim, debouncedLoanQuery, issuedFrom, issuedTo],
     queryFn: async () => {
       if (kechikkanRejim) {
         const results = await loansApi.overdue()
         return { count: results.length, next: null, previous: null, results }
       }
-      return loansApi.list({ page, holati: holati || undefined })
+      return loansApi.list({
+        page,
+        holati: holati || undefined,
+        q: debouncedLoanQuery || undefined,
+        issued_from: issuedFrom || undefined,
+        issued_to: issuedTo || undefined,
+      })
     },
   })
 
@@ -223,7 +233,7 @@ function onSubmit(e: FormEvent) {
   createMut.mutate({ oquvchi: form.oquvchi, kitob: form.kitob })
 }
 
-  const filtrBor = holati !== ''
+  const filtrBor = holati !== '' || !!loanQuery || !!issuedFrom || !!issuedTo
   const tanlanganKitob: Kitob | null =
     books?.find((k) => k.id === form.kitob) ?? null
   const reja = berishRejasi(tanlanganKitob)
@@ -241,7 +251,34 @@ function onSubmit(e: FormEvent) {
       />
 
       <Card className="mb-4 p-3 sm:p-4">
-        <div className="sm:w-64">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
+          <Input
+            placeholder="O‘quvchi yoki kitob nomi..."
+            value={loanQuery}
+            onChange={(e) => {
+              setLoanQuery(e.target.value)
+              setPage(1)
+            }}
+            aria-label="Berishlarni qidirish"
+          />
+          <Input
+            type="date"
+            value={issuedFrom}
+            onChange={(e) => {
+              setIssuedFrom(e.target.value)
+              setPage(1)
+            }}
+            aria-label="Berilgan sana: dan"
+          />
+          <Input
+            type="date"
+            value={issuedTo}
+            onChange={(e) => {
+              setIssuedTo(e.target.value)
+              setPage(1)
+            }}
+            aria-label="Berilgan sana: gacha"
+          />
           <Select
             value={holati}
             onChange={(e) => {
