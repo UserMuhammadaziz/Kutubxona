@@ -207,9 +207,15 @@ export const Icons = {
       <path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
     </Svg>
   ),
+  // AI assistant: sparkles (the old `bot` icon looked like a desktop monitor).
   bot: (p: IconProps) => (
     <Svg {...p}>
-      <path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+      <path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8L12 3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z" />
+    </Svg>
+  ),
+  arrowUp: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M12 19V5m-7 7l7-7 7 7" />
     </Svg>
   ),
   trash: (p: IconProps) => (
