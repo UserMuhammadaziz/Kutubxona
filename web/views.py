@@ -35,7 +35,7 @@ def service_worker(request):
 
 
 # --- Sozlamalar va Promptlar ---
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
 
 CHATBOT_SYSTEM_INSTRUCTION = (
     "Siz — «Kutubxona» tuman kutubxonasi boshqaruv tizimining yordamchisiz. "
