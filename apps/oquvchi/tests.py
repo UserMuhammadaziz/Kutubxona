@@ -694,3 +694,52 @@ class OquvchiRolTest(ArizaTestMixin, TestCase):
         )
         self.assertEqual(javob.status_code, 201, javob.data)
         self.assertEqual(javob.data["rol"], "oquvchi")
+
+
+class ReaderTenantIsolationTests(TestCase):
+    """Readers list/create must be scoped to the caller's organization."""
+
+    def setUp(self):
+        from organization.models import Membership, Organization
+
+        self.org_a = Organization.objects.create(
+            nomi="A", slug="org-a", status=Organization.HOLAT_ACTIVE
+        )
+        self.org_b = Organization.objects.create(
+            nomi="B", slug="org-b", status=Organization.HOLAT_ACTIVE
+        )
+        self.user = User.objects.create_user(username="lib_a", password="x")
+        Membership.objects.create(
+            user=self.user, organization=self.org_a, rol="kutubxonachi"
+        )
+        self.own = Oquvchi.objects.create(
+            organization=self.org_a, fish="Own", telefon="+998900000001", karta_raqami="LIB-1"
+        )
+        self.foreign = Oquvchi.objects.create(
+            organization=self.org_b, fish="Foreign", telefon="+998900000002", karta_raqami="LIB-1"
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(self.user)
+
+    def test_list_hides_other_organization(self):
+        res = self.client.get("/api/readers/")
+        self.assertEqual(res.status_code, 200)
+        ids = [r["id"] for r in res.data["results"]]
+        self.assertEqual(ids, [self.own.id])
+
+    def test_create_sets_organization(self):
+        res = self.client.post(
+            "/api/readers/",
+            {"fish": "New Reader", "telefon": "+998900000003", "sinf": "5-A"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 201, res.data)
+        self.assertEqual(Oquvchi.objects.get(pk=res.data["id"]).organization, self.org_a)
+
+    def test_same_phone_allowed_in_other_organization(self):
+        res = self.client.post(
+            "/api/readers/",
+            {"fish": "Dup", "telefon": "+998900000002", "sinf": "5-A"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 201, res.data)

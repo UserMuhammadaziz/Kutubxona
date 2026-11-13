@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from berish.serializers import BerishMeniSerializer
 from jarima.models import Jarima
 from jarima.serializers import JarimaMeniSerializer
+from organization.tenancy import TenantViewSetMixin
 from user.permissions import IsLibrarian
 from . import services
 from .models import Ariza, Oquvchi
@@ -20,7 +21,7 @@ from .serializers import (
 )
 
 
-class OquvchiViewSet(viewsets.ModelViewSet):
+class OquvchiViewSet(TenantViewSetMixin, viewsets.ModelViewSet):
     """
     GET   /api/readers/       -> ro'yxat (qidiruv: fish, telefon, karta_raqami)
     GET   /api/readers/?rol=oqituvchi -> faqat o'qituvchilar ("O'qituvchilar" bo'limi)
