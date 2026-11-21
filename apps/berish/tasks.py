@@ -50,10 +50,11 @@ def eslatma_yuborish():
             continue
 
         qolgan = (berish.qaytarish_muddati - bugun).days
-        if berish.nusxa_id:
-            manzil = f"Inventar raqami: {berish.nusxa.inventar_raqami}"
-        else:
-            manzil = "Nusxasi yo'q — kitob aslida berilgan"
+        manzil = (
+            f"Inventar raqami: {berish.nusxa.inventar_raqami}"
+            if berish.nusxa_id
+            else ""
+        )
         if qolgan < 0:
             # Oyna tufayli kechikkan holat bo'lishi mumkin — "yaqinlashmoqda"
             # emas, "o'tib ketdi" deb aytamiz.
@@ -68,7 +69,7 @@ def eslatma_yuborish():
         matn = (
             f"{sarlavha}\n\n"
             f"📖 <b>{telegram_escape(berish.kitob.nomi)}</b>\n"
-            f"{manzil}\n"
+            f"{manzil + chr(10) if manzil else ''}"
             f"Qaytarish muddati: <b>{berish.qaytarish_muddati}</b>\n"
             f"{qolgan_matni}\n\n"
             "Iltimos, vaqtida kutubxonaga qaytaring!"

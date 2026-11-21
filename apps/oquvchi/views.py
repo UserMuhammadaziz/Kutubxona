@@ -75,9 +75,15 @@ class OquvchiViewSet(TenantViewSetMixin, viewsets.ModelViewSet):
     def ochirish(self, request):
         """POST /api/readers/ochirish/ — tanlangan kitobxonlarni o'chirish.
 
-        Kitob berish yoki band qilish tarixi bo'lganlar o'chirilmaydi
-        (PROTECT): ularning tarixi saqlanib qolishi shart. Sababi natijada
-        qaytariladi, shunda kutubxonachi nima uchun o'chirilmaganini ko'radi.
+        Faqat **joriy** kitob (qaytarilmagan Berish) yoki **kutilayotgan**
+        band so'rovi (`kutmoqda`) o'chirishga to'sqinlik qiladi — bular
+        Bandlar/Berishlar bo'limida ko'rinadi va avval yakunlanishi kerak.
+
+        Tugallangan tarix (qaytarilgan berishlar, rad etilgan/tasdiqlangan/
+        bekor qilingan bandlar) endi to'siq bo'lmaydi: ular PROTECT bog'lanish
+        tufayli oldin o'chirishni bloklagan, lekin hech qayerda ko'rinmagan.
+        Bunday yozuvlar bir tranzaksiyada tozalanadi, so'ngra kitobxon
+        o'chiriladi. Sabab natijada qaytariladi.
         """
         serializer = OquvchilarniOchirishSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -92,10 +98,10 @@ class OquvchiViewSet(TenantViewSetMixin, viewsets.ModelViewSet):
         with transaction.atomic():
             for oquvchi in qs.select_for_update():
                 sabablar = []
-                if oquvchi.berish_set.exists():
-                    sabablar.append("kitob berish tarixi bor")
-                if oquvchi.band_qilishlar.exists():
-                    sabablar.append("kitob band qilingan")
+                if oquvchi.berish_set.filter(qaytarilgan_sana__isnull=True).exists():
+                    sabablar.append("kitob berish tarixi bor (kitob hali qaytarilmagan)")
+                if oquvchi.band_qilishlar.filter(holati="kutmoqda").exists():
+                    sabablar.append("kutilayotgan band so'rovi bor (Bandlar bo'limida)")
                 if sabablar:
                     ochirilmadi.append(
                         {
@@ -105,6 +111,12 @@ class OquvchiViewSet(TenantViewSetMixin, viewsets.ModelViewSet):
                         }
                     )
                     continue
+
+                # Faqat yakunlangan yozuvlarni tozalaymiz: ular hech qanday
+                # faol jarayonga ta'sir qilmaydi, lekin PROTECT tufayli
+                # kitobxonnini o'chirishga xalaqit berardi.
+                oquvchi.berish_set.filter(qaytarilgan_sana__isnull=False).delete()
+                oquvchi.band_qilishlar.all().delete()
                 oquvchi.delete()
                 ochirildi += 1
 

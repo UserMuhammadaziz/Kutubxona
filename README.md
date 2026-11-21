@@ -11,7 +11,7 @@ Django REST Framework + PostgreSQL + Celery/Redis + aiogram 3 (Telegram bot).
    ```bash
    python -m venv venv
    source venv/bin/activate   # Windows: venv\Scripts\activate
-   pip install -r requeriments.txt
+   pip install -r requirements.txt
    ```
 
 2. PostgreSQL bazasini yarating:

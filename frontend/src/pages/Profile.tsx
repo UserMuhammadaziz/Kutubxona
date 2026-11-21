@@ -392,7 +392,7 @@ export function Profile() {
               Kitobxonlarni o'chirish
             </h2>
             <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-              Tanlangan o'quvchilar yoki o'qituvchilar ro'yxatdan o'chiriladi. Kitob berish yoki band qilish tarixi bo'lganlar o'chirilmaydi.
+              Tanlangan o'quvchilar yoki o'qituvchilar ro'yxatdan o'chiriladi. Faqat qaytarilmagan kitobi yoki kutilayotgan band so'rovi borlar o'chirilmaydi.
             </p>
 
             <div className="grid gap-3 sm:grid-cols-2">
@@ -680,7 +680,7 @@ export function Profile() {
         title="Kitobxonlarni o'chirish"
         message={
           <>
-            Tanlangan <b>{tanlanganIds.length}</b> ta kitobxon ro'yxatdan o'chiriladi. Kitob berish yoki band qilish tarixi bo'lganlar o'chirilmaydi. Bu amalni qaytarib bo'lmaydi.
+            Tanlangan <b>{tanlanganIds.length}</b> ta kitobxon ro'yxatdan o'chiriladi. Qaytarilmagan kitobi yoki kutilayotgan band so'rovi borlar o'chirilmaydi (sababi ko'rsatiladi). Bu amalni qaytarib bo'lmaydi.
           </>
         }
         confirmLabel="O'chirish"

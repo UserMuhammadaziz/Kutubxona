@@ -5,7 +5,7 @@ Telegram tarmoqqa chiqmasligi uchun `telegram_xabar_yubor` mock qilinadi.
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
 from config.test_helpers import TenantTestMixin
@@ -132,6 +132,23 @@ class XabarYuborishTest(TenantTestMixin, TestCase):
         )
         self.assertEqual(javob.status_code, 400)
 
+    def test_organization_siz_eski_kitobxonga_ham_yuboriladi(self):
+        """Eski bot orqali yaratilgan, tashkilotga bog'lanmagan kitobxon."""
+        eski = Oquvchi.objects.create(
+            fish="Eski O'qituvchi", telefon="+998905555555", telegram_id=555,
+            karta_raqami="T2", rol="oqituvchi", kasb="Tarix",
+        )
+        Oquvchi.objects.filter(pk=eski.pk).update(organization=None)
+
+        with patch("telegrambot.views.telegram_xabar_yubor", return_value=True) as yuborish:
+            javob = self.client.post(
+                "/api/messages/send/",
+                {"tur": "shaxs", "rol": "oqituvchi", "oquvchi": eski.pk, "matn": "Salom"},
+            )
+        self.assertEqual(javob.status_code, 200, javob.data)
+        self.assertEqual(javob.json()["yuborildi"], 1)
+        self.assertEqual(yuborish.call_args.args[0], 555)
+
     def test_boshqa_kutubxona_korinmaydi(self):
         from organization.models import Organization
 
@@ -154,3 +171,24 @@ class XabarYuborishTest(TenantTestMixin, TestCase):
             )
         self.assertEqual(javob.status_code, 400)
         yuborish.assert_not_called()
+
+
+class TokenFallbackTest(TestCase):
+    """Bot UI orqali ulanmagan kutubxonada .env tokeni ishlatilishi."""
+
+    @override_settings(TELEGRAM_BOT_TOKEN="test-token")
+    def test_bitta_kutubxonada_global_token_fallback(self):
+        from config.telegram import _token_ol
+        from organization.models import Organization
+
+        org = Organization.objects.create(nomi="Yagona kutubxona")
+        self.assertEqual(_token_ol(organization=org), "test-token")
+
+    @override_settings(TELEGRAM_BOT_TOKEN="test-token")
+    def test_kop_kutubxonada_global_token_ishlatilmaydi(self):
+        from config.telegram import _token_ol
+        from organization.models import Organization
+
+        org1 = Organization.objects.create(nomi="Birinchi kutubxona")
+        Organization.objects.create(nomi="Ikkinchi kutubxona")
+        self.assertEqual(_token_ol(organization=org1), "")

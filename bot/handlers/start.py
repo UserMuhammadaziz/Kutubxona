@@ -193,7 +193,7 @@ def rol_tanlash_xabari(rol):
 
     Alohida funksiya qilib ajratilgan, chunki ichidagi nomlar (masalan
     `ROL_UCHUNCHI_MAYDON`) ish vaqtida `NameError` bersa, matnni shu yerda
-    tekshirib bo'ladi (bot/_check.py) — serverda esa butun oqim buzilardi.
+    tekshirib bo'ladi (bot/_check_tugmalar.py) — serverda esa butun oqim buzilardi.
     """
     uchinchi_format = (
         "tugmalardan tanlanadi"

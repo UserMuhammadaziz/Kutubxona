@@ -977,8 +977,96 @@ const sections: Section[] = [
     ],
   },
   {
-    id: 'kunlik-tartib',
+    id: 'profil',
     num: '15',
+    title: 'Profil, xabar yuborish va o‘chirish',
+    icon: Icons.idCard,
+    blocks: [
+      <P key="0">
+        Chap menyudagi <B>Profil</B> tugmasi orqali hisobingizni boshqarasiz. U <B>Chiqish</B>
+        tugmasi ustida joylashgan.
+      </P>,
+      <H3 key="1">Shaxsiy ma’lumotlarni o‘zgartirish</H3>,
+      <OL
+        key="2"
+        items={[
+          <>
+            <B>Profil</B> → <B>Shaxsiy ma’lumotlar</B> → <B>Tahrirlash</B>
+          </>,
+          <>
+            To‘liq ism, foydalanuvchi nomi (login) va telefon raqamini o‘zgartiring
+          </>,
+          <>
+            <B>Saqlash</B> — yangi ma’lumotlar darhol saqlanadi; parol o‘zgarmaydi
+          </>,
+        ]}
+      />,
+      <Note key="3" tone="info">
+        Login allaqachon boshqa xodimda bor bo‘lsa, saqlanmaydi — boshqa login tanlang.
+      </Note>,
+      <H3 key="4">Parol almashtirish</H3>,
+      <P key="5">
+        <B>Profil</B> → <B>Parol almashtirish</B>: avval eski parolni, keyin yangi parolni ikki marta
+        kiriting. Eski parol noto‘g‘ri bo‘lsa, parol o‘zgarmaydi.
+      </P>,
+      <H3 key="6">Sozlamalar</H3>,
+      <UL
+        key="7"
+        items={[
+          <>
+            <B>Ko‘rinish</B> — Yorug / Qorong‘i rejimni tanlaysiz (tanlov saqlanadi)
+          </>,
+          <>
+            <B>Tizimdan chiqish</B> — tasdiqlash oynasi chiqadi, tasodifiy chiqib ketishning oldi
+            olinadi
+          </>,
+        ]}
+      />,
+      <H3 key="8">Kitobxonlarga xabar yuborish</H3>,
+      <P key="9">
+        <B>Profil</B> → <B>Kitobxonlarga xabar yuborish</B> orqali Telegram orqali xabar yuborasiz:
+      </P>,
+      <Tbl
+        key="10"
+        head={['Yuborish usuli', 'Qachon ishlatiladi']}
+        rows={[
+          [<>Bitta o‘quvchi/o‘qituvchi</>, <>Bir kishiga shaxsiy xabar</>],
+          [<>Sinf bo‘yicha</>, <>Masalan, 7-A dagi barcha o‘quvchilarga</>],
+          [<>Barcha sinflarga</>, <>Tanlangan roldagi hamma faol kitobxonlarga</>],
+        ]}
+      />,
+      <Note key="11" tone="bell">
+        Telegram ID si bo‘lmagan kitobxonlar hisobga olinadi, lekin ularga xabar bormaydi — natijada
+        “Telegram yo‘q” deb ko‘rsatiladi. Xabar yuborish uchun kutubxonaning Telegram boti ulangan
+        bo‘lishi shart.
+      </Note>,
+      <H3 key="12">O‘quvchi va o‘qituvchilarni o‘chirish</H3>,
+      <OL
+        key="13"
+        items={[
+          <>
+            <B>Profil</B> → <B>Kitobxonlarni o‘chirish</B> → rol tanlang → qidirib, belgilang →{' '}
+            <B>O‘chirish</B>
+          </>,
+          <>
+            Faqat <B>qo‘lidagi kitob qaytarilmagan</B> yoki <B>kutilayotgan band so‘rovi</B> borlar
+            o‘chirilmaydi — ular <B>Berishlar</B> / <B>Bandlar</B> bo‘limida ko‘rinadi
+          </>,
+          <>
+            Qaytarilgan kitoblar va yakunlangan band so‘rovlari tarixi endi to‘sqinlik qilmaydi —
+            bunday kitobxonlar ham o‘chiriladi
+          </>,
+        ]}
+      />,
+      <Note key="14" tone="alert">
+        O‘chirib bo‘lmaganlar ro‘yxami va sababi natija oynasida ko‘rsatiladi. Avval kitobni
+        qaytarib oling yoki band so‘rovini tasdiqlang/rad eting, keyin qayta urinib ko‘ring.
+      </Note>,
+    ],
+  },
+  {
+    id: 'kunlik-tartib',
+    num: '16',
     title: 'Kunlik ish tartibi',
     icon: Icons.calendar,
     blocks: [
@@ -1026,7 +1114,7 @@ const sections: Section[] = [
   },
   {
     id: 'faq',
-    num: '16',
+    num: '17',
     title: 'Tez-tez so‘raladigan savollar',
     icon: Icons.chat,
     blocks: [
@@ -1052,7 +1140,15 @@ const sections: Section[] = [
       </P>,
       <H3 key="8">Parolni unutdim?</H3>,
       <P key="9">
-        Administrator parolni o‘zgartirib beradi (<B>Xodimlar</B> → <B>Tahrirlash</B>).
+        Eski parolni bilsangiz, <B>Profil</B> → <B>Parol almashtirish</B> orqali o‘zingiz
+        o‘zgartirishingiz mumkin. Unutgan bo‘lsangiz — administrator yangi parol beradi (
+        <B>Xodimlar</B> → <B>Tahrirlash</B>).
+      </P>,
+      <H3 key="8a">Band qilgan o‘quvchini o‘chira olmayapman, lekin Bandlar bo‘limida yo‘q?</H3>,
+      <P key="9a">
+        Bu tarixiy band so‘rovi (tasdiqlangan, rad etilgan yoki bekor qilingan) bo‘lib, endi to‘sqinlik
+        qilmaydi. Sahifani yangilab, qayta o‘chirib ko‘ring. Agar <B>kutmoqda</B> holatidagi so‘rov
+        bo‘lsa — u Bandlar bo‘limida ko‘rinadi, avval uni tasdiqlang yoki rad eting.
       </P>,
       <H3 key="10">Sayt ochilmayapti?</H3>,
       <P key="11">

@@ -4,6 +4,7 @@ import logging
 import re
 
 from django.db import IntegrityError
+from django.db.models import Q
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
@@ -154,10 +155,21 @@ def _sinf_kaliti(sinf):
 
 
 def _qabul_qiluvchilar(org, rol):
-    """Joriy kutubxonadagi faol kitobxonlar (tenant doirasida)."""
+    """Joriy kutubxonadagi faol kitobxonlar (tenant doirasida).
+
+    Eski bot orqali yaratilgan ayrim kitobxonlarda `organization` bo'sh
+    qolgan. Baza bitta kutubxonadan iborat bo'lsa, ularni ham qabul
+    qiluvchilarga qo'shamiz — aks holda kutubxonachi ularni na ko'radi,
+    na xabar yubora oladi. Ko'p kutubxonada bunday qilish xavfsiz emas.
+    """
     qs = Oquvchi.objects.filter(rol=rol, faol=True)
     if org is not None:
-        qs = qs.filter(organization=org)
+        from organization.models import Organization
+
+        if Organization.objects.filter(status=Organization.HOLAT_ACTIVE).count() <= 1:
+            qs = qs.filter(Q(organization=org) | Q(organization__isnull=True))
+        else:
+            qs = qs.filter(organization=org)
     return qs
 
 

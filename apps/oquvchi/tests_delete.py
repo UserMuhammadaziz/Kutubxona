@@ -61,6 +61,61 @@ class OquvchilarniOchirishTest(TenantTestMixin, TestCase):
         self.assertEqual(javob.json()["ochirildi"], 1)
         self.assertFalse(Oquvchi.objects.filter(pk=muallim.pk).exists())
 
+    def test_qaytarilgan_berish_va_eski_band_bilan_ochiriladi(self):
+        """Bandlar bo'limida ko'rinmaydigan tarix endi to'siq bo'lmasligi kerak."""
+        ali = self.kitobxon("Ali Valiyev", "K-001", 111)
+        kitob = Kitob.objects.create(
+            nomi="O'tkan kunlar", muallif="Abdulla Qodiriy", janr="badiiy", nashr_yili=2015
+        )
+        berish = Berish.objects.create(
+            kitob=kitob,
+            oquvchi=ali,
+            qaytarish_muddati=date.today() - timedelta(days=5),
+            qaytarilgan_sana=date.today() - timedelta(days=2),
+        )
+        band = BandQilish.objects.create(kitob=kitob, oquvchi=ali, holati="tasdiqlandi")
+        band.berish = berish
+        band.save(update_fields=["berish"])
+        BandQilish.objects.create(kitob=kitob, oquvchi=ali, holati="bekor_qilindi")
+
+        javob = self.client.post(URL, {"ids": [ali.pk]}, format="json")
+
+        self.assertEqual(javob.status_code, 200)
+        self.assertEqual(javob.json(), {"ochirildi": 1, "ochirilmadi": []})
+        self.assertFalse(Oquvchi.objects.filter(pk=ali.pk).exists())
+        self.assertFalse(BandQilish.objects.filter(oquvchi_id=ali.pk).exists())
+        self.assertFalse(Berish.objects.filter(oquvchi_id=ali.pk).exists())
+
+    def test_qaytarilmagan_kitob_bor_kitobxon_ochirilmaydi(self):
+        ali = self.kitobxon("Ali Valiyev", "K-001", 111)
+        kitob = Kitob.objects.create(
+            nomi="O'tkan kunlar", muallif="Abdulla Qodiriy", janr="badiiy", nashr_yili=2015
+        )
+        Berish.objects.create(
+            kitob=kitob,
+            oquvchi=ali,
+            qaytarish_muddati=date.today() + timedelta(days=10),
+        )
+
+        javob = self.client.post(URL, {"ids": [ali.pk]}, format="json")
+
+        natija = javob.json()
+        self.assertEqual(natija["ochirildi"], 0)
+        self.assertIn("qaytarilmagan", natija["ochirilmadi"][0]["sabab"])
+        self.assertTrue(Oquvchi.objects.filter(pk=ali.pk).exists())
+
+    def test_faqat_kutmoqdagi_band_toshiq_qiladi(self):
+        ali = self.kitobxon("Ali Valiyev", "K-001", 111)
+        kitob = Kitob.objects.create(
+            nomi="O'tkan kunlar", muallif="Abdulla Qodiriy", janr="badiiy", nashr_yili=2015
+        )
+        BandQilish.objects.create(kitob=kitob, oquvchi=ali, holati="rad_etildi")
+
+        javob = self.client.post(URL, {"ids": [ali.pk]}, format="json")
+
+        self.assertEqual(javob.json()["ochirildi"], 1)
+        self.assertFalse(Oquvchi.objects.filter(pk=ali.pk).exists())
+
     def test_berish_tarixi_bor_kitobxon_ochirilmaydi(self):
         ali = self.kitobxon("Ali Valiyev", "K-001", 111)
         kitob = Kitob.objects.create(

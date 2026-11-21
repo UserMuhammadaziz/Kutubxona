@@ -120,8 +120,6 @@ venv\Scripts\activate          # Windows
 pip install -r requirements.txt
 ```
 
-> **Eslatma:** `requeriments.txt` ham mavjud (eski nom), lekin to'g'ri fayl — `requirements.txt`.
-
 ### 3.3 PostgreSQL bazasi
 
 ```bash
@@ -324,6 +322,8 @@ Shundan so'ng `python manage.py runserver` orqali `http://127.0.0.1:8000/` da to
 | **Navbatlar** | `/reservations` | Navbatlar ro'yxati |
 | **Jarimalar** | `/fines` | Jarimalarni ko'rish/to'lash |
 | **Xodimlar** | `/staff` | Xodimlar CRUD (faqat admin) |
+| **Profil** | `/profile` | Shaxsiy ma'lumotlar, parol, xabar yuborish, kitobxonlarni o'chirish |
+| **Qo'llanma** | `/yordam` | Saytdan foydalanish bo'yicha interaktiv qo'llanma |
 
 ### 5.4 Saytdan foydalanish — bosqichma-bosqich to'liq qo'llanma
 
@@ -336,7 +336,7 @@ Shundan so'ng `python manage.py runserver` orqali `http://127.0.0.1:8000/` da to
 
 > Agar login/parol noto'g'ri bo'lsa, qizil xatolik banneri paydo bo'ladi. Birinchi marta kirish uchun `python manage.py createsuperuser` bilan yaratilgan hisobdan foydalaning.
 
-**Chiqish:** Chap paneldagi pastki qismdagi **"Chiqish"** tugmasi.
+**Chiqish:** **Profil** sahifasidagi **Sozlamalar** bo'limi yoki chap paneldagi **"Chiqish"** tugmasi (ikkalasida ham tasdiqlash oynasi chiqadi).
 
 **Mavzu almashtirish:** Yuqori qismdagi <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg> (qorong'i) / <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg> (yorug') tugmasi bilan rejimni almashtirasiz.
 
@@ -734,7 +734,23 @@ Kutubxonachi va administrator hisoblarini boshqarish. **Faqat administrator** ko
 
 ---
 
-#### 5.4.15 Umumiy qoidalar (barcha sahifalarga tegishli)
+#### 5.4.15 Profil (`/profile`)
+
+**Shaxsiy ma'lumotlar:** **Tahrirlash** tugmasi bilan to'liq ism, login (foydalanuvchi nomi) va telefon raqamini o'zgartiring → **Saqlash**. Login boshqa xodimda bor bo'lsa saqlanmaydi; parol o'zgarmaydi.
+
+**Parol almashtirish:** eski parol + yangi parol (ikki marta). Eski parol noto'g'ri bo'lsa o'zgarish amalga oshmaydi.
+
+**Sozlamalar:** Yorug'/Qorong'i rejim tanlovi saqlanadi; **Tizimdan chiqish** tasdiqlash oynasi bilan.
+
+**Kitobxonlarga xabar yuborish:** rol (o'quvchi/o'qituvchi) va usul (bitta kitobxon / sinf / barcha sinflar) tanlanadi. Telegram ID si yo'qlar hisobga olinadi, lekin ularga xabar bormaydi — natijada `telegramsiz` soni ko'rsatiladi. Xabar yuborish uchun kutubxonaning Telegram boti ulangan bo'lishi (yoki bitta kutubxonali rejimda `.env` dagi token sozlangan) shart.
+
+**Kitobxonlarni o'chirish:** rol bo'yicha qidirib, belgilang va **O'chirish** bosing. Faqat **qaytarilmagan kitobi** yoki **kutilayotgan band so'rovi** (`kutmoqda`) borlar o'chirilmaydi — sababi natijada ko'rsatiladi. Qaytarilgan kitoblar va yakunlangan band tarixi (tasdiqlangan/rad etilgan/bekor qilingan) endi to'siq bo'lmaydi: ular bir tranzaksiyada tozalanib, kitobxon o'chiriladi.
+
+> API: `PATCH /api/auth/profile/`, `POST /api/auth/change-password/`, `POST /api/messages/send/`, `GET /api/messages/classes/`, `POST /api/readers/ochirish/`.
+
+---
+
+#### 5.4.16 Umumiy qoidalar (barcha sahifalarga tegishli)
 
 | Xususiyat | Tushuntirish |
 |---|---|
@@ -748,7 +764,7 @@ Kutubxonachi va administrator hisoblarini boshqarish. **Faqat administrator** ko
 | **O'chirish/Tasdiqlash** | Har doim tasdiqlash oynasi chiqadi |
 | **Mavzu** | <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg> qorong'i / <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg> yorug' rejim |
 
-#### 5.4.16 Kunlik ish tartibi (tavsiya etiladi)
+#### 5.4.17 Kunlik ish tartibi (tavsiya etiladi)
 
 1. **Dashboard** oching — umumiy holatni ko'ring (qizil/sariq kartochkalar)
 2. **Arizalar** — Telegram'dan kelgan arizalarni tasdiqlang
@@ -910,7 +926,17 @@ curl http://127.0.0.1:8000/api/books/ \
 | POST | `/api/readers/` | Yangi o'quvchi qo'shish |
 | GET | `/api/readers/{id}/` | Bitta o'quvchi (kitoblari, jarimalari) |
 | PATCH | `/api/readers/{id}/` | O'quvchini tahrirlash |
+| POST | `/api/readers/ochirish/` | Tanlangan kitobxonlarni o'chirish (`{"ids": [1,2]}`) |
 | POST | `/api/readers/bind/` | Bot: telegram_id bog'lash |
+
+### 7.4.1 Profil va xabarlar
+
+| Metod | Yo'l | Tavsif |
+|---|---|---|
+| PATCH | `/api/auth/profile/` | Ism, login va telefonni tahrirlash |
+| POST | `/api/auth/change-password/` | Parol almashtirish |
+| GET | `/api/messages/classes/?rol=` | Mavjud sinflar ro'yxati |
+| POST | `/api/messages/send/` | Xabar yuborish (`tur`: shaxs/sinf/hamma, `rol`, `matn`) |
 
 ### 7.5 Arizalar
 
