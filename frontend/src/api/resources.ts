@@ -51,6 +51,14 @@ export const authApi = {
   me: () => api.get<User>('/auth/me/').then((r) => r.data),
   register: (payload: RegisterPayload) =>
     api.post<{ access: string; refresh: string; user: User; organization: any }>('/auth/register/', payload).then((r) => r.data),
+  changePassword: (payload: ParolAlmashtirishPayload) =>
+    api.post<{ detail: string }>('/auth/change-password/', payload).then((r) => r.data),
+}
+
+export interface ParolAlmashtirishPayload {
+  joriy_parol: string
+  yangi_parol: string
+  yangi_parol_takror: string
 }
 
 // ---- Books ----
@@ -107,6 +115,37 @@ export const readersApi = {
   create: (payload: OquvchiCreatePayload) => api.post<Oquvchi>('/readers/', payload).then((r) => r.data),
   update: (id: number, payload: Partial<Oquvchi>) =>
     api.patch<Oquvchi>(`/readers/${id}/`, payload).then((r) => r.data),
+  deleteSelected: (ids: number[]) =>
+    api.post<OchirishNatijasi>('/readers/ochirish/', { ids }).then((r) => r.data),
+}
+
+export interface OchirishNatijasi {
+  ochirildi: number
+  ochirilmadi: { id: number; fish: string; sabab: string }[]
+}
+
+// ---- Xabarlar (Profil sahifasidan) ----
+
+export interface XabarYuborishPayload {
+  tur: 'shaxs' | 'sinf' | 'hamma'
+  rol: OquvchiRol
+  oquvchi?: number
+  sinf?: string
+  matn: string
+}
+
+export interface XabarNatijasi {
+  jami: number
+  yuborildi: number
+  telegramsiz: number
+  xatolik: number
+}
+
+export const messagesApi = {
+  classes: (rol: OquvchiRol) =>
+    api.get<string[]>('/messages/classes/', { params: { rol } }).then((r) => r.data),
+  send: (payload: XabarYuborishPayload) =>
+    api.post<XabarNatijasi>('/messages/send/', payload).then((r) => r.data),
 }
 
 // ---- Applications (Arizalar) ----

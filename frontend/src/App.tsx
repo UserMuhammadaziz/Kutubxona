@@ -10,6 +10,7 @@ import { BookDetail } from './pages/BookDetail'
 import { Copies } from './pages/Copies'
 import { Readers } from './pages/Readers'
 import { ReaderDetail } from './pages/ReaderDetail'
+import { Kitobxonlar } from './pages/Kitobxonlar'
 import { Applications } from './pages/Applications'
 import { Loans } from './pages/Loans'
 import { Bandlar } from './pages/Bandlar'
@@ -19,6 +20,7 @@ import { Staff } from './pages/Staff'
 import { Guide, PublicGuide } from './pages/Guide'
 import { Register } from './pages/Register'
 import { Home } from './pages/Home'
+import { Profile } from './pages/Profile'
 
 function App() {
   const hydrate = useAuthStore((s) => s.hydrate)
@@ -36,19 +38,22 @@ function App() {
 
       <Route element={<RequireAuth />}>
         <Route element={<Layout />}>
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/books" element={<Books />} />
           <Route path="/books/:id" element={<BookDetail />} />
           <Route path="/copies" element={<Copies />} />
           <Route path="/readers" element={<Readers />} />
           <Route path="/readers/:id" element={<ReaderDetail />} />
           <Route path="/teachers" element={<Readers rol="oqituvchi" />} />
+          <Route path="/kitobxonlar" element={<Kitobxonlar />} />
           <Route path="/applications" element={<Applications />} />
           <Route path="/loans" element={<Loans />} />
           <Route path="/bandlar" element={<Bandlar />} />
           <Route path="/reservations" element={<Reservations />} />
           <Route path="/fines" element={<Fines />} />
           <Route path="/guide" element={<Guide />} />
+          <Route path="/profile" element={<Profile />} />
 
           <Route element={<RequireAdmin />}>
             <Route path="/staff" element={<Staff />} />

@@ -102,7 +102,7 @@ function UserBlock({ onLogout }: { onLogout: () => void }) {
           {user?.rol === 'administrator' ? 'Administrator' : 'Kutubxonachi'}
         </div>
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2">
         <Link
           to="/profile"
           className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700 hover:bg-brand-100 dark:bg-brand-900/30 dark:text-brand-400 dark:hover:bg-brand-900/50"

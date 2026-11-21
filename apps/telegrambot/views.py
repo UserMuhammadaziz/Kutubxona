@@ -1,22 +1,26 @@
 import hmac
 import json
 import logging
+import re
 
 from django.db import IntegrityError
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
+from config.telegram import telegram_escape, telegram_xabar_yubor
+from oquvchi.models import Oquvchi
 from organization.tenancy import joriy_kutubxonani_aniqla
-from user.permissions import IsAdmin
+from user.permissions import IsAdmin, IsLibrarian
 
 from .client import TelegramAPIError
 from .models import TelegramBot, TelegramUpdate
-from .serializers import TelegramBotSerializer
+from .serializers import TelegramBotSerializer, XabarYuborishSerializer
 from .services import (
     botni_ol,
     botni_tekshirish,
@@ -141,3 +145,90 @@ class TelegramBotActionView(APIView):
         else:
             return Response({"detail": "Noma'lum amal."}, status=400)
         return Response({"ulangan": bot.holati == "ulangan", "bot": TelegramBotSerializer(bot).data})
+
+
+def _sinf_kaliti(sinf):
+    """Sinflarni tabiiy tartibda saralash: 7-A, 8-B, 10-A."""
+    mos = re.match(r"^(\d+)", sinf or "")
+    return (int(mos.group(1)) if mos else 999, sinf or "")
+
+
+def _qabul_qiluvchilar(org, rol):
+    """Joriy kutubxonadagi faol kitobxonlar (tenant doirasida)."""
+    qs = Oquvchi.objects.filter(rol=rol, faol=True)
+    if org is not None:
+        qs = qs.filter(organization=org)
+    return qs
+
+
+class SinflarView(APIView):
+    """GET /api/messages/classes/?rol=oquvchi — mavjud sinflar ro'yxati."""
+
+    permission_classes = [IsLibrarian]
+
+    def get(self, request):
+        rol = request.query_params.get("rol", "oquvchi")
+        if rol not in ("oquvchi", "oqituvchi"):
+            rol = "oquvchi"
+        org = joriy_kutubxonani_aniqla(request, required=False)
+        sinflar = (
+            _qabul_qiluvchilar(org, rol)
+            .exclude(sinf__isnull=True)
+            .exclude(sinf="")
+            .values_list("sinf", flat=True)
+            .distinct()
+        )
+        return Response(sorted(set(sinflar), key=_sinf_kaliti))
+
+
+class XabarYuborishView(APIView):
+    """POST /api/messages/send/ — bitta kitobxon, sinf yoki barcha sinflarga.
+
+    Telegram ID bo'lmagan kitobxonlar hisoblanadi, lekin ularga yuborib
+    bo'lmaydi — bu holat `telegramsiz` hisobida qaytariladi.
+    """
+
+    permission_classes = [IsLibrarian]
+
+    def post(self, request):
+        serializer = XabarYuborishSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        org = joriy_kutubxonani_aniqla(request, required=False)
+        qs = _qabul_qiluvchilar(org, data["rol"])
+
+        if data["tur"] == "shaxs":
+            kitobxon = qs.filter(pk=data["oquvchi"]).first()
+            if kitobxon is None:
+                raise ValidationError({"oquvchi": "Tanlangan kitobxon topilmadi."})
+            qabul_qiluvchilar = [kitobxon]
+        elif data["tur"] == "sinf":
+            qabul_qiluvchilar = list(qs.filter(sinf=data["sinf"]))
+            if not qabul_qiluvchilar:
+                raise ValidationError({"sinf": "Bu sinfda kitobxon topilmadi."})
+        else:
+            qabul_qiluvchilar = list(qs)
+            if not qabul_qiluvchilar:
+                raise ValidationError({"detail": "Xabar yuborish uchun kitobxon yo'q."})
+
+        matn = "📢 <b>Kutubxona xabari</b>\n\n" + telegram_escape(data["matn"])
+        yuborildi = 0
+        telegramsiz = 0
+        xatolik = 0
+        for kitobxon in qabul_qiluvchilar:
+            if not kitobxon.telegram_id:
+                telegramsiz += 1
+                continue
+            if telegram_xabar_yubor(kitobxon.telegram_id, matn, organization=org):
+                yuborildi += 1
+            else:
+                xatolik += 1
+
+        return Response(
+            {
+                "jami": len(qabul_qiluvchilar),
+                "yuborildi": yuborildi,
+                "telegramsiz": telegramsiz,
+                "xatolik": xatolik,
+            }
+        )

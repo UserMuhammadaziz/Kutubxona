@@ -282,3 +282,11 @@ class ArizaStatusSerializer(serializers.Serializer):
     holati = serializers.CharField()
     izoh = serializers.CharField(required=False, allow_blank=True)
     qayta_ariza_kerak = serializers.BooleanField(default=False)
+
+
+class OquvchilarniOchirishSerializer(serializers.Serializer):
+    """Profil sahifasidan tanlangan kitobxonlarni o'chirish so'rovi."""
+
+    ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1), allow_empty=False
+    )

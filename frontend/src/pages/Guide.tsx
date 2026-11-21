@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { useState, type ReactNode, type SVGProps } from 'react'
 import clsx from 'clsx'
 import { Icons } from '../components/icons'
-import { Card, PageHeader } from '../components/ui'
+import { PageHeader } from '../components/ui'
 
 /* ------------------------------------------------------------------ */
 /*  Yordamchi komponentlar (markdown o'rniga — to'liq React/JSX)      */
@@ -1077,128 +1077,283 @@ const sections: Section[] = [
 ]
 
 /* ------------------------------------------------------------------ */
-/*  Sahifa                                                              */
+/*  Kitob animatsiyalari                                                */
+/* ------------------------------------------------------------------ */
+
+const kitobAnimatsiyasi = `
+@keyframes qollanma-flip-next {
+  from { opacity: 0; transform: perspective(1400px) rotateY(-16deg) translateX(18px); }
+  to   { opacity: 1; transform: perspective(1400px) rotateY(0deg) translateX(0); }
+}
+@keyframes qollanma-flip-prev {
+  from { opacity: 0; transform: perspective(1400px) rotateY(16deg) translateX(-18px); }
+  to   { opacity: 1; transform: perspective(1400px) rotateY(0deg) translateX(0); }
+}
+@keyframes qollanma-open {
+  from { opacity: 0; transform: perspective(1400px) rotateY(-26deg) scale(0.95); }
+  to   { opacity: 1; transform: perspective(1400px) rotateY(0deg) scale(1); }
+}
+`
+
+/* ------------------------------------------------------------------ */
+/*  Sahifa — kitob ko'rinishida                                        */
 /* ------------------------------------------------------------------ */
 
 export function Guide() {
+  const [ochilgan, setOchilgan] = useState(false)
+  const [keng, setKeng] = useState(true)
   const [activeId, setActiveId] = useState(sections[0].id)
+  const [yornalish, setYornalish] = useState<'next' | 'prev'>('next')
+
   const index = sections.findIndex((s) => s.id === activeId)
   const active = sections[index]
   const prev = sections[index - 1]
   const next = sections[index + 1]
 
+  /** Varaqlash — sahifani kengaytirib, yo'nalish bo'yicha animatsiya qiladi. */
+  const varoq = (id: string, yonalish: 'next' | 'prev') => {
+    setYornalish(yonalish)
+    setActiveId(id)
+    setKeng(true)
+  }
+
+  const umumiySarlavha = (
+    <PageHeader
+      title={
+        <>
+          <Icons.bookOpen className="h-6 w-6 shrink-0 text-slate-400" />
+          Qo‘llanma
+        </>
+      }
+      subtitle="Saytdan foydalanish bo‘icha qo‘llanma — kitobni ochib varaqlang"
+    />
+  )
+
+  /* ----------------------- Yopiq kitob (muqova) ---------------------- */
+  if (!ochilgan) {
+    return (
+      <div>
+        <style>{kitobAnimatsiyasi}</style>
+        {umumiySarlavha}
+
+        <div className="flex min-h-[65vh] items-center justify-center px-4 py-10">
+          <button
+            type="button"
+            onClick={() => setOchilgan(true)}
+            aria-label="Qo‘llanma kitobini ochish"
+            className="group relative block w-[19rem] max-w-full text-left focus:outline-none"
+          >
+            {/* Orqadagi sahifalar */}
+            <div className="absolute -right-1.5 top-1.5 h-full w-full rounded-r-2xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-700/70" />
+            <div className="absolute -right-0.5 top-0.5 h-full w-full rounded-r-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800" />
+
+            {/* Muqova */}
+            <div className="relative flex h-[26rem] flex-col justify-between overflow-hidden rounded-2xl rounded-l-md bg-gradient-to-br from-brand-500 via-brand-700 to-brand-900 p-7 text-white shadow-2xl ring-1 ring-black/10 transition-all duration-300 group-hover:-translate-y-2 group-hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.35)] group-focus-visible:ring-4 group-focus-visible:ring-brand-400">
+              {/* Umurtqa */}
+              <div className="absolute inset-y-0 left-0 w-3.5 bg-black/25" />
+              <div className="absolute inset-y-0 left-3.5 w-px bg-white/25" />
+              <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10 blur-2xl" />
+              <div className="absolute -bottom-20 -left-10 h-52 w-52 rounded-full bg-black/20 blur-2xl" />
+
+              <div className="relative">
+                <Icons.bookClosed className="h-11 w-11 text-white/85" />
+              </div>
+
+              <div className="relative">
+                <div className="text-[2rem] font-bold leading-tight">Qo‘llanma</div>
+                <div className="mt-2 text-sm text-white/75">Saytdan foydalanish bo‘yicha</div>
+                <div className="mt-5 h-px w-16 bg-white/40" />
+              </div>
+
+              <div className="relative flex items-center justify-between">
+                <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-medium">
+                  {sections.length} bob
+                </span>
+                <span className="flex items-center gap-1.5 text-sm font-semibold">
+                  Ochish <Icons.arrowLeft className="h-4 w-4 rotate-180" />
+                </span>
+              </div>
+            </div>
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  /* -------------------------- Ochiq kitob ---------------------------- */
   return (
     <div>
-      <PageHeader
-        title={
-          <>
-            <Icons.bookOpen className="h-6 w-6 shrink-0 text-slate-400" />
-            Qo‘llanma
-          </>
-        }
-        subtitle="Saytdan foydalanish bo‘yicha qo‘llanma"
-      />
+      <style>{kitobAnimatsiyasi}</style>
+      {umumiySarlavha}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[16rem_1fr]">
-        {/* Bo'limlar ro'yxati */}
-        <nav aria-label="Qo‘llanma bo‘limlari" className="lg:sticky lg:top-4 lg:self-start">
-          <Card className="p-2">
-            <ul className="grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-1">
-              {sections.map((s) => {
-                const faol = s.id === activeId
-                return (
-                  <li key={s.id}>
-                    <button
-                      type="button"
-                      onClick={() => setActiveId(s.id)}
-                      aria-current={faol ? 'true' : undefined}
-                      className={clsx(
-                        'flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors',
-                        faol
-                          ? 'bg-brand-50 font-medium text-brand-700 dark:bg-brand-900/30 dark:text-brand-300'
-                          : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700/60',
-                      )}
-                    >
-                      <span
-                        className={clsx(
-                          'flex h-7 w-7 shrink-0 items-center justify-center rounded-md',
-                          faol
-                            ? 'bg-brand-100 text-brand-700 dark:bg-brand-900/50 dark:text-brand-300'
-                            : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300',
-                        )}
-                      >
-                        {s.icon({ className: 'h-4 w-4' })}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="mr-1 font-medium text-slate-400">{s.num}.</span>
-                        {s.title}
-                      </span>
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
-          </Card>
-        </nav>
+      {/* Boshqaruv paneli */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-paper px-4 py-2.5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <button
+          type="button"
+          onClick={() => setOchilgan(false)}
+          className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
+        >
+          <Icons.close className="h-4 w-4" /> Kitobni yopish
+        </button>
 
-        {/* Bo'lim mazmuni */}
-        <Card className="p-4 sm:p-6 lg:p-8">
-          <div className="mb-5 flex items-start gap-3 border-b border-slate-200 pb-4 dark:border-slate-700">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-900/40 dark:text-brand-300">
-              {active.icon({ className: 'h-5 w-5' })}
-            </span>
-            <div className="min-w-0">
-              <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-                {active.num}. {active.title}
-              </h2>
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+            {index + 1} / {sections.length} — {active.title}
+          </span>
+          <button
+            type="button"
+            onClick={() => setKeng(!keng)}
+            className={clsx(
+              'rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
+              keng
+                ? 'border-brand-200 bg-brand-50 text-brand-700 dark:border-brand-500/30 dark:bg-brand-900/30 dark:text-brand-300'
+                : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700',
+            )}
+          >
+            {keng ? 'Keng ko‘rinish' : 'Tor ko‘rinish'}
+          </button>
+        </div>
+      </div>
+
+      {/* Kitob */}
+      <div
+        className={clsx(
+          'relative mx-auto w-full transition-[max-width] duration-700 ease-out',
+          keng ? 'max-w-none' : 'max-w-3xl',
+        )}
+        style={{ animation: 'qollanma-open 0.5s ease-out both' }}
+      >
+        <div className="overflow-hidden rounded-2xl border border-slate-300 bg-[#fffdf8] shadow-2xl ring-1 ring-black/5 dark:border-slate-700 dark:bg-slate-900 dark:ring-white/5">
+          {/* Kitob ustki qismi */}
+          <div className="flex items-center justify-between border-b border-slate-200/80 bg-slate-50/80 px-4 py-2.5 dark:border-slate-700 dark:bg-slate-800/60">
+            <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-slate-400">
+              <Icons.bookOpen className="h-4 w-4" /> Qo‘llanma
+            </div>
+            <div className="text-xs text-slate-400">Bob {active.num}</div>
+          </div>
+
+          <div className={clsx('relative grid', keng && 'lg:grid-cols-2')}>
+            {/* Chap sahifa — mundarija (faqat keng ko'rinishda) */}
+            {keng && (
+              <div className="relative border-b border-slate-200 bg-slate-50/60 p-5 lg:border-b-0 lg:border-r dark:border-slate-700 dark:bg-slate-800/30 lg:p-7">
+                <div className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-slate-400">
+                  <Icons.note className="h-4 w-4" /> Mundarija
+                </div>
+                <ul className="grid grid-cols-1 gap-0.5 sm:grid-cols-2 lg:grid-cols-1">
+                  {sections.map((s) => {
+                    const faol = s.id === activeId
+                    const sIndex = sections.findIndex((x) => x.id === s.id)
+                    return (
+                      <li key={s.id}>
+                        <button
+                          type="button"
+                          onClick={() => varoq(s.id, sIndex > index ? 'next' : 'prev')}
+                          aria-current={faol ? 'true' : undefined}
+                          className={clsx(
+                            'flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors',
+                            faol
+                              ? 'bg-brand-50 font-medium text-brand-700 dark:bg-brand-900/30 dark:text-brand-300'
+                              : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700/50',
+                          )}
+                        >
+                          <span
+                            className={clsx(
+                              'flex h-6 w-6 shrink-0 items-center justify-center rounded text-xs',
+                              faol
+                                ? 'bg-brand-100 text-brand-700 dark:bg-brand-900/50 dark:text-brand-300'
+                                : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300',
+                            )}
+                          >
+                            {s.num}
+                          </span>
+                          <span className="min-w-0 truncate">{s.title}</span>
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            )}
+
+            {/* O'ng sahifa — bob mazmuni */}
+            <div
+              key={`${activeId}-${yornalish}`}
+              className="p-5 sm:p-8 lg:p-10"
+              style={{
+                animation: `qollanma-flip-${yornalish} 0.38s ease-out both`,
+                transformOrigin: yornalish === 'next' ? 'left center' : 'right center',
+              }}
+            >
+              <div className="mb-6 flex items-start gap-3 border-b border-slate-200 pb-4 dark:border-slate-700">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-900/40 dark:text-brand-300">
+                  {active.icon({ className: 'h-5 w-5' })}
+                </span>
+                <div className="min-w-0">
+                  <div className="text-xs font-medium uppercase tracking-wider text-slate-400">
+                    {active.num}-bob
+                  </div>
+                  <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+                    {active.title}
+                  </h2>
+                </div>
+              </div>
+
+              <div className="space-y-4">{active.blocks}</div>
+
+              {/* Oldingi / Keyingi varaqlar */}
+              <div className="mt-10 flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700">
+                {prev ? (
+                  <button
+                    type="button"
+                    onClick={() => varoq(prev.id, 'prev')}
+                    className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-left text-sm text-slate-600 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700/50"
+                  >
+                    <Icons.arrowLeft className="h-4 w-4 shrink-0" />
+                    <span className="min-w-0">
+                      <span className="block text-xs text-slate-400">Oldingi varaqlar</span>
+                      <span className="block truncate font-medium">
+                        {prev.num}. {prev.title}
+                      </span>
+                    </span>
+                  </button>
+                ) : (
+                  <span />
+                )}
+
+                {next ? (
+                  <button
+                    type="button"
+                    onClick={() => varoq(next.id, 'next')}
+                    className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-right text-sm text-slate-600 transition-colors hover:bg-slate-50 sm:ml-auto dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700/50"
+                  >
+                    <span className="min-w-0">
+                      <span className="block text-xs text-slate-400">Keyingi varaqlar</span>
+                      <span className="block truncate font-medium">
+                        {next.num}. {next.title}
+                      </span>
+                    </span>
+                    <Icons.arrowLeft className="h-4 w-4 shrink-0 rotate-180" />
+                  </button>
+                ) : null}
+              </div>
             </div>
           </div>
 
-          <div className="space-y-4">{active.blocks}</div>
+          {/* Kitob umurtqasi (keng ko'rinishda o'rtada) */}
+          {keng && (
+            <div className="pointer-events-none absolute inset-y-0 left-1/2 hidden w-10 -translate-x-1/2 bg-gradient-to-r from-transparent via-slate-900/[0.06] to-transparent lg:block dark:via-black/30" />
+          )}
+        </div>
 
-          {/* Oldingi / Keyingi */}
-          <div className="mt-8 flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700">
-            {prev ? (
-              <button
-                type="button"
-                onClick={() => setActiveId(prev.id)}
-                className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-left text-sm text-slate-600 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700/50"
-              >
-                <Icons.arrowLeft className="h-4 w-4 shrink-0" />
-                <span className="min-w-0">
-                  <span className="block text-xs text-slate-400">Oldingi bo‘lim</span>
-                  <span className="block truncate font-medium">
-                    {prev.num}. {prev.title}
-                  </span>
-                </span>
-              </button>
-            ) : (
-              <span />
-            )}
-
-            {next ? (
-              <button
-                type="button"
-                onClick={() => setActiveId(next.id)}
-                className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-right text-sm text-slate-600 transition-colors hover:bg-slate-50 sm:ml-auto dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700/50"
-              >
-                <span className="min-w-0">
-                  <span className="block text-xs text-slate-400">Keyingi bo‘lim</span>
-                  <span className="block truncate font-medium">
-                    {next.num}. {next.title}
-                  </span>
-                </span>
-                {next.icon({ className: 'h-4 w-4 shrink-0' })}
-              </button>
-            ) : null}
-          </div>
-        </Card>
+        <p className="mt-3 text-center text-xs text-slate-400">
+          Varaqlar almashganda kitob kengayadi · Tarkib bo‘limiga bosib istalgan bobga o‘ting
+        </p>
       </div>
     </div>
   )
 }
 
-/** Login'dan oldin ochiladigan qo'llanma: kirmasdan ham ko'rish mumkin. */
+/** Login'dan oldin ham ochiladigan qo'llanma (kirish talab qilinmaydi). */
 export function PublicGuide() {
   return (
     <div className="min-h-dvh bg-canvas px-4 py-6 dark:bg-slate-900">

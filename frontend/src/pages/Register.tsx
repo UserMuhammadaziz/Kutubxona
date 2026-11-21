@@ -1,52 +1,83 @@
 import { useState, type FormEvent } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
-import { authApi, type RegisterPayload } from '../api/resources'
-import { errorMessage, tokenStore } from '../api/client'
+import { Link, Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store/auth'
-import { Button, Card, ErrorBanner, Field, Input, Label, Select } from '../components/ui'
+import { errorMessage } from '../api/client'
+import { Button, Card, ErrorBanner, Field, Input, Label } from '../components/ui'
 import { LogoMark } from '../components/Logo'
 
-const TURLAR: { value: RegisterPayload['turi']; label: string }[] = [
-  { value: 'library', label: 'Kutubxona' },
-  { value: 'school', label: "Maktab / ta'lim muassasasi" },
-  { value: 'university', label: 'Universitet / kollej' },
-  { value: 'office', label: 'Ofis / tashkilot' },
-  { value: 'other', label: 'Boshqa' },
-]
+type OrgTuri = 'library' | 'school' | 'university' | 'office' | 'other'
 
 export function Register() {
-  const status = useAuthStore((s) => s.status)
-  const hydrate = useAuthStore((s) => s.hydrate)
-  const navigate = useNavigate()
-  const [form, setForm] = useState<RegisterPayload>({
-    kutubxona_nomi: '',
-    turi: 'library',
-    full_name: '',
-    username: '',
-    password: '',
-    password_confirm: '',
-  })
+  const { status, register } = useAuthStore()
+  const location = useLocation()
+  const [step, setStep] = useState<'user' | 'org'>('user')
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [passwordConfirm, setPasswordConfirm] = useState('')
+  const [fullName, setFullName] = useState('')
+  const [kutubxonaNomi, setKutubxonaNomi] = useState('')
+  const [turi, setTuri] = useState<OrgTuri>('library')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [done, setDone] = useState(false)
 
-  if (status === 'authenticated') return <Navigate to="/" replace />
+  const params = new URLSearchParams(location.search)
+  const from = params.get('from') ?? '/'
 
-  const set = <K extends keyof RegisterPayload>(k: K, v: RegisterPayload[K]) =>
-    setForm((f) => ({ ...f, [k]: v }))
+  if (done) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-canvas px-4 dark:bg-slate-900">
+        <Card className="w-full max-w-md p-8 text-center">
+          <LogoMark className="mx-auto mb-3 h-14 w-14" />
+          <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+            Ariza yuborildi
+          </h1>
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+            Kutubxonangiz administrator tasdiqlagach faollashadi. Tasdiqlanguncha kutib turing.
+          </p>
+          <Link
+            to="/login"
+            className="mt-6 inline-block rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700"
+          >
+            Kirish sahifasiga qaytish
+          </Link>
+        </Card>
+      </div>
+    )
+  }
+
+  if (status === 'authenticated') {
+    return <Navigate to={from} replace />
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
-    if (form.password !== form.password_confirm) {
-      setError('Parollar mos emas.')
+
+    if (step === 'user') {
+      if (password !== passwordConfirm) {
+        setError('Parollar mos emas.')
+        return
+      }
+      if (password.length < 8) {
+        setError('Parol kamida 8 belgidan iborat bo‘lishi kerak.')
+        return
+      }
+      setStep('org')
       return
     }
+
     setLoading(true)
     try {
-      const { access, refresh } = await authApi.register(form)
-      tokenStore.set(access, refresh)
-      await hydrate()
-      navigate('/', { replace: true })
+      await register({
+        username,
+        password,
+        password_confirm: passwordConfirm,
+        full_name: fullName,
+        kutubxona_nomi: kutubxonaNomi,
+        turi,
+      })
+      setDone(true)
     } catch (err) {
       setError(errorMessage(err))
     } finally {
@@ -55,52 +86,109 @@ export function Register() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-canvas px-4 py-8 dark:bg-slate-900">
+    <div className="flex min-h-screen items-center justify-center bg-canvas px-4 dark:bg-slate-900">
       <Card className="w-full max-w-md p-8">
         <div className="mb-6 text-center">
           <LogoMark className="mx-auto mb-3 h-14 w-14" />
-          <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Tashkilot yaratish</h1>
+          <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+            Kutubxona yaratish
+          </h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Ariza platforma administratori tasdiqlagach faollashadi
+            {step === 'user' ? '1-qadam: hisob ma’lumotlari' : '2-qadam: kutubxona ma’lumotlari'}
           </p>
         </div>
         <ErrorBanner message={error} />
         <form onSubmit={onSubmit}>
-          <Field>
-            <Label htmlFor="kutubxona_nomi">Tashkilot nomi</Label>
-            <Input id="kutubxona_nomi" value={form.kutubxona_nomi} onChange={(e) => set('kutubxona_nomi', e.target.value)} autoComplete="organization" required />
-          </Field>
-          <Field>
-            <Label htmlFor="turi">Tashkilot turi</Label>
-            <Select id="turi" value={form.turi} onChange={(e) => set('turi', e.target.value as RegisterPayload['turi'])}>
-              {TURLAR.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
-              ))}
-            </Select>
-          </Field>
-          <Field>
-            <Label htmlFor="full_name">Ism familiyangiz</Label>
-            <Input id="full_name" value={form.full_name} onChange={(e) => set('full_name', e.target.value)} autoComplete="name" required />
-          </Field>
-          <Field>
-            <Label htmlFor="username">Foydalanuvchi nomi</Label>
-            <Input id="username" value={form.username} onChange={(e) => set('username', e.target.value)} autoComplete="username" required />
-          </Field>
-          <Field>
-            <Label htmlFor="password">Parol (kamida 8 belgi)</Label>
-            <Input id="password" type="password" minLength={8} value={form.password} onChange={(e) => set('password', e.target.value)} autoComplete="new-password" required />
-          </Field>
-          <Field>
-            <Label htmlFor="password_confirm">Parolni takrorlang</Label>
-            <Input id="password_confirm" type="password" minLength={8} value={form.password_confirm} onChange={(e) => set('password_confirm', e.target.value)} autoComplete="new-password" required />
-          </Field>
-          <Button type="submit" className="mt-2 w-full" disabled={loading}>
-            {loading ? 'Yuborilmoqda...' : "Ro'yxatdan o'tish"}
-          </Button>
+          {step === 'user' ? (
+            <>
+              <Field>
+                <Label>Foydalanuvchi nomi</Label>
+                <Input
+                  autoFocus
+                  required
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  autoComplete="username"
+                />
+              </Field>
+              <Field>
+                <Label>Ism familiyangiz</Label>
+                <Input
+                  required
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  autoComplete="name"
+                />
+              </Field>
+              <Field>
+                <Label>Parol</Label>
+                <Input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="new-password"
+                />
+              </Field>
+              <Field>
+                <Label>Parolni takrorlang</Label>
+                <Input
+                  type="password"
+                  required
+                  value={passwordConfirm}
+                  onChange={(e) => setPasswordConfirm(e.target.value)}
+                  autoComplete="new-password"
+                />
+              </Field>
+            </>
+          ) : (
+            <>
+              <Field>
+                <Label>Kutubxona nomi</Label>
+                <Input
+                  autoFocus
+                  required
+                  value={kutubxonaNomi}
+                  onChange={(e) => setKutubxonaNomi(e.target.value)}
+                  placeholder="Masalan: 1-sonli maktab kutubxonasi"
+                />
+              </Field>
+              <Field>
+                <Label>Tashkilot turi</Label>
+                <select
+                  className="w-full rounded-lg border border-slate-300 bg-paper px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
+                  value={turi}
+                  onChange={(e) => setTuri(e.target.value as OrgTuri)}
+                >
+                  <option value="library">Kutubxona</option>
+                  <option value="school">Maktab / ta'lim muassasasi</option>
+                  <option value="university">Universitet / kollej</option>
+                  <option value="office">Ofis / tashkilot</option>
+                  <option value="other">Boshqa</option>
+                </select>
+              </Field>
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                Kutubxona "kutilmoqda" holatida yaratiladi va administrator tasdiqlagach ishlaydi.
+              </p>
+            </>
+          )}
+
+          <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+            {step === 'org' && (
+              <Button type="button" variant="secondary" onClick={() => setStep('user')}>
+                Orqaga
+              </Button>
+            )}
+            <Button type="submit" loading={loading}>
+              {step === 'user' ? 'Davom etish' : 'Yaratish'}
+            </Button>
+          </div>
         </form>
-        <p className="mt-4 text-center text-sm text-slate-500 dark:text-slate-400">
-          Akkauntingiz bormi?{' '}
-          <Link to="/login" className="text-brand-600 underline">Kirish</Link>
+        <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
+          Allaqachon hisobingiz bormi?{' '}
+          <Link to="/login" className="text-brand-600 hover:underline">
+            Kirish
+          </Link>
         </p>
       </Card>
     </div>

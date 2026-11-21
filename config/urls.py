@@ -29,11 +29,13 @@ from organization.views import (
 )
 from oquvchi.views import OquvchiViewSet, ArizaViewSet
 from telegrambot.views import (
+    SinflarView,
     TelegramBotActionView,
     TelegramBotSettingsView,
     TelegramWebhookView,
+    XabarYuborishView,
 )
-from user.views import LogoutView, UserViewSet, me
+from user.views import LogoutView, ParolniAlmashtirishView, UserViewSet, me
 
 router = DefaultRouter()
 router.register("books", KitobViewSet, basename="books")
@@ -57,10 +59,13 @@ urlpatterns = [
     path("api/auth/me/", me),
     path("api/auth/register/", RegisterView.as_view()),
     path("api/auth/logout/", LogoutView.as_view()),
+    path("api/auth/change-password/", ParolniAlmashtirishView.as_view()),
     path("api/auth/password-reset/", password_reset_request),
     path("api/auth/password-reset/confirm/", password_reset_confirm),
     path("api/auth/organization/", current_organization),
     path("api/auth/memberships/", my_memberships),
+    path("api/messages/classes/", SinflarView.as_view()),
+    path("api/messages/send/", XabarYuborishView.as_view()),
     path("api/telegram/settings/", TelegramBotSettingsView.as_view()),
     path("api/telegram/actions/<str:action>/", TelegramBotActionView.as_view()),
     path("api/telegram/webhook/<str:path>/", TelegramWebhookView.as_view()),

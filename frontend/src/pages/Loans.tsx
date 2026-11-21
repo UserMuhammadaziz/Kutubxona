@@ -39,7 +39,7 @@ const TONE: Record<BerishHolati, 'blue' | 'green' | 'red'> = {
 
 /** Berish ro'yxatida nusxa o'rniga ko'rsatiladigan matn. */
 function berishNomi(b: Berish): string {
-  return b.asli || !b.inventar_raqami ? 'Asli kitob' : b.inventar_raqami
+  return b.asli || !b.inventar_raqami ? '' : b.inventar_raqami
 }
 
 /**
@@ -305,17 +305,16 @@ function onSubmit(e: FormEvent) {
                   <div className="font-medium text-slate-900 dark:text-slate-100">
                     {l.kitob_nomi}
                   </div>
-                  <div className="text-xs text-slate-400">
-                    {l.asli ? (
-                      <span className="text-amber-600 dark:text-amber-400">Asli kitob</span>
-                    ) : (
-                      l.inventar_raqami
-                    )}
-                  </div>
+                  {!l.asli && l.inventar_raqami && (
+                    <div className="text-xs text-slate-400">{l.inventar_raqami}</div>
+                  )}
                 </div>
                 <Badge tone={TONE[l.holati]}>{BERISH_HOLATI_LABELS[l.holati]}</Badge>
               </div>
-              <div className="text-sm text-slate-600 dark:text-slate-300">{l.oquvchi_fish}</div>
+              <div className="text-sm text-slate-600 dark:text-slate-300">
+                {l.oquvchi_fish}
+                {l.oquvchi_rol === 'oqituvchi' && l.oquvchi_kasb ? ` — ${l.oquvchi_kasb}` : ''}
+              </div>
               <div className="text-xs text-slate-500 dark:text-slate-400">
                 Berilgan: {formatDate(l.berilgan_sana)} · Muddat: {formatDate(l.qaytarish_muddati)}
               </div>
@@ -350,13 +349,25 @@ function onSubmit(e: FormEvent) {
                   render: (l) => (
                     <div>
                       <div className="font-medium text-slate-900 dark:text-slate-100">{l.kitob_nomi}</div>
-                      <div className="text-xs text-slate-400 dark:text-slate-500">
-                        {l.asli ? <span className="text-amber-600 dark:text-amber-400">Asli kitob</span> : l.inventar_raqami}
-                      </div>
+                      {!l.asli && l.inventar_raqami && (
+                        <div className="text-xs text-slate-400 dark:text-slate-500">{l.inventar_raqami}</div>
+                      )}
                     </div>
                   ),
                 },
-                { id: 'oquvchi_fish', label: "O'quvchi", sortBy: (l) => l.oquvchi_fish },
+                {
+                  id: 'oquvchi_fish',
+                  label: 'Kitobxon',
+                  sortBy: (l) => l.oquvchi_fish,
+                  render: (l) => (
+                    <div>
+                      {l.oquvchi_fish}
+                      {l.oquvchi_rol === 'oqituvchi'
+                        ? l.oquvchi_kasb ? ` — ${l.oquvchi_kasb}` : ''
+                        : l.oquvchi_sinf ? ` — ${l.oquvchi_sinf}-sinf` : ''}
+                    </div>
+                  ),
+                },
                 {
                   id: 'berilgan_sana',
                   label: 'Berilgan',
@@ -404,12 +415,12 @@ function onSubmit(e: FormEvent) {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         title="Kitob berish"
-        description="O‘quvchini va kitobni tanlang. Nusxa mavjud bo‘lsa avtomatik tanlanadi, aks holda kitobning aslini beriladi — «nusxa yo‘q» degan xatoga yo‘q qolmaydi. Berish Telegram orqali xabar bilan tasdiqlanadi."
+        description="O‘quvchi yoki o‘qituvchini va kitobni tanlang. Nusxa mavjud bo‘lsa avtomatik tanlanadi, aks holda kitob beriladi — «nusxa yo‘q» degan xatoga yo‘q qolmaydi. Berish Telegram orqali xabar bilan tasdiqlanadi."
       >
         <ErrorBanner message={error} />
         <form onSubmit={onSubmit}>
           <Field>
-            <Label htmlFor="l-qidirish">O'quvchini qidirish</Label>
+            <Label htmlFor="l-qidirish">Kitobxonni qidirish</Label>
             <Input
               id="l-qidirish"
               placeholder="Ism, sinf yoki telefon..."
@@ -418,9 +429,9 @@ function onSubmit(e: FormEvent) {
             />
           </Field>
           <Field>
-            <Label htmlFor="l-oquvchi">O'quvchi</Label>
+            <Label htmlFor="l-oquvchi">Kitobxon (o‘quvchi yoki o‘qituvchi)</Label>
             {readersLoading ? (
-              <Spinner label="O‘quvchilar yuklanmoqda..." className="py-2" />
+              <Spinner label="Kitobxonlar yuklanmoqda..." className="py-2" />
             ) : (
               <Select
                 id="l-oquvchi"
@@ -430,7 +441,11 @@ function onSubmit(e: FormEvent) {
                 <option value={0}>Tanlang...</option>
                 {readers?.results.map((r) => (
                   <option key={r.id} value={r.id}>
-                    {r.fish} {r.sinf ? `— ${r.sinf}-sinf` : ''} — {r.telefon}
+                    {r.fish} — {r.rol === 'oqituvchi' ? 'O‘qituvchi' : 'O‘quvchi'}
+                    {r.rol === 'oqituvchi'
+                      ? r.kasb ? ` (${r.kasb})` : ''
+                      : r.sinf ? ` (${r.sinf}-sinf)` : ''}
+                    {` · ${r.telefon}`}
                   </option>
                 ))}
               </Select>
@@ -562,7 +577,8 @@ function onSubmit(e: FormEvent) {
         message={
           qaytariladigan && (
             <>
-              <b>{qaytariladigan.kitob_nomi}</b> ({berishNomi(qaytariladigan)}) kitobini{' '}
+              <b>{qaytariladigan.kitob_nomi}</b>
+              {berishNomi(qaytariladigan) && ` (${berishNomi(qaytariladigan)})`} kitobini{' '}
               <b>{qaytariladigan.oquvchi_fish}</b>dan qaytarasizmi?
               <br />
               <br />

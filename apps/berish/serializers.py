@@ -17,6 +17,10 @@ class BerishSerializer(serializers.ModelSerializer):
     asli = serializers.SerializerMethodField()
     oquvchi_fish = serializers.CharField(source="oquvchi.fish", read_only=True)
     oquvchi_sinf = serializers.CharField(source="oquvchi.sinf", read_only=True)
+    # O'qituvchiga berilgan kitoblarni ro'yxatda sinf emas, fan bilan ko'rsatish
+    # uchun (bitta `Oquvchi` jadvalida ikkala rol ham saqlanadi).
+    oquvchi_rol = serializers.CharField(source="oquvchi.rol", read_only=True)
+    oquvchi_kasb = serializers.CharField(source="oquvchi.kasb", read_only=True)
 
     class Meta:
         model = Berish
@@ -30,6 +34,8 @@ class BerishSerializer(serializers.ModelSerializer):
             "oquvchi",
             "oquvchi_fish",
             "oquvchi_sinf",
+            "oquvchi_rol",
+            "oquvchi_kasb",
             "bergan_xodim",
             "olgan_xodim",
             "berilgan_sana",

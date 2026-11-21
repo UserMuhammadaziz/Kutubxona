@@ -18,6 +18,7 @@ from .serializers import (
     OquvchiSerializer,
     OquvchiYaratishSerializer,
     OquvchiBindSerializer,
+    OquvchilarniOchirishSerializer,
 )
 
 
@@ -28,6 +29,7 @@ class OquvchiViewSet(TenantViewSetMixin, viewsets.ModelViewSet):
     POST  /api/readers/       -> yangi o'quvchi ro'yxatga olish (karta_raqami avtomatik)
     GET   /api/readers/{id}/  -> o'quvchi kartochkasi: joriy kitoblari va jarimalari
     PATCH /api/readers/{id}/  -> tahrirlash
+    POST  /api/readers/ochirish/ -> tanlangan kitobxonlarni o'chirish
     POST  /api/readers/bind/  -> bot: telefon + karta_raqami bo'yicha telegram_id ni bog'lash
     """
 
@@ -68,6 +70,45 @@ class OquvchiViewSet(TenantViewSetMixin, viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         oquvchi = serializer.save()
         return Response(OquvchiSerializer(oquvchi).data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=["post"], url_path="ochirish")
+    def ochirish(self, request):
+        """POST /api/readers/ochirish/ — tanlangan kitobxonlarni o'chirish.
+
+        Kitob berish yoki band qilish tarixi bo'lganlar o'chirilmaydi
+        (PROTECT): ularning tarixi saqlanib qolishi shart. Sababi natijada
+        qaytariladi, shunda kutubxonachi nima uchun o'chirilmaganini ko'radi.
+        """
+        serializer = OquvchilarniOchirishSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        org = joriy_kutubxonani_aniqla(request, required=False)
+        qs = Oquvchi.objects.filter(pk__in=serializer.validated_data["ids"])
+        if org is not None:
+            qs = qs.filter(organization=org)
+
+        ochirildi = 0
+        ochirilmadi = []
+        with transaction.atomic():
+            for oquvchi in qs.select_for_update():
+                sabablar = []
+                if oquvchi.berish_set.exists():
+                    sabablar.append("kitob berish tarixi bor")
+                if oquvchi.band_qilishlar.exists():
+                    sabablar.append("kitob band qilingan")
+                if sabablar:
+                    ochirilmadi.append(
+                        {
+                            "id": oquvchi.pk,
+                            "fish": oquvchi.fish,
+                            "sabab": ", ".join(sabablar),
+                        }
+                    )
+                    continue
+                oquvchi.delete()
+                ochirildi += 1
+
+        return Response({"ochirildi": ochirildi, "ochirilmadi": ochirilmadi})
 
 
 class ArizaViewSet(viewsets.ModelViewSet):

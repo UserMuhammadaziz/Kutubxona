@@ -99,3 +99,22 @@ class UserCreateSerializer(serializers.ModelSerializer):
                 faol=True,
             )
         return user
+
+
+class ParolniAlmashtirishSerializer(serializers.Serializer):
+    """Kutubxonachi o'z parolini almashtirish uchun (Profil sahifasi)."""
+
+    joriy_parol = serializers.CharField(write_only=True)
+    yangi_parol = serializers.CharField(write_only=True, validators=[validate_password])
+    yangi_parol_takror = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        if attrs["yangi_parol"] != attrs["yangi_parol_takror"]:
+            raise serializers.ValidationError(
+                {"yangi_parol_takror": "Yangi parollar mos kelmadi."}
+            )
+        if attrs["joriy_parol"] == attrs["yangi_parol"]:
+            raise serializers.ValidationError(
+                {"yangi_parol": "Yangi parol joriy paroldan farq qilishi kerak."}
+            )
+        return attrs

@@ -1,5 +1,6 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -9,7 +10,7 @@ from organization.services import check_limit, log_action
 from organization.tenancy import joriy_kutubxonani_aniqla, legacy_rejimmi
 from .models import User
 from .permissions import IsAdmin
-from .serializers import UserSerializer, UserCreateSerializer
+from .serializers import UserSerializer, UserCreateSerializer, ParolniAlmashtirishSerializer
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -83,6 +84,22 @@ class LogoutView(APIView):
             except Exception:
                 pass
         return Response(status=status.HTTP_205_RESET_CONTENT)
+
+
+class ParolniAlmashtirishView(APIView):
+    """POST /api/auth/change-password/ — o'z parolini almashtirish."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = ParolniAlmashtirishSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = request.user
+        if not user.check_password(serializer.validated_data["joriy_parol"]):
+            raise ValidationError({"joriy_parol": "Joriy parol noto'g'ri."})
+        user.set_password(serializer.validated_data["yangi_parol"])
+        user.save(update_fields=["password"])
+        return Response({"detail": "Parol muvaffaqiyatli o'zgartirildi."})
 
 
 @api_view(["GET"])
