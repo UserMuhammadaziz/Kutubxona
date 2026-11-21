@@ -746,6 +746,8 @@ Kutubxonachi va administrator hisoblarini boshqarish. **Faqat administrator** ko
 
 **Kitobxonlarni o'chirish:** rol bo'yicha qidirib, belgilang va **O'chirish** bosing. Faqat **qaytarilmagan kitobi** yoki **kutilayotgan band so'rovi** (`kutmoqda`) borlar o'chirilmaydi — sababi natijada ko'rsatiladi. Qaytarilgan kitoblar va yakunlangan band tarixi (tasdiqlangan/rad etilgan/bekor qilingan) endi to'siq bo'lmaydi: ular bir tranzaksiyada tozalanib, kitobxon o'chiriladi.
 
+O'chirilgan kitobxonning Telegram ID si bo'lsa, unga avtomatik xabar ketadi: ro'yxatdan o'chirilganligi va **/start** buyrug'i bilan qaytadan a'riza topshirishi so'raladi. Eski arizasi ham o'chiriladi, shuning uchun bot uni "arizangiz kutmoqda" deb bloklamaydi. Telegram ID si yo'qlarga xabar yuborilmaydi.
+
 > API: `PATCH /api/auth/profile/`, `POST /api/auth/change-password/`, `POST /api/messages/send/`, `GET /api/messages/classes/`, `POST /api/readers/ochirish/`.
 
 ---

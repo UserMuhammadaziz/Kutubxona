@@ -1056,6 +1056,11 @@ const sections: Section[] = [
             Qaytarilgan kitoblar va yakunlangan band so‘rovlari tarixi endi to‘sqinlik qilmaydi —
             bunday kitobxonlar ham o‘chiriladi
           </>,
+          <>
+            O‘chirilgan kitobxonga Telegram orqali xabar ketadi: <B>/start</B> buyrug‘i bilan
+            qaytadan a‘riza topshirishi so‘raladi. Eski arizasi o‘chiriladi, shuning uchun bot
+            uni “arizangiz kutmoqda” deb bloklamaydi
+          </>,
         ]}
       />,
       <Note key="14" tone="alert">

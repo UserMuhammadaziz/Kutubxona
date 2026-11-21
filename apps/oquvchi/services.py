@@ -112,6 +112,28 @@ def rad_etilgan_xabari(ariza: Ariza, izoh: str) -> str:
     )
 
 
+OCHIRILISH_XABARI = (
+    "⚠️ <b>Siz kutubxona a'zolari ro'yxatidan o'chirildingiz.</b>\n\n"
+    "Qaytadan a'zo bo'lish uchun botga <b>/start</b> buyrug'ini yuborib, "
+    "yangi a'riza topshiring. Arizangiz ko'rib chiqilgandan keyin yana "
+    "kitob olishingiz mumkin bo'ladi."
+)
+
+
+def _xabarni_rejalashtir(telegram_id, matn: str, organization) -> bool:
+    """Xabarni faqat tranzaksiya muvaffaqiyatli tugagach yuboradi.
+
+    Har chaqiruvning o'z lokal doirasi bo'lgani uchun lambda parametrlar
+    keyingi kitobxonni eski qiymatlari bilan yuborib yubormaydi.
+    """
+    if not telegram_id:
+        return False
+    transaction.on_commit(
+        lambda: telegram_xabar_yubor(telegram_id, matn, organization=organization)
+    )
+    return True
+
+
 def ariza_holatini_yubor(ariza: Ariza, matn: str) -> bool:
     """Ariza bo'yicha xabarni Telegram orqali yuboradi.
 
@@ -119,15 +141,16 @@ def ariza_holatini_yubor(ariza: Ariza, matn: str) -> bool:
     ma'lumot bazasi muvaffaqiyatli yozilgandan keyingina yuboriladi va
     bekor qilingan tranzaksiyadan keyin xabar ketmaydi.
     """
-    telegram_id = ariza.telegram_id
-    if not telegram_id:
-        return False
-    transaction.on_commit(
-        lambda: telegram_xabar_yubor(
-            telegram_id, matn, organization=ariza.organization
-        )
-    )
-    return True
+    return _xabarni_rejalashtir(ariza.telegram_id, matn, ariza.organization)
+
+
+def ochirilish_xabarini_yubor(telegram_id, organization=None) -> bool:
+    """O'chirilgan kitobxonga qaytadan a'riza topshirishni eslatadi.
+
+    O'chirish tranzaksiyasi ichida chaqiriladi: xabar faqat kitobxon
+    haqiqatan o'chirilgandan keyin (commit bo'lgach) yuboriladi.
+    """
+    return _xabarni_rejalashtir(telegram_id, OCHIRILISH_XABARI, organization)
 
 
 def arizani_tasdiqla(ariza: Ariza, organization=None):

@@ -112,12 +112,29 @@ class OquvchiViewSet(TenantViewSetMixin, viewsets.ModelViewSet):
                     )
                     continue
 
+                # O'chirishdan oldin xabar oluvchini saqlab qolamiz: Django
+                # `delete()` dan keyin instansiyaning PK sini bo'shatadi.
+                telegram_id = oquvchi.telegram_id
+                organization = oquvchi.organization
+
+                # Eski arizani ham tozalaymiz: aks holda bot `/start` da
+                # "arizangiz kutmoqda" deb qayta ariza berishni bloklaydi.
+                # Shundan keyin foydalanuvchi yangi ariza yubora oladi.
+                if telegram_id:
+                    eski_arizalar = Ariza.objects.filter(telegram_id=telegram_id)
+                    if oquvchi.organization_id:
+                        eski_arizalar = eski_arizalar.filter(organization=organization)
+                    eski_arizalar.delete()
+
                 # Faqat yakunlangan yozuvlarni tozalaymiz: ular hech qanday
                 # faol jarayonga ta'sir qilmaydi, lekin PROTECT tufayli
                 # kitobxonnini o'chirishga xalaqit berardi.
                 oquvchi.berish_set.filter(qaytarilgan_sana__isnull=False).delete()
                 oquvchi.band_qilishlar.all().delete()
                 oquvchi.delete()
+                # Xabar faqat o'chirish muvaffaqiyatli commit bo'lgach ketadi;
+                # telegram_id si yo'qlarga xabar yuborilmaydi (False qaytadi).
+                services.ochirilish_xabarini_yubor(telegram_id, organization)
                 ochirildi += 1
 
         return Response({"ochirildi": ochirildi, "ochirilmadi": ochirilmadi})

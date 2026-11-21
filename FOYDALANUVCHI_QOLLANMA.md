@@ -383,6 +383,7 @@ Telegram ID si bo'lmaganlar hisobga olinadi, lekin ularga xabar bormaydi — nat
 - Faqat **qo'lidagi kitobi qaytarilmagan** yoki **kutilayotgan band so'rovi** borlar o'chirilmaydi — ular Berishlar/Bandlar bo'limida ko'rinadi
 - **Qaytarilgan kitoblar** va yakunlangan band so'rovlari (tasdiqlangan/rad etilgan/bekor qilingan) tarixi endi to'siq bo'lmaydi
 - O'chirib bo'lmaganlar sababi bilan pastda ro'yxatlanadi — avval kitobni qaytarib oling yoki band so'rovini hal qiling
+- O'chirilgan kitobxonga (Telegram ID si bo'lsa) xabar ketadi: **/start** buyrug'i bilan qaytadan a'riza topshirishi so'raladi. Eski arizasi o'chiriladi, shuning uchun yangi arizani bemalol yuborish mumkin
 
 ---
 

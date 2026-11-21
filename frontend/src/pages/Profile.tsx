@@ -392,7 +392,7 @@ export function Profile() {
               Kitobxonlarni o'chirish
             </h2>
             <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-              Tanlangan o'quvchilar yoki o'qituvchilar ro'yxatdan o'chiriladi. Faqat qaytarilmagan kitobi yoki kutilayotgan band so'rovi borlar o'chirilmaydi.
+              Tanlangan o'quvchilar yoki o'qituvchilar ro'yxatdan o'chiriladi. Faqat qaytarilmagan kitobi yoki kutilayotgan band so'rovi borlar o'chirilmaydi. O'chirilgan kitobxonga Telegram orqali qaytadan a'riza topshirish taklifi yuboriladi.
             </p>
 
             <div className="grid gap-3 sm:grid-cols-2">
