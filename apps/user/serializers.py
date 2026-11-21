@@ -101,6 +101,39 @@ class UserCreateSerializer(serializers.ModelSerializer):
         return user
 
 
+class ProfilniYangilashSerializer(serializers.ModelSerializer):
+    """Kutubxonachi o'z shaxsiy ma'lumotlarini tahrirlash uchun (Profil)."""
+
+    class Meta:
+        model = User
+        fields = ["username", "full_name", "telefon"]
+        extra_kwargs = {
+            "username": {"required": False},
+            "full_name": {"required": False, "allow_blank": True},
+            "telefon": {"required": False, "allow_blank": True},
+        }
+
+    def validate_username(self, value):
+        value = (value or "").strip()
+        if not value:
+            raise serializers.ValidationError("Foydalanuvchi nomi bo'sh bo'lishi mumkin emas.")
+        qs = User.objects.filter(username__iexact=value)
+        if self.instance is not None:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("Bu login allaqachon band.")
+        return value
+
+    def validate_full_name(self, value):
+        value = (value or "").strip()
+        if not value:
+            raise serializers.ValidationError("To'liq ism bo'sh bo'lishi mumkin emas.")
+        return value
+
+    def validate_telefon(self, value):
+        return (value or "").strip()
+
+
 class ParolniAlmashtirishSerializer(serializers.Serializer):
     """Kutubxonachi o'z parolini almashtirish uchun (Profil sahifasi)."""
 

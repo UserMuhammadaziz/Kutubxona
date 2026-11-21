@@ -10,7 +10,12 @@ from organization.services import check_limit, log_action
 from organization.tenancy import joriy_kutubxonani_aniqla, legacy_rejimmi
 from .models import User
 from .permissions import IsAdmin
-from .serializers import UserSerializer, UserCreateSerializer, ParolniAlmashtirishSerializer
+from .serializers import (
+    ParolniAlmashtirishSerializer,
+    ProfilniYangilashSerializer,
+    UserCreateSerializer,
+    UserSerializer,
+)
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -71,6 +76,20 @@ class UserViewSet(viewsets.ModelViewSet):
             Membership.objects.filter(organization=org, user=user).update(
                 rol=serializer.validated_data["rol"]
             )
+
+
+class ProfilniYangilashView(APIView):
+    """PATCH /api/auth/profile/ — o'z ism-familyasi, logini va telefonini tahrirlash."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request):
+        serializer = ProfilniYangilashSerializer(
+            request.user, data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response(UserSerializer(user, context={"request": request}).data)
 
 
 class LogoutView(APIView):

@@ -35,7 +35,13 @@ from telegrambot.views import (
     TelegramWebhookView,
     XabarYuborishView,
 )
-from user.views import LogoutView, ParolniAlmashtirishView, UserViewSet, me
+from user.views import (
+    LogoutView,
+    ParolniAlmashtirishView,
+    ProfilniYangilashView,
+    UserViewSet,
+    me,
+)
 
 router = DefaultRouter()
 router.register("books", KitobViewSet, basename="books")
@@ -60,6 +66,7 @@ urlpatterns = [
     path("api/auth/register/", RegisterView.as_view()),
     path("api/auth/logout/", LogoutView.as_view()),
     path("api/auth/change-password/", ParolniAlmashtirishView.as_view()),
+    path("api/auth/profile/", ProfilniYangilashView.as_view()),
     path("api/auth/password-reset/", password_reset_request),
     path("api/auth/password-reset/confirm/", password_reset_confirm),
     path("api/auth/organization/", current_organization),

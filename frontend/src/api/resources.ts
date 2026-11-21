@@ -53,6 +53,14 @@ export const authApi = {
     api.post<{ access: string; refresh: string; user: User; organization: any }>('/auth/register/', payload).then((r) => r.data),
   changePassword: (payload: ParolAlmashtirishPayload) =>
     api.post<{ detail: string }>('/auth/change-password/', payload).then((r) => r.data),
+  updateProfile: (payload: ProfilYangilashPayload) =>
+    api.patch<User>('/auth/profile/', payload).then((r) => r.data),
+}
+
+export interface ProfilYangilashPayload {
+  username?: string
+  full_name?: string
+  telefon?: string
 }
 
 export interface ParolAlmashtirishPayload {

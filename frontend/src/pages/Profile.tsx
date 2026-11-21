@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   authApi,
@@ -6,6 +6,7 @@ import {
   readersApi,
   type OchirishNatijasi,
   type ParolAlmashtirishPayload,
+  type ProfilYangilashPayload,
   type XabarYuborishPayload,
 } from '../api/resources'
 import { errorMessage } from '../api/client'
@@ -61,12 +62,27 @@ function InfoRow({ label, children }: { label: string; children: ReactNode }) {
 export function Profile() {
   const { user, logout } = useAuthStore()
   const theme = useThemeStore((s) => s.theme)
-  const toggleTheme = useThemeStore((s) => s.toggle)
+  const setTheme = useThemeStore((s) => s.setTheme)
   const toast = useToast()
   const queryClient = useQueryClient()
 
   const [parol, setParol] = useState<ParolAlmashtirishPayload>(BOSH_PAROL)
   const [parolXato, setParolXato] = useState<string | null>(null)
+
+  // Shaxsiy ma'lumotlarni tahrirlash
+  const [shaxsiy, setShaxsiy] = useState<ProfilYangilashPayload>({})
+  const [tahrir, setTahrir] = useState(false)
+  const [shaxsiyXato, setShaxsiyXato] = useState<string | null>(null)
+  const [chiqishTasdiq, setChiqishTasdiq] = useState(false)
+
+  useEffect(() => {
+    if (!user || tahrir) return
+    setShaxsiy({
+      username: user.username,
+      full_name: user.full_name || '',
+      telefon: user.telefon || '',
+    })
+  }, [user, tahrir])
 
   // Kitobxonlarni o'chirish
   const [ochirishRol, setOchirishRol] = useState<OquvchiRol>('oquvchi')
@@ -99,6 +115,22 @@ export function Profile() {
   const { data: ochirishReaderlar, isLoading: ochirishYuklanmoqda } = useQuery({
     queryKey: ['delete-readers', ochirishRol, kechikkanOchirishQidiruv],
     queryFn: () => readersApi.list({ rol: ochirishRol, search: kechikkanOchirishQidiruv || undefined }),
+  })
+
+  const shaxsiyMut = useMutation({
+    mutationFn: (payload: ProfilYangilashPayload) => authApi.updateProfile(payload),
+    onSuccess: (natija) => {
+      useAuthStore.setState({ user: natija })
+      setShaxsiy({
+        username: natija.username,
+        full_name: natija.full_name || '',
+        telefon: natija.telefon || '',
+      })
+      setTahrir(false)
+      setShaxsiyXato(null)
+      toast.success('Shaxsiy ma\'lumotlar saqlandi.')
+    },
+    onError: (err) => setShaxsiyXato(errorMessage(err)),
   })
 
   const parolMut = useMutation({
@@ -162,6 +194,16 @@ export function Profile() {
     parolMut.mutate(parol)
   }
 
+  function shaxsiyYuborish(e: FormEvent) {
+    e.preventDefault()
+    setShaxsiyXato(null)
+    shaxsiyMut.mutate({
+      username: shaxsiy.username?.trim(),
+      full_name: shaxsiy.full_name?.trim(),
+      telefon: shaxsiy.telefon?.trim(),
+    })
+  }
+
   function xabarYuborish(e: FormEvent) {
     e.preventDefault()
     if (!xabar.matn.trim()) return
@@ -209,15 +251,91 @@ export function Profile() {
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="flex flex-col gap-5">
           <Card className="p-5">
-            <h2 className="mb-1 flex items-center gap-2 font-semibold text-slate-900 dark:text-slate-100">
-              <Icons.idCard className="h-5 w-5 text-brand-600 dark:text-brand-400" />
-              Shaxsiy ma'lumotlar
-            </h2>
-            <InfoRow label="To'liq ism">{user.full_name || '—'}</InfoRow>
-            <InfoRow label="Foydalanuvchi nomi">@{user.username}</InfoRow>
-            <InfoRow label="Telefon raqam">{user.telefon || '—'}</InfoRow>
-            <InfoRow label="Tizimdagi roli">{rolLabel(user.rol)}</InfoRow>
-            <InfoRow label="Joriy kutubxonadagi roli">{rolLabel(user.joriy_rol)}</InfoRow>
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <h2 className="flex items-center gap-2 font-semibold text-slate-900 dark:text-slate-100">
+                <Icons.idCard className="h-5 w-5 text-brand-600 dark:text-brand-400" />
+                Shaxsiy ma'lumotlar
+              </h2>
+              {!tahrir && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShaxsiy({
+                      username: user.username,
+                      full_name: user.full_name || '',
+                      telefon: user.telefon || '',
+                    })
+                    setShaxsiyXato(null)
+                    setTahrir(true)
+                  }}
+                  className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-50 dark:text-brand-300 dark:hover:bg-brand-900/30"
+                >
+                  Tahrirlash
+                </button>
+              )}
+            </div>
+
+            {tahrir ? (
+              <form onSubmit={shaxsiyYuborish}>
+                <ErrorBanner message={shaxsiyXato} />
+                <Field>
+                  <Label htmlFor="prof-fish">To'liq ism</Label>
+                  <Input
+                    id="prof-fish"
+                    value={shaxsiy.full_name ?? ''}
+                    onChange={(e) => setShaxsiy({ ...shaxsiy, full_name: e.target.value })}
+                    maxLength={120}
+                    required
+                  />
+                </Field>
+                <Field>
+                  <Label htmlFor="prof-login">Foydalanuvchi nomi (login)</Label>
+                  <Input
+                    id="prof-login"
+                    value={shaxsiy.username ?? ''}
+                    onChange={(e) => setShaxsiy({ ...shaxsiy, username: e.target.value })}
+                    maxLength={150}
+                    autoComplete="username"
+                    required
+                  />
+                </Field>
+                <Field>
+                  <Label htmlFor="prof-telefon">Telefon raqam</Label>
+                  <Input
+                    id="prof-telefon"
+                    value={shaxsiy.telefon ?? ''}
+                    onChange={(e) => setShaxsiy({ ...shaxsiy, telefon: e.target.value })}
+                    maxLength={20}
+                    placeholder="+998901234567"
+                    autoComplete="tel"
+                  />
+                </Field>
+                <div className="flex gap-2">
+                  <Button type="submit" loading={shaxsiyMut.isPending} className="flex-1">
+                    Saqlash
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={shaxsiyMut.isPending}
+                    onClick={() => {
+                      setTahrir(false)
+                      setShaxsiyXato(null)
+                    }}
+                  >
+                    Bekor qilish
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <>
+                <InfoRow label="To'liq ism">{user.full_name || '—'}</InfoRow>
+                <InfoRow label="Foydalanuvchi nomi">@{user.username}</InfoRow>
+                <InfoRow label="Telefon raqam">{user.telefon || '—'}</InfoRow>
+                <InfoRow label="Tizimdagi roli">{rolLabel(user.rol)}</InfoRow>
+                <InfoRow label="Joriy kutubxonadagi roli">{rolLabel(user.joriy_rol)}</InfoRow>
+              </>
+            )}
           </Card>
 
           <Card className="p-5">
@@ -386,16 +504,41 @@ export function Profile() {
               <Icons.info className="h-5 w-5 text-brand-600 dark:text-brand-400" />
               Sozlamalar
             </h2>
-            <div className="flex flex-col gap-2">
-              <Button variant="secondary" onClick={toggleTheme} className="w-full !justify-start">
-                {theme === 'dark' ? Icons.sun({ className: 'h-4 w-4' }) : Icons.moon({ className: 'h-4 w-4' })}
-                {theme === 'dark' ? 'Yorug rejimga o‘tish' : 'Qorong‘i rejimga o‘tish'}
-              </Button>
-              <Button variant="secondary" onClick={logout} className="w-full !justify-start">
+
+            <div className="mb-4">
+              <div className="mb-2 text-sm text-slate-500 dark:text-slate-400">Ko‘rinish</div>
+              <div className="grid grid-cols-2 gap-2 rounded-lg bg-canvas p-1 dark:bg-slate-800/60">
+                {(['light', 'dark'] as const).map((tanlov) => (
+                  <button
+                    key={tanlov}
+                    type="button"
+                    onClick={() => setTheme(tanlov)}
+                    className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
+                      theme === tanlov
+                        ? 'bg-paper text-brand-700 shadow-sm dark:text-brand-300'
+                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    {tanlov === 'light'
+                      ? Icons.sun({ className: 'h-4 w-4' })
+                      : Icons.moon({ className: 'h-4 w-4' })}
+                    {tanlov === 'light' ? 'Yorug' : 'Qorong‘i'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-4 border-t border-slate-100 pt-4 dark:border-slate-700">
+              <div className="mb-2 text-sm text-slate-500 dark:text-slate-400">Hisob</div>
+              <Button variant="secondary" onClick={() => setChiqishTasdiq(true)} className="w-full !justify-start">
                 <Icons.close className="h-4 w-4" />
                 Tizimdan chiqish
               </Button>
             </div>
+
+            <p className="text-xs text-slate-400">
+              Shaxsiy ma'lumotlar va parolni yuqoridagi bo‘limlarda o‘zgartirishingiz mumkin.
+            </p>
           </Card>
         </div>
       </div>
@@ -544,6 +687,15 @@ export function Profile() {
         loading={ochirishMut.isPending}
         onConfirm={() => ochirishMut.mutate(tanlanganIds)}
         onCancel={() => setOchirishTasdiq(false)}
+      />
+
+      <ConfirmDialog
+        open={chiqishTasdiq}
+        title="Tizimdan chiqish"
+        message="Hisobingizdan chiqmoqchimisiz?"
+        confirmLabel="Chiqish"
+        onConfirm={logout}
+        onCancel={() => setChiqishTasdiq(false)}
       />
     </div>
   )

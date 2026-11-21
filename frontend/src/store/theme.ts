@@ -23,19 +23,23 @@ export function applyTheme(theme: Theme) {
 interface ThemeState {
   theme: Theme
   toggle: () => void
+  setTheme: (theme: Theme) => void
 }
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
   theme: getInitialTheme(),
-  toggle: () => {
-    const next: Theme = get().theme === 'dark' ? 'light' : 'dark'
+  setTheme: (theme) => {
     try {
-      localStorage.setItem(STORAGE_KEY, next)
+      localStorage.setItem(STORAGE_KEY, theme)
     } catch {
       /* ignore */
     }
-    applyTheme(next)
-    set({ theme: next })
+    applyTheme(theme)
+    set({ theme })
+  },
+  toggle: () => {
+    const next: Theme = get().theme === 'dark' ? 'light' : 'dark'
+    get().setTheme(next)
   },
 }))
 
