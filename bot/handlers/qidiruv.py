@@ -378,7 +378,7 @@ def _kitob_batafsil_matn(kitob: dict) -> str:
     else:
         matn += (
             "\n\n⚠️ Bu kitobning kutubxonada nusxasi yo'q, "
-            "asil kitobni band qilishingiz mumkin."
+            "uni band qilishingiz mumkin."
         )
 
     matn += (

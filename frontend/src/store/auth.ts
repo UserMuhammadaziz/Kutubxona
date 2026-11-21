@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { authApi } from '../api/resources'
+import { authApi, type RegisterPayload } from '../api/resources'
 import { tokenStore } from '../api/client'
 import type { User } from '../types'
 
@@ -7,6 +7,7 @@ interface AuthState {
   user: User | null
   status: 'idle' | 'loading' | 'authenticated' | 'unauthenticated'
   login: (username: string, password: string) => Promise<void>
+  register: (payload: RegisterPayload) => Promise<void>
   logout: () => void
   hydrate: () => Promise<void>
 }
@@ -17,6 +18,13 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   login: async (username, password) => {
     const { access, refresh } = await authApi.login(username, password)
+    tokenStore.set(access, refresh)
+    const user = await authApi.me()
+    set({ user, status: 'authenticated' })
+  },
+
+  register: async (payload) => {
+    const { access, refresh } = await authApi.register(payload)
     tokenStore.set(access, refresh)
     const user = await authApi.me()
     set({ user, status: 'authenticated' })

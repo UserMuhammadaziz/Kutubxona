@@ -101,6 +101,7 @@ def yordam_matni() -> str:
         f"   {MENYU_YORDAM} — shu yordam matni.\n\n"
         "<b>Buyruqlar</b>\n"
         "   /start — menyuni ochish yoki arizani qayta boshlash.\n"
+        "   /menu — pastdagi bo'lim tugmalarini qayta ko'rsatish.\n"
         "   /bekor — joriy amalni bekor qilish (ariza, qidiruv).\n\n"
         "Ariza to'ldirilayotganda yordam so'rasangiz, ariza bekor "
         "qilinmaydi — yordam ko'rsatilib, javob yoziladigan joy o'z "

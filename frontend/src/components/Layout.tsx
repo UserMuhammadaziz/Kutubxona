@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import clsx from 'clsx'
 import { useAuthStore, isAdmin } from '../store/auth'
 import { useThemeStore } from '../store/theme'
@@ -13,12 +13,14 @@ const navItems = [
   { to: '/copies', label: 'Nusxalar', icon: Icons.package },
   { to: '/readers', label: "O'quvchilar", icon: Icons.graduationCap },
   { to: '/teachers', label: "O'qituvchilar", icon: Icons.user },
+  { to: '/kitobxonlar', label: 'Kitobxonlar', icon: Icons.users },
   { to: '/applications', label: 'Arizalar', icon: Icons.clipboardList },
   { to: '/loans', label: 'Berish / Qaytarish', icon: Icons.arrowsRightLeft },
   { to: '/bandlar', label: 'Bandlar', icon: Icons.lock },
   { to: '/reservations', label: 'Navbatlar', icon: Icons.clock },
   { to: '/fines', label: 'Jarimalar', icon: Icons.money },
   { to: '/guide', label: "Qo'llanma", icon: Icons.bookClosed },
+  { to: '/profile', label: 'Profil', icon: Icons.idCard },
 ]
 
 function NavList({ onNavigate }: { onNavigate?: () => void }) {
@@ -55,17 +57,31 @@ function UserBlock({ onLogout }: { onLogout: () => void }) {
   return (
     <div className="border-t border-slate-200 p-4 dark:border-slate-700">
       <div className="mb-2 min-w-0 text-sm">
-        <div className="truncate font-medium text-slate-900 dark:text-slate-100">{user?.full_name}</div>
+        <Link
+          to="/profile"
+          className="block truncate font-medium text-slate-900 hover:text-brand-600 dark:text-slate-100 dark:hover:text-brand-400"
+        >
+          {user?.full_name}
+        </Link>
         <div className="text-slate-500 dark:text-slate-400">
           {user?.rol === 'administrator' ? 'Administrator' : 'Kutubxonachi'}
         </div>
       </div>
-      <button
-        onClick={onLogout}
-        className="w-full rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
-      >
-        Chiqish
-      </button>
+      <div className="flex gap-2">
+        <Link
+          to="/profile"
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700 hover:bg-brand-100 dark:bg-brand-900/30 dark:text-brand-400 dark:hover:bg-brand-900/50"
+        >
+          <Icons.idCard className="h-4 w-4" />
+          Profil
+        </Link>
+        <button
+          onClick={onLogout}
+          className="w-full rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+        >
+          Chiqish
+        </button>
+      </div>
     </div>
   )
 }
@@ -164,7 +180,10 @@ export function Layout() {
           </div>
         )}
 
-        <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
+        {/* Chatbot tugmasi past o'ng burchakda joylashgan — sahifa oxiridagi
+            pagination / tugmalar uning tagida qolib qolmasligi uchun pastki
+            bo'shliq qoldiriladi. */}
+        <main className="min-w-0 flex-1 p-4 pb-28 sm:p-6 sm:pb-28 lg:p-8 lg:pb-28">
           <Outlet />
         </main>
       </div>

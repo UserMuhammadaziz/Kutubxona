@@ -83,7 +83,12 @@ def joriy_kutubxonani_aniqla(request, required=True, allow_inactive=False):
     # Barcha a'zoliklar (holatidan qat'i nazar) — pending holatini ham
     # aniq xabar bilan qaytarish uchun kerak.
     barcha = foydalanuvchi_kutubxonalari(user)
-    org_id = request.headers.get("X-Organization-Id") or request.query_params.get(
+    # DRF so'rovida `query_params`, Django admin'dagi oddiy WSGIRequest'da
+    # `GET` bor — ikkalasi ham qo'llab-quvvatlanadi.
+    sozlamalar = getattr(request, "query_params", None)
+    if sozlamalar is None:
+        sozlamalar = getattr(request, "GET", {})
+    org_id = request.headers.get("X-Organization-Id") or sozlamalar.get(
         "organization_id"
     )
     if org_id:

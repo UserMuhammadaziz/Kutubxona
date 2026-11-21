@@ -130,20 +130,28 @@ def ariza_holatini_yubor(ariza: Ariza, matn: str) -> bool:
     return True
 
 
-def arizani_tasdiqla(ariza: Ariza):
+def arizani_tasdiqla(ariza: Ariza, organization=None):
     """Arizani tasdiqlaydi: o'quvchi mavjud bo'lsa yangilanadi, yo'qsa
     yangi o'quvchi karta raqami bilan yaratiladi. (ariza, oquvchi, yangi_karta)
 
+    `organization` — arizani tasdiqlayotgan kutubxonachining kutubxonasi.
+    Bot orqali kelgan arizalarda `ariza.organization` bo'sh bo'ladi (xabarlar
+    global tokendan yuborilishi uchun). Bunday holda tasdiqlovchi xodimning
+    kutubxonasi ishlatiladi — aks holda yaratilgan o'quvchi tenant doirasida
+    ko'rinmay, botning «Mening kitoblarim/jarimalarim» oqimlari ishlamaydi.
+    Arizada kutubxona allaqachon ko'rsatilgan bo'lsa, u o'zgarishsiz qoladi.
+
     Eslatma: mavjud o'quvchining `telegram_id` si boshqa akkauntga tegishli
-    bo'lsa, bu ariza rad etiladi (`ArikaTelegramBandi` xatosi) — aks holda
+    bo'lsa, bu ariza rad etiladi (`ArizaTelegramBandi` xatosi) — aks holda
     birinchi o'quvchining akkaunti ikkinchisining arizasi orqali
     almashtirilib qolardi.
     """
     if ariza.holati != "kutmoqda":
         raise ValueError("Faqat 'kutmoqda' holatidagi ariza tasdiqlanadi")
 
+    org = ariza.organization or organization
     oquvchi = Oquvchi.objects.filter(
-        organization=ariza.organization, telefon=ariza.telefon
+        organization=org, telefon=ariza.telefon
     ).first()
     yangi_karta = oquvchi is None
 
@@ -155,6 +163,10 @@ def arizani_tasdiqla(ariza: Ariza):
         # Rol va fan arizadan olinadi: "O'quvchilar"/"O'qituvchilar"
         # bo'limlari shu maydonlar orqali ajratiladi.
         yangilangan = ["telegram_id", "fish"]
+        # Yangi formatda qayta ariza topshirganlar endi botga to'siqsiz kira oladi.
+        if oquvchi.qayta_ariza_kerak:
+            oquvchi.qayta_ariza_kerak = False
+            yangilangan.append("qayta_ariza_kerak")
         if oquvchi.rol != ariza.rol:
             oquvchi.rol = ariza.rol
             yangilangan.append("rol")
@@ -184,7 +196,7 @@ def arizani_tasdiqla(ariza: Ariza):
         oquvchi.save(update_fields=yangilangan)
     else:
         oquvchi = oquvchi_yarat(
-            organization=ariza.organization,
+            organization=org,
             rol=ariza.rol,
             fish=ariza.fish,
             telefon=ariza.telefon,

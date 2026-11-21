@@ -214,9 +214,9 @@ def _kitob_berildi_xabarini_yubor(berish):
     if not oquvchi.telegram_id:
         return
     if berish.nusxa_id:
-        manzil = "Inventar raqami: " + str(berish.nusxa.inventar_raqami)
+        manzil = "Inventar raqami: " + str(berish.nusxa.inventar_raqami) + "\n"
     else:
-        manzil = "Nusxasi yo'q - kitob aslida berildi"
+        manzil = ""
     from django.conf import settings
     if berish.organization:
         muddat = berish.organization.muddat_kun
@@ -234,7 +234,7 @@ def _kitob_berildi_xabarini_yubor(berish):
         "\U0001F4D6 <b>Kitob berildi!</b>\n\n"
         + "Qabul qilgan kitob: <b>" + telegram_escape(berish.kitob.nomi) + "</b>\n"
         + "Muallif: " + telegram_escape(berish.kitob.muallif) + "\n"
-        + manzil + "\n\n"
+        + manzil + "\n"
         + "<b>Batafsil (kimga berildi):</b>\n"
         + "\u2022 Ism: " + telegram_escape(kim) + "\n"
         + "\u2022 Rol: " + telegram_escape(kim_rol) + "\n"

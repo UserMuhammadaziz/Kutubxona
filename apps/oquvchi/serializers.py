@@ -3,6 +3,7 @@ from datetime import date
 
 from rest_framework import serializers
 
+from .constants import FANLAR, FISH_RE, SINF_RE
 from .models import Ariza, Oquvchi
 from .services import oquvchi_yarat
 
@@ -30,8 +31,15 @@ class OquvchiSerializer(serializers.ModelSerializer):
             "manzil",
             "royxat_sanasi",
             "faol",
+            "qayta_ariza_kerak",
         ]
-        read_only_fields = ["id", "karta_raqami", "telegram_id", "royxat_sanasi"]
+        read_only_fields = [
+            "id",
+            "karta_raqami",
+            "telegram_id",
+            "royxat_sanasi",
+            "qayta_ariza_kerak",
+        ]
 
 
 class OquvchiYaratishSerializer(serializers.ModelSerializer):
@@ -43,7 +51,8 @@ class OquvchiYaratishSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Oquvchi
-        fields = ["id", "rol", "fish", "telefon", "sinf", "kasb", "tugilgan_sana", "manzil", "karta_raqami"]
+        # Faqat ism-familiya, telefon va rolga qarab sinf/fan so'raladi.
+        fields = ["id", "rol", "fish", "telefon", "sinf", "kasb", "karta_raqami"]
         read_only_fields = ["id", "karta_raqami"]
 
     def validate(self, attrs):
@@ -122,8 +131,17 @@ class ArizaSerializer(serializers.ModelSerializer):
             "ariza_sanasi",
             "tasdiqlangan_sana",
             "izoh",
+            "qayta_ariza_kerak",
         ]
-        read_only_fields = ["id", "ariza_sanasi", "tasdiqlangan_sana", "holati", "izoh", "rol"]
+        read_only_fields = [
+            "id",
+            "ariza_sanasi",
+            "tasdiqlangan_sana",
+            "holati",
+            "izoh",
+            "rol",
+            "qayta_ariza_kerak",
+        ]
 
 
 class ArizaYaratishSerializer(serializers.ModelSerializer):
@@ -168,6 +186,42 @@ class ArizaYaratishSerializer(serializers.ModelSerializer):
             )
         return value
 
+    def validate_fish(self, value):
+        """Ism-familiya — kamida ikki so'z, faqat harflar."""
+        fish = (value or "").strip()
+        if not FISH_RE.fullmatch(fish):
+            raise serializers.ValidationError(
+                "Ism-familiya «Ism Familiya» formatida yozilishi kerak "
+                "(kamida ikki so'z, raqamsiz)."
+            )
+        return fish
+
+    def validate_sinf(self, value):
+        """Sinf — 7-A / 9-B / 10- ko'rinishida bo'lishi shart."""
+        if value is None:
+            return value
+        sinf = value.strip()
+        if not sinf:
+            return sinf
+        if not SINF_RE.fullmatch(sinf):
+            raise serializers.ValidationError(
+                "Sinf «7-A», «9-B» yoki «10-» formatida yozilishi kerak."
+            )
+        return sinf
+
+    def validate_kasb(self, value):
+        """O'qituvchi fanni bot taklif qilgan ro'yxatdan tanlaydi."""
+        if not value:
+            return value
+        fanlar = [fan.strip() for fan in value.split(",") if fan.strip()]
+        notogri = [fan for fan in fanlar if fan not in FANLAR]
+        if notogri:
+            raise serializers.ValidationError(
+                "Fanlardan faqat bot ko'rsatgan ro'yxatdan tanlash mumkin: "
+                + ", ".join(notogri)
+            )
+        return ", ".join(fanlar)
+
     def validate(self, attrs):
         rol = attrs.get("rol") or "oquvchi"
         attrs["rol"] = rol
@@ -198,16 +252,24 @@ class ArizaYaratishSerializer(serializers.ModelSerializer):
             attrs["kasb"] = ""
 
         telegram_id = attrs["telegram_id"]
-        if Oquvchi.objects.filter(telegram_id=telegram_id).exists():
+        # Eski formatda ariza yuborgan (qabul qilingan ham) foydalanuvchilarga
+        # yangi formatda qaytadan ariza topshirishga ruxsat beramiz.
+        bandlangan = Oquvchi.objects.filter(telegram_id=telegram_id).exclude(
+            qayta_ariza_kerak=True
+        ).exists()
+        if bandlangan:
             raise serializers.ValidationError(
                 {"error": "allaqachon_azo", "detail": "Bu telegram akkaunt allaqachon ro'yxatdan o'tgan"}
             )
-        if Ariza.objects.filter(telegram_id=telegram_id, holati="kutmoqda").exists():
+
+        kutmoqdagi = Ariza.objects.filter(telegram_id=telegram_id, holati="kutmoqda").first()
+        if kutmoqdagi and not kutmoqdagi.qayta_ariza_kerak:
             raise serializers.ValidationError(
                 {"error": "ariza_kutmoqda", "detail": "Arizangiz hali ko'rib chiqilmoqda"}
             )
-        # Eski (bekor/tasdiqlangan) ariza qolsa yangi ariza ochish uchun tozalanadi
-        Ariza.objects.filter(telegram_id=telegram_id).exclude(holati="kutmoqda").delete()
+        # Eski (noto'g'ri formatdagi, bekor yoki tasdiqlangan) arizalar yangi
+        # ariza ochish uchun o'chiriladi.
+        Ariza.objects.filter(telegram_id=telegram_id).delete()
         return attrs
 
 
@@ -216,3 +278,4 @@ class ArizaStatusSerializer(serializers.Serializer):
 
     holati = serializers.CharField()
     izoh = serializers.CharField(required=False, allow_blank=True)
+    qayta_ariza_kerak = serializers.BooleanField(default=False)

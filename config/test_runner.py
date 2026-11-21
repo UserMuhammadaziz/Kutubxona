@@ -19,8 +19,10 @@ class AppTestRunner(DiscoverRunner):
             # Faqat loyihaning o'z ilovalari: django.contrib ilovalari
             # ushbu yerda test modullari yo'q va ularni import qilish
             # xato beradi (ular paket sifatida import qilinmaydi).
+            # To'liq modul yo'lidan foydalanamiz: `token_blacklist` kabi
+            # qisqa label'lar `sys.path` da yo'q va import qilib bo'lmaydi.
             test_labels = [
-                config.label
+                config.name
                 for config in apps.get_app_configs()
                 if not config.name.startswith("django.")
             ]

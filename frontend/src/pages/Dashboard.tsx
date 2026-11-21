@@ -3,9 +3,9 @@ import { Link } from 'react-router-dom'
 import { statsApi } from '../api/resources'
 import { errorMessage } from '../api/client'
 import { Icons } from '../components/icons'
-import { Card, EmptyState, ErrorState, PageHeader, Spinner, Badge } from '../components/ui'
+import { Card, EmptyState, ErrorState, PageHeader, Spinner } from '../components/ui'
 import { formatMoney } from '../lib/format'
-import { isAdmin } from '../store/auth'
+import { useAuthStore, isAdmin } from '../store/auth'
 
 function StatCard({ label, value, tone }: { label: string; value: string | number; tone?: 'red' | 'amber' }) {
   return (
@@ -24,6 +24,7 @@ function StatCard({ label, value, tone }: { label: string; value: string | numbe
 }
 
 export function Dashboard() {
+  const user = useAuthStore((s) => s.user)
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['stats', 'dashboard'],
     queryFn: statsApi.dashboard,
@@ -79,7 +80,7 @@ export function Dashboard() {
         </Link>
       </div>
 
-      {isAdmin() && (
+      {isAdmin(user) && (
         <div className="mt-8">
           <h2 className="mb-3 text-lg font-semibold text-slate-900 dark:text-slate-100">Foydalanuvchilar soni</h2>
           <div className="grid grid-cols-2 gap-4">

@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from berish.serializers import BerishMeniSerializer
 from jarima.models import Jarima
 from jarima.serializers import JarimaMeniSerializer
+from organization.tenancy import joriy_kutubxonani_aniqla
 from user.permissions import IsLibrarian
 from . import services
 from .models import Ariza, Oquvchi
@@ -108,13 +109,23 @@ class ArizaViewSet(viewsets.ModelViewSet):
                 {"error": "telegram_id_kerak", "detail": "telegram_id parametri kiritilishi shart"}
             )
         ariza = Ariza.objects.filter(telegram_id=telegram_id).first()
+        # Qabul qilinganlar ham eski formatdagi ariza sababli qayta yuborishi
+        # kerak — bayroq Oquvchi yoki Ariza ustida turishi mumkin.
+        qayta_ariza_kerak = Oquvchi.objects.filter(
+            telegram_id=telegram_id, qayta_ariza_kerak=True
+        ).exists() or bool(ariza and ariza.qayta_ariza_kerak)
         if ariza:
             data = {
                 "holati": ariza.holati,
                 "izoh": ariza.izoh or "",
+                "qayta_ariza_kerak": qayta_ariza_kerak,
             }
         else:
-            data = {"holati": None, "izoh": ""}
+            data = {
+                "holati": None,
+                "izoh": "",
+                "qayta_ariza_kerak": qayta_ariza_kerak,
+            }
         serializer = ArizaStatusSerializer(data)
         return Response(serializer.data)
 
@@ -125,14 +136,23 @@ class ArizaViewSet(viewsets.ModelViewSet):
             raise ValidationError(
                 {"error": "holat_notogri", "detail": "Faqat 'kutmoqda' holatidagi ariza tasdiqlanadi"}
             )
-        if Oquvchi.objects.filter(telegram_id=ariza.telegram_id).exists():
+        # Faqat eski formatda qayta ariza yuborgan foydalanuvchigina mavjud
+        # o'quvchi ustiga tasdiqlanishi mumkin.
+        if Oquvchi.objects.filter(telegram_id=ariza.telegram_id).exclude(
+            qayta_ariza_kerak=True
+        ).exists():
             raise ValidationError(
                 {"error": "telegram_band", "detail": "Bu telegram akkaunt allaqachon o'quvchiga bog'langan"}
             )
 
         try:
             with transaction.atomic():
-                ariza, oquvchi, yangi_karta = services.arizani_tasdiqla(ariza)
+                # Bot arizasida kutubxona bo'sh bo'ladi — tasdiqlovchi xodimning
+                # kutubxonasi o'quvchiga bog'lanadi (tenant doirasida ko'rinadi).
+                org = joriy_kutubxonani_aniqla(request, required=False)
+                ariza, oquvchi, yangi_karta = services.arizani_tasdiqla(
+                    ariza, organization=org
+                )
                 services.ariza_holatini_yubor(
                     ariza, services.tasdiqlash_xabari(ariza, oquvchi, yangi_karta)
                 )

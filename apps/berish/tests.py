@@ -6,6 +6,8 @@ Muammo: `kitob_ber()` faqat `Nusxa.holati`ni `berilgan`ga o'zgartirardi,
 avtomatik hisoblanadi (`kitob.services.kitob_holatini_yenila`).
 """
 from datetime import date, timedelta
+
+from django.utils.timezone import now
 from unittest import mock
 
 from django.contrib.auth import get_user_model
@@ -296,7 +298,7 @@ class ErkenQaytarishXabariTest(KitobHolatiTestBase):
     def _berish(self, muddat_kun_later):
         berish = kitob_ber_by_kitob(self.kitob, self.oquvchi, self.xodim)
         Berish.objects.filter(pk=berish.pk).update(
-            qaytarish_muddati=date.today() + timedelta(days=muddat_kun_later)
+            qaytarish_muddati=now().date() + timedelta(days=muddat_kun_later)
         )
         berish.refresh_from_db()
         return berish

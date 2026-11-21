@@ -1,5 +1,6 @@
 import re
 
+from fanlar import FANLAR
 from aiogram.types import (
     BotCommand,
     InlineKeyboardButton,
@@ -105,7 +106,7 @@ def bot_buyruglar() -> list[BotCommand]:
 
     Boshqa buyruqlar (`/bekor`, `/qaytar`, `/bandlar`, ...) ataka MENYU
     ro'yxatiga qo'yilmaydi, lekin `handlers/navigatsiya.py` da ishlayveradi:
-    ular arrizа to'ldirilayotganda matn sifatida qabul qilinmasligi uchun
+    ular ariza to'ldirilayotganda matn sifatida qabul qilinmasligi uchun
     handler'lari shu router'da BIRINCHI turadi.
     """
     return [
@@ -143,6 +144,34 @@ def ariza_rol_tugmalari() -> InlineKeyboardMarkup:
             ],
         ]
     )
+
+
+def fan_tugmalari(tanlanganlar: list[str] | None = None) -> InlineKeyboardMarkup:
+    """O'qituvchi fan(lar)ni bosib tanlaydigan inline klaviatura.
+
+    Tanlangan fanlar tugmada ✅ bilan belgilanadi, yana bosilsa belgi
+    o'chiriladi. «Tayyor» bosilgandan keyingina ariza yuboriladi.
+    """
+    tanlanganlar = tanlanganlar or []
+    qatorlar = []
+    for boshlanish in range(0, len(FANLAR), 2):
+        qator = []
+        for fan in FANLAR[boshlanish : boshlanish + 2]:
+            belgi = "✅ " if fan in tanlanganlar else ""
+            qator.append(
+                InlineKeyboardButton(
+                    text=f"{belgi}{fan}",
+                    callback_data=f"fan:{FANLAR.index(fan)}",
+                )
+            )
+        qatorlar.append(qator)
+    qatorlar.append(
+        [
+            InlineKeyboardButton(text="✅ Tayyor", callback_data="fan:tayyor"),
+            InlineKeyboardButton(text="♻️ Tozalash", callback_data="fan:tozalash"),
+        ]
+    )
+    return InlineKeyboardMarkup(inline_keyboard=qatorlar)
 
 
 def telefon_keltirish(raw: str) -> str | None:

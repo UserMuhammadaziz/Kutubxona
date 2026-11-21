@@ -241,7 +241,9 @@ CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
-CELERY_TIMEZONE = TIME_ZONE
+# Beat jadvali O'zbekiston vaqti bo'yicha ishlaydi: 08:00 dagi oylik
+# statistika foydalanuvchilar kutgan vaqtda (UTC+5) yetib boradi.
+CELERY_TIMEZONE = "Asia/Tashkent"
 
 # --- Telegram bot (API dan foydalanish uchun) ---
 # Eski bitta-kutubxonali bot uchun fallback. Yangi SaaS rejimida har bir

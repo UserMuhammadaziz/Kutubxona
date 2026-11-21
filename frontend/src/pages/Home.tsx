@@ -1,215 +1,288 @@
-import { useEffect } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import clsx from 'clsx'
-import { useAuthStore } from '../store/auth'
-import { Layout } from '../components/Layout'
-import { Logo, LogoMark } from '../components/Logo'
-import { StatsCard } from '../components/StatCard'
-import { formatMoney } from '../lib/format'
+import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
+import { statsApi } from '../api/resources'
+import { errorMessage } from '../api/client'
+import { Icons } from '../components/icons'
+import { Badge, Card, EmptyState, ErrorState, PageHeader, Spinner } from '../components/ui'
+import { formatDate, formatMoney } from '../lib/format'
+import type { RecentActivity, TopBook } from '../types'
 
-export function Home() {
-  const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['stats', 'dashboard'],
-    queryFn: () => statsApi.dashboard(),
-    enabled: !!tokenStore.getAccess(),
-  })
-
-  const hydrate = useAuthStore((s) => s.hydrate)
-
-  useEffect(() => {
-    hydrate()
-  }, [hydrate])
-
-  if (status === 'idle' || status === 'loading') {
-    return <Spinner />
-  }
-
-  if (status === 'unauthenticated') {
-    return (
-      <div className="min-h-screen bg-canvas">
-        <Navigate to="/login" replace />
-      </div>
-    )
-  }
+function StatCard({
+  label,
+  value,
+  tone,
+  sub,
+}: {
+  label: string
+  value: string | number
+  tone?: 'red' | 'amber' | 'green' | 'blue'
+  sub?: string
+}) {
+  const rang =
+    tone === 'red'
+      ? 'text-red-600 dark:text-red-400'
+      : tone === 'amber'
+        ? 'text-amber-600 dark:text-amber-400'
+        : tone === 'green'
+          ? 'text-green-600 dark:text-green-400'
+          : tone === 'blue'
+            ? 'text-blue-600 dark:text-blue-400'
+            : 'text-slate-900 dark:text-slate-100'
 
   return (
-    <Layout>
-      <nav className="border-b border-slate-200 dark:border-slate-700 pb-4">
-        <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-16">
-          <div className="flex items-center gap-3">
-            <LogoMark className="h-8 w-8" />
-            <span className="text-xl font-semibold text-brand-600">Kutubxona</span>
-          </span>
-          <nav className="hidden sm:flex items-center gap-8">
-            <NavLink to="/" className="text-slate-600 dark:text-slate-400 hover:text-brand-600 font-medium">
-              <svg
-                className="inline-block align-middle h-4 w-4"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                aria-hidden="true"
-              >
-                <path d="M10 4a1 1 0 011 1h3a1 1 0 110 2h-3a1 1 0 01-1-1zm0 6a1 1 0 011 1h5a1 1 0 110 2h-5a1 1 0 01-1-1zm0 6a1 1 0 011 1h2a1 1 0 110 2h-2a1 1 0 01-1-1zm5-14h2a2 2 0 012 2v8a2 2 0 01-2h-2v-8a2 2 0 012-2zm-7 4h2a2 2 0 012 2v4a2 2 0 01-2h-2v-4a2 2 0 012-2zm7 4h2a2 2 0 012 2v4a2 2 0 01-2h-2v-4a2 2 0 012-2z" />
-              </svg>
-              Boshqaruv paneli
-            </NavLink>
-            <NavLink to="/books" className="text-slate-600 dark:text-slate-400 hover:text-brand-600 font-medium">
-              Kitoblar
-            </NavLink>
-          </nav>
+    <Card className="p-5">
+      <div className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</div>
+      <div className={`mt-2 text-3xl font-semibold ${rang}`}>{value}</div>
+      {sub && (
+        <div className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400" title={sub}>
+          {sub}
         </div>
-        {/* Foydalanuvchini hisoblash */
+      )}
+    </Card>
+  )
+}
+
+function medalTone(orin: number): 'amber' | 'blue' | 'slate' {
+  if (orin === 1) return 'amber'
+  if (orin === 2) return 'blue'
+  return 'slate'
+}
+
+function ActivityRow({ harakat }: { harakat: RecentActivity }) {
+  const Icon = harakat.turi === 'berish' ? Icons.bookOpen : Icons.checkCircle
+  const iconTone =
+    harakat.turi === 'berish'
+      ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400'
+      : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400'
+
+  return (
+    <div className="flex items-start gap-3 p-4">
+      <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${iconTone}`}>
+        <Icon className="h-5 w-5" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-semibold text-slate-900 dark:text-slate-100">{harakat.sarlavha}</span>
+          <Badge tone={harakat.turi === 'berish' ? 'blue' : 'green'}>
+            {harakat.turi === 'berish' ? 'Berish' : 'Qaytarish'}
+          </Badge>
+        </div>
+        <div className="truncate text-sm text-slate-600 dark:text-slate-300">{harakat.tavsif}</div>
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+          <span className="inline-flex items-center gap-1">
+            <Icons.user className="h-3.5 w-3.5" /> {harakat.xodim}
+          </span>
+          <span>·</span>
+          <span className="inline-flex items-center gap-1">
+            <Icons.clock className="h-3.5 w-3.5" /> {formatDate(harakat.vaqt)}
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function TopBookRow({ kitob, orin }: { kitob: TopBook; orin: number }) {
+  return (
+    <div className="flex items-center gap-3 p-4">
+      <Badge tone={medalTone(orin)}>#{orin}</Badge>
+      <div className="min-w-0 flex-1">
+        <Link
+          to={`/books/${kitob.id}`}
+          className="block truncate font-semibold text-brand-700 hover:underline dark:text-brand-400"
+        >
+          {kitob.nomi}
+        </Link>
+        <div className="truncate text-sm text-slate-500 dark:text-slate-400">{kitob.muallif}</div>
+      </div>
+      <div className="shrink-0 text-right">
+        <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+          {kitob.berishlar_soni}
+        </div>
+        <div className="text-xs text-slate-500 dark:text-slate-400">marta o'qilgan</div>
+      </div>
+    </div>
+  )
+}
+
+export function Home() {
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+  } = useQuery({
+    queryKey: ['stats', 'dashboard'],
+    queryFn: statsApi.dashboard,
+  })
+
+  const activity = useQuery({
+    queryKey: ['stats', 'recent-activity'],
+    queryFn: () => statsApi.recentActivity(8),
+  })
+
+  const topBooks = useQuery({
+    queryKey: ['stats', 'top-books'],
+    queryFn: () => statsApi.topBooks(5),
+  })
+
+  const faollik = useQuery({
+    queryKey: ['stats', 'faollik-reytingi'],
+    queryFn: statsApi.faollikReytingi,
+  })
+
+  const engFaolSinf = faollik.data?.sinflar[0]
+  const engFaolOqituvchi = faollik.data?.faol_oqituvchilar[0]
+
+  return (
+    <div>
+      <PageHeader
+        title="Boshqaruv paneli"
+        subtitle="Kutubxonangizning joriy holati va asosiy ko‘rsatkichlari"
+      />
+
+      <section className="mb-8 rounded-2xl bg-gradient-to-r from-brand-600 to-brand-800 p-8 text-white">
+        <h1 className="text-3xl font-bold sm:text-4xl">Kitoblarni boshqaring</h1>
+        <p className="mt-3 max-w-2xl text-sm text-white/80">
+          Kitoblar, a'zolar, berish va qaytarish jarayonlarini bitta joydan kuzatib boring.
+        </p>
+      </section>
+
+      <section className="mb-8">
+        <h2 className="mb-3 text-lg font-semibold text-slate-900 dark:text-slate-100">
+          Kutubxona statistikasi
+        </h2>
+
+        {isLoading && <Spinner label="Statistika yuklanmoqda..." />}
+
+        {isError && (
+          <ErrorState
+            title="Statistikani yuklab bo‘lmadi"
+            message={errorMessage(error)}
+            onRetry={() => void refetch()}
+            retrying={isFetching}
+          />
+        )}
+
         {data && (
-          <div className="mt-6 grid grid-cols-2 gap-4">
-            <StatsCard
-              label="Jami kitoblar"
-              value={data.jami_kitoblar}
-              tone="amber"
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <StatCard label="Jami kitoblar" value={data.jami_kitoblar} />
+            <StatCard label="Jami nusxalar" value={data.jami_nusxalar} />
+            <StatCard label="Mavjud nusxalar" value={data.mavjud_nusxalar} tone="green" />
+            <StatCard label="Berilgan nusxalar" value={data.berilgan_nusxalar} tone="amber" />
+            <StatCard
+              label="Muddati o'tgan berishlar"
+              value={data.muddati_otgan_berishlar}
+              tone="red"
             />
-            <StatsCard
-              label="Jami nusxalar"
-              value={data.jami_nusxalar}
-              tone="brand"
-            />
-            <StatsCard
-              label="Faol berishlar"
-              value={data.fool_navbatlar}
-              tone="green"
-            />
-            <StatsCard
-              label="Tolangan jarima"
+            <StatCard label="Faol navbatlar" value={data.faol_navbatlar} />
+            <StatCard
+              label="To'lanmagan jarimalar"
               value={data.tolanmagan_jarimalar_soni}
               tone="red"
             />
+            <StatCard
+              label="Umumiy qarz"
+              value={formatMoney(data.umumiy_qarz)}
+              tone="amber"
+            />
+            {data.oquvchi_soni !== undefined && (
+              <StatCard label="O'quvchilar" value={data.oquvchi_soni} />
+            )}
+            {data.oqituvchi_soni !== undefined && (
+              <StatCard label="O'qituvchilar" value={data.oqituvchi_soni} />
+            )}
+            <StatCard
+              label="Faol sinflar"
+              value={faollik.data?.sinflar.length ?? 0}
+              tone="amber"
+              sub={engFaolSinf ? `Eng faoli: ${engFaolSinf.sinf}-sinf` : undefined}
+            />
+            <StatCard
+              label="Faol o'qituvchilar"
+              value={faollik.data?.faol_oqituvchilar.length ?? 0}
+              tone="blue"
+              sub={engFaolOqituvchi ? `Eng faoli: ${engFaolOqituvchi.fish}` : undefined}
+            />
           </div>
         )}
-      </nav>
+      </section>
 
-      <main className="py-8">
-        <div className="max-w-7xl mx-auto px-4">
-          {/* Hero Section */
-          <section className="mb-12">
-            <div className="bg-paper rounded-2xl p-8 dark:bg-slate-800">
-              <div className="max-w-2xl mx-auto text-center">
-                <div className="inline-flex items-baseline rounded-full bg-gradient-to-r from-brand-600 to-brand-700 px-3 py-1 text-xs font-medium text-white mb-6">
-                  <span>Kutubxona SaaS</span>
-                </div>
-                <h1 className="text-5xl sm:text-6xl font-bold text-slate-900 dark:text-slate-100 leading-tight">
-                  Kitoblarni boshqarish, raqobatlansiz
-                </h1>
-                <p className="mt-6 text-lg text-slate-500 dark:text-slate-400 max-w-2xl mx-auto">
-                  Platforma boʻlabsiz aylanib, barcha tashkilotlar uchun maxsus resurslarni boshqarish imkonini beradi.
-                </p>
-              </div>
-            </div>
-          </section>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section>
+          <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-slate-100">
+            <Icons.clock className="h-5 w-5 text-brand-600 dark:text-brand-400" />
+            So'ngi harakatlar
+          </h2>
 
-          {/* Features Section */
-          <section className="mb-12">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-8">Asosiy imkoniyathlar</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="group bg-paper rounded-xl p-6 dark:bg-slate-800 hover:shadow-xl hover:transition-shadow duration-300">
-                <div className="h-12 w-12 rounded-xl bg-brand-100 flex items-center justify-center group-hover:bg-brand-200 transition-colors mb-4">
-                  <svg className="h-6 w-6 text-brand-600" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M14 2H6a2 2 0 00-2 2v6h4V6h2v8h4V8h2v6zm10-4h-4V6h4v6h4V6h4v6h-4v6h-4V6h-4v6zm-4 12h-4v-6h4v6zM6 6v6h2V6H6zm7.5-3c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5t1.5-.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5t-1.5-.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5zm0 12c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5t1.5.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5t-1.5-.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5zm-8.5-3c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5t-1.5-.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5zm8.5 3c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5t-1.5-.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5z" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 group-hover:text-brand-600 transition-colors mb-2">Tasavvur qiluvchi panel</h3>
-                <p className="text-slate-500 dark:text-slate-400 text-sm">
-                  Barcha tashkilotlar uchun maksimal ko‘nizlikda kutubxona boshqarish.
-                </p>
-              </div>
-              <div className="group bg-paper rounded-xl p-6 dark:bg-slate-800 hover:shadow-xl hover:transition-shadow duration-300">
-                <div className="h-12 w-12 rounded-xl bg-brand-100 flex items-center justify-center group-hover:bg-brand-200 transition-colors mb-4">
-                  <svg className="h-6 w-6 text-brand-600" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M14 2H6a2 2 0 00-2 2v6h4V6h2v8h4V8h2v6zm10-4h-4V6h4v6h4V6h4v6h-4v6h-4V6h-4v6zm-4 12h-4v-6h4v6zM6 6v6h2V6H6zm7.5-3c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5t.67 1.5 1.5-.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5t-1.5-.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5zm0 12c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5t1.5.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5t-1.5-.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5zm-8.5-3c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5t-1.5-.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5zm8.5 3c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5t-1.5-.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5z" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 group-hover:text-brand-600 transition-colors mb-2">O'quvchilar boshqlash</h3>
-                <p className="text-slate-500 dark:text-slate-400 text-sm">
-                  Oquvchilar ro‘yxati, arizalari va statistikasi boshqaruvi.
-                </p>
-              </div>
-              <div className="group bg-paper rounded-xl p-6 dark:bg-slate-800 hover:shadow-xl hover:transition-shadow duration-300">
-                <div className="h-12 w-12 rounded-xl bg-brand-100 flex items-center justify-center group-hover:bg-brand-200 transition-colors mb-4">
-                  <svg className="h-6 w-6 text-brand-600" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M14 2H6a2 2 0 00-2 2v6h4V6h2v8h4V8h2v6zm10-4h-4V6h4v6h4V6h4v6h-4v6h-4V6h-4v6zm-4 12h-4v-6h4v6zM6 6v6h2V6H6zm7.5-3c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5t.67 1.5 1.5-.5c.83 0 1.5.67 1.5 1.5s-.67 1.5 1.5 1.5t-1.5-.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5t-1.5-.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5zm0 12c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5t1.5.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5t-1.5-.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5zm8.5-3c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5t-1.5-.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5zm8.5 3c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5t-1.5-.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5z" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 group-hover:text-brand-600 transition-colors mb-2">Band va berish</h3>
-                <p className="text-slate-500 dark:text-slate-400 text-sm">
-                  Kitoblarni band qilish, berish va qaytarish jarayonlari.
-                </p>
-              </div>
-            </div>
-          </section>
+          {activity.isLoading && <Spinner label="Harakatlar yuklanmoqda..." />}
 
-          {/* Supported Organizations */
-          <section className="mb-12">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-8">Yanada keladigan tashkilotlar</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-paper rounded-xl p-4 dark:bg-slate-800">
-                <div className="h-10 w-10 rounded-xl bg-brand-100 flex items-center justify-center mb-3">
-                  <svg className="h-5 w-5 text-brand-600" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v8c0 6 8 10 8 10z" />
-                    <path d="M14 9.5l-5 4.5L5 9.5l5 4.5L14 9.5zM14 13l-5-4.5L5 13l5-4.5L14 13z" />
-                  </svg>
-                </div>
-                <h3 className="text-base font-medium text-slate-900 dark:text-slate-100">Kutubxonalar</h3>
-                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-                  Kitob, nusxa va o‘quvchilar boshqaruvi.
-                </p>
-              </div>
-              <div className="bg-paper rounded-xl p-4 dark:bg-slate-800">
-                <div className="h-10 w-10 rounded-xl bg-brand-100 flex items-center justify-center mb-3">
-                  <svg className="h-5 w-5 text-brand-600" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M21 16.08c-.45 2.33-1.75 4.69-3.32 6.59.96.52 2-.03 2-.57v-2.06c0-.54-.56-.99-.99-.82-2.01.16-3.97-1.05-4.42-2.09-.16-.46-.16-1.02 0-1.49.45-1.76 1.75-3.82 2.65-.37 1.45-.7 3.14-.88 4.83-.17.55-.27.98-.32 1.33-.05.35-.41.62-.7.79-1.21-.08-1.63-.54-2.27-1.36.09-.32.08-.76 0-1.13-.12-.55-.3-1.49-.77-2.32-1.18-.47-1.26-1.24-2.19-2.36-2.73-.47-.25-.76-.47-1.02-.63-.09-.05-.26-.05-.37 0-.05.06-.21.16-.42.42-.63.75-1.28.93-1.86.16-.17.27-.32.32-.58.05-.26.09-.52.09-.77 0-.26 0-.52 0-.78 0 0-1.53 1.24-2.69 2.36.16.25.32.55.32.87v.5c0 .67.18 1.33.45 2h.05c.56 1.64 1.8 2.97 3.61 3.79 1.36.7 2.77 1.02 4.31 1.02 2.15 0 3.64-.71 4.66-1.89 1.06-.2 1.87-.6 2.43-1.24.56-.64.82-1.53.82-2.69 0-1.37-.6-2.44-1.58-3.13-.93-.67-2.12-1.06-3.58-1.06-2.76 0-4.63 2.18-4.75 5.06.06.38.06.86 0 1.22-.06 1.18-.83 2.33-1.96 2.98-1.25.74-2.65.94-4.7.94-4.94 0-6.18-3.78-5.05-7.04-.97-.67-2.25-1.22-4.48-1.15-.64.04-1.25.34-1.7.87-.54.67-1.08 1.35-1.36 2.18-.3.83-.53 1.76-.53 2.73 0 1.36.53 2.72 1.3 3.76 1.53 1.86 2.9 2.68 4.13 2.68 1.17 0 2.25-.38 3.14-1.12.89-.74 1.56-1.77 1.95-2.88.38-1.11.53-2.41.53-3.89 0-1.78-.43-3.39-1.3-4.65-1.57-.68-.78-1.34-1.62-1.87-2.43-.28-.47-.43-.86-.43-1.34 0-.59.28-1.09.43-1.5.37-.75.67-1.65 1.12-2.5.61-.95.94-2.04 1.12-3.24.18-1.27.04-2.74-.05-4.22z" />
-                  </svg>
-                </div>
-                <h3 className="text-base font-medium text-slate-900 dark:text-slate-100">Universitetlar</h3>
-                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-                    Fanlar va/materiallar boshqaruvi.
-                </p>
-              </div>
-              <div className="bg-paper rounded-xl p-4 dark:bg-slate-800">
-                <div className="h-10 w-10 rounded-xl bg-brand-100 flex items-center justify-center mb-3">
-                  <svg className="h-5 w-5 text-brand-600" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v8c0 6 8 10 8 10z" />
-                    <path d="M14 9.5l-5 4.5L5 9.5l5 4.5L14 9.5zM14 13l-5-4.5L5 13l5-4.5L14 13z" />
-                  </svg>
-                </div>
-                <h3 className="text-base font-medium text-slate-900 dark:text-slate-100">Ofislar</h3>
-                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-                    Zaminlar va xizmatlar.
-                </p>
-              </div>
-            </div>
-          </section>
+          {activity.isError && (
+            <ErrorState
+              title="Harakatlarni yuklab bo‘lmadi"
+              message={errorMessage(activity.error)}
+              onRetry={() => void activity.refetch()}
+              retrying={activity.isFetching}
+            />
+          )}
 
-          {/* CTA Section */
-          <section className="mt-12 bg-gradient-to-b from-brand-50 to-canvas dark:from-brand-950 dark:to-slate-900 rounded-2xl p-8">
-            <div className="max-w-2xl mx-auto text-center">
-              <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-4">
-                O'z tashkilotingizni yarating
-              </h2>
-              <p className="text-slate-500 dark:text-slate-400 mb-8">
-                SaaS platformasining barcha imkoniyatiyla ega bo‘ling. Endi ro‘yxatdan o‘tib, tashkilotingizni yaratish va admin tasdiqlashini kuting.
-              </p>
-              <div className="space-y-3">
-                <NavLink
-                  to="/register"
-                  className="inline-block bg-brand-600 text-white font-medium py-3 px-8 rounded-lg hover:bg-brand-700 transition-colors">
-                  Ro‘yxatdan o‘tish
-                </NavLink>
-                <NavLink
-                  to="/login"
-                  className="inline-block bg-white text-brand-600 font-medium py-3 px-8 rounded-lg hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-200 transition-colors">
-                  Kiritish (boshqalar uchun)
-                </NavLink>
-              </div>
-            </div>
-          </section>
-        </div>
-      </main>
-    </Layout>
+          {activity.data && (
+            <Card className="divide-y divide-slate-100 dark:divide-slate-700">
+              {activity.data.length ? (
+                activity.data.map((harakat) => (
+                  <ActivityRow key={harakat.id} harakat={harakat} />
+                ))
+              ) : (
+                <div className="p-4">
+                  <EmptyState
+                    icon={<Icons.inbox className="h-10 w-10" />}
+                    title="Hali harakat yo‘q"
+                    description="Kitob berilganda yoki qaytarilganda shu yerda ko‘rinadi."
+                  />
+                </div>
+              )}
+            </Card>
+          )}
+        </section>
+
+        <section>
+          <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-slate-100">
+            <Icons.books className="h-5 w-5 text-brand-600 dark:text-brand-400" />
+            Eng ko'p o'qilgan kitoblar
+          </h2>
+
+          {topBooks.isLoading && <Spinner label="Kitoblar yuklanmoqda..." />}
+
+          {topBooks.isError && (
+            <ErrorState
+              title="Kitoblarni yuklab bo‘lmadi"
+              message={errorMessage(topBooks.error)}
+              onRetry={() => void topBooks.refetch()}
+              retrying={topBooks.isFetching}
+            />
+          )}
+
+          {topBooks.data && (
+            <Card className="divide-y divide-slate-100 dark:divide-slate-700">
+              {topBooks.data.length ? (
+                topBooks.data.map((kitob, i) => (
+                  <TopBookRow key={kitob.id} kitob={kitob} orin={i + 1} />
+                ))
+              ) : (
+                <div className="p-4">
+                  <EmptyState
+                    icon={<Icons.inbox className="h-10 w-10" />}
+                    title="Hali ma'lumot yo‘q"
+                    description="Kitob berilgach, eng ko'p o'qilganlar shu yerda ko‘rinadi."
+                  />
+                </div>
+              )}
+            </Card>
+          )}
+        </section>
+      </div>
+    </div>
   )
 }

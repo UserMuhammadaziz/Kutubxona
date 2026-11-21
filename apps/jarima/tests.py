@@ -61,8 +61,8 @@ class JarimaTestBase(TestCase):
             oquvchi=oquvchi,
             bergan_xodim=self.xodim,
             berilgan_sana=date(2020, 1, 1),
-            qaytarish_muddati=date.today() - timedelta(days=kunlar),
-            qaytarilgan_sana=date.today() - timedelta(days=1) if tasdiq else None,
+            qaytarish_muddati=now().date() - timedelta(days=kunlar),
+            qaytarilgan_sana=now().date() - timedelta(days=1) if tasdiq else None,
             holati="qaytarilgan" if tasdiq else "faol",
         )
         if tasdiq:
@@ -192,8 +192,8 @@ class JarimaEslatmaTest(JarimaTestBase):
             oquvchi=oquvchi,
             bergan_xodim=self.xodim,
             berilgan_sana=date(2020, 1, 1),
-            qaytarish_muddati=date.today() - timedelta(days=5),
-            qaytarilgan_sana=date.today() - timedelta(days=2),
+            qaytarish_muddati=now().date() - timedelta(days=5),
+            qaytarilgan_sana=now().date() - timedelta(days=2),
             holati="qaytarilgan",
         )
         jarimani_hisobla(berish2)

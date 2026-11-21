@@ -1,6 +1,8 @@
 from django.contrib import admin, messages
 from django.db import transaction
 
+from organization.tenancy import joriy_kutubxonani_aniqla
+
 from .models import Ariza, Oquvchi
 from . import services
 
@@ -50,7 +52,10 @@ class ArizaAdmin(admin.ModelAdmin):
                 continue
             try:
                 with transaction.atomic():
-                    ariza, oquvchi, yangi_karta = services.arizani_tasdiqla(ariza)
+                    org = joriy_kutubxonani_aniqla(request, required=False)
+                    ariza, oquvchi, yangi_karta = services.arizani_tasdiqla(
+                        ariza, organization=org
+                    )
                     services.ariza_holatini_yubor(
                         ariza, services.tasdiqlash_xabari(ariza, oquvchi, yangi_karta)
                     )

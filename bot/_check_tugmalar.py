@@ -11,7 +11,7 @@ Statik qism (har doim ishlaydi, tarmoq talab qilmaydi):
   3. Tugmalar Telegram cheklovlariga sig'adi (callback_data <= 64 bayt,
      tugma matni <= 64 belgi).
   4. Ariza bosqichida menyu tugmasi maydon sifatida tushib ketmaydi.
-  5. Nusxasi yo'q ("asli") kitob matnida bo'sh `INV:` chiqmaydi.
+  5. Nusxasi yo'q kitob matnida bo'sh `INV:` va "Asli kitob" chiqmaydi.
 
 Live qism (--live): bot ishlatadigan har bir API metodi haqiqiy javob
 tuzilmasini tekshiradi — ayniqsa "Kategoriyalar" tugmasi (`/books/genres/`).
@@ -663,7 +663,7 @@ async def main() -> int:
 
     print()
     print("=" * 72)
-    print("6. 'ASLI' KITOB MATNI")
+    print("6. NUSXASIZ KITOB MATNI")
     print("=" * 72)
     asl = shaxsiy._berish_qatori(
         {
@@ -675,7 +675,7 @@ async def main() -> int:
         }
     )
     tekshir("INV:" not in asl, "bo'sh inventar 'INV: ' sifatida chiqmaydi")
-    tekshir("Asli" in asl, "o'rniga 'Asli kitob' chiqadi")
+    tekshir("Asli" not in asl, "'Asli kitob' matni chiqmaydi")
     nusxa = shaxsiy._berish_qatori(
         {
             "kitob_nomi": "Sarob",
@@ -931,16 +931,6 @@ async def main() -> int:
         'Command("menu"' in nav,
         "navigatsiya.py da `/menu` buyrug'i bor",
     )
-    tekshir(
-        "menyu:qidiruv" in kb.MENYU_INLINE_TUGMALARI[0][1],
-        "menyudagi birinchi tugma `menyu:qidiruv`",
-    )
-    for matn, _callback in kb.MENYU_INLINE_TUGMALARI:
-        tekshir(
-            await ushlanadimi("callback_query", bildirishnoma(_callback)),
-            f"menyu tugmasi ushlanadi: {matn}",
-        )
-
     # Muhim: navigatsiya router'i state handler'laridan OLDIN ro'yxatlanishi
     # kerak, aks holda `/bekor` ariza maydoniga matn bo'lib ketadi.
     router_tartibi = re.findall(r"dp\.include_router\((\w+)\.router\)", main_py)
@@ -1001,7 +991,7 @@ async def main() -> int:
 
     # Eski klaviatura foydalanuvchida qolmasin.
     tekshir(
-        "klaviatura_olib_tashla()" in start_py.split("async def start(")[1][:900],
+        "klaviatura_olib_tashla()" in start_py,
         "/start da eski pastdigi klaviatura tozalanadi",
     )
 

@@ -288,7 +288,7 @@ def _kitob_karta(bot, chat_id, telegram_id, kitob_id, callback_id=None):
         matn += f"🔢 ISBN: {telegram_escape(kitob.isbn)}\n"
     matn += f"\n📦 Jami nusxa: <b>{jami}</b> · Mavjud: <b>{mavjud}</b>\n"
     if not jami:
-        matn += "ℹ️ Nusxa yo'q — kitob «asli» holda beriladi.\n"
+        matn += "ℹ️ Nusxa yo'q — kitob berilishi mumkin.\n"
     elif mavjud:
         matn += "✅ Hozir mavjud, hech kimda emas.\n"
     else:
@@ -376,7 +376,7 @@ def _kitoblarim(bot, chat_id, telegram_id):
         return _send(bot, chat_id, "Sizda hozir faol kitob yo'q.")
     matn = "📖 <b>Mening kitoblarim</b>\n\n"
     for berish in qs:
-        inv = f" ({berish.nusxa.inventar_raqami})" if berish.nusxa else " (asli)"
+        inv = f" ({berish.nusxa.inventar_raqami})" if berish.nusxa else ""
         matn += (
             f"• <b>{telegram_escape(berish.kitob.nomi)}</b>{inv}\n"
             f"  Qaytarish: <b>{berish.qaytarish_muddati}</b>\n"

@@ -29,4 +29,10 @@ app.conf.beat_schedule = {
         "task": "berish.tasks.eslatma_yuborish",
         "schedule": crontab(hour=9, minute=0),
     },
+    # Har oyning 1-kuni ertalab soat 08:00 (CELERY_TIMEZONE = Asia/Tashkent).
+    # O'tgan oy bo'yicha shaxsiy statistika har bir o'quvchi/o'qituvchiga.
+    "oylik-statistika-har-oyning-birinchisida": {
+        "task": "telegrambot.tasks.oylik_statistika_yubor",
+        "schedule": crontab(day_of_month=1, hour=8, minute=0),
+    },
 }

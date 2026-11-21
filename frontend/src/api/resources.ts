@@ -30,6 +30,8 @@ import type {
   BandQilishMeni,
   BandQilishYaratishPayload,
   BandHolati,
+  FaollikReytingi,
+  RecentActivity,
 } from '../types'
 
 // ---- Auth ----
@@ -37,9 +39,11 @@ import type {
 export interface RegisterPayload {
   username: string
   password: string
+  password_confirm: string
   full_name: string
-  organization_name: string
-  organization_type: 'library' | 'school' | 'university' | 'office' | 'other'
+  kutubxona_nomi: string
+  turi: 'library' | 'school' | 'university' | 'office' | 'other'
+  telefon?: string
 }
 
 export const authApi = {
@@ -206,5 +210,9 @@ export const staffApi = {
 
 export const statsApi = {
   topBooks: (limit = 10) => api.get<TopBook[]>('/stats/top-books/', { params: { limit } }).then((r) => r.data),
+  recentActivity: (limit = 8) =>
+    api.get<RecentActivity[]>('/stats/recent-activity/', { params: { limit } }).then((r) => r.data),
   dashboard: () => api.get<DashboardStats>('/stats/dashboard/').then((r) => r.data),
+  faollikReytingi: () =>
+    api.get<FaollikReytingi>('/stats/ratings/activity/').then((r) => r.data),
 }

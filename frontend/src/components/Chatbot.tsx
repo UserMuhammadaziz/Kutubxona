@@ -95,7 +95,7 @@ export function Chatbot() {
       </button>
 
       {isOpen && (
-        <div className="fixed bottom-6 right-6 z-40 w-full max-w-sm lg:max-w-md">
+        <div className="fixed bottom-24 right-4 z-40 w-[calc(100vw-2rem)] max-w-sm sm:right-6 lg:max-w-md">
           <div className="flex flex-col rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden dark:border-slate-700 dark:bg-slate-800">
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700">
               <div className="flex items-center gap-2">

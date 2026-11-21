@@ -36,9 +36,9 @@ const TONE: Record<BerishHolati, 'blue' | 'green' | 'red'> = {
   yoqolgan: 'red',
 }
 
-/** Berish ro'yxatida nusxa o'rniga ko'rsatiladigan matn. */
+/** Berish ro'yxatida ko'rsatiladigan inventar raqami (nusxasiz kitobda bo'sh). */
 function berishNomi(b: Berish): string {
-  return b.asli || !b.inventar_raqami ? 'Asli kitob' : b.inventar_raqami
+  return b.inventar_raqami || ''
 }
 
 /**
@@ -61,7 +61,7 @@ function berishRejasi(kitob: Kitob | null): {
   }
   if (kitob.jami_nusxalar === 0) {
     return {
-      matn: "Beriladi: kitob asli (bu kitobning umuman nusxasi yo'q)",
+      matn: "Beriladi: kitob (bu kitobning umuman nusxasi yo'q)",
       mumkin: true,
       aside: true,
     }
@@ -278,13 +278,9 @@ function onSubmit(e: FormEvent) {
                   <div className="font-medium text-slate-900 dark:text-slate-100">
                     {l.kitob_nomi}
                   </div>
-                  <div className="text-xs text-slate-400">
-                    {l.asli ? (
-                      <span className="text-amber-600 dark:text-amber-400">Asli kitob</span>
-                    ) : (
-                      l.inventar_raqami
-                    )}
-                  </div>
+                  {!l.asli && l.inventar_raqami && (
+                    <div className="text-xs text-slate-400">{l.inventar_raqami}</div>
+                  )}
                 </div>
                 <Badge tone={TONE[l.holati]}>{BERISH_HOLATI_LABELS[l.holati]}</Badge>
               </div>
@@ -318,16 +314,13 @@ function onSubmit(e: FormEvent) {
                     <div className="font-medium text-slate-900 dark:text-slate-100">
                       {l.kitob_nomi}
                     </div>
-                    <div className="text-xs text-slate-400 dark:text-slate-500">
-                      {l.asli ? (
-                        <span className="text-amber-600 dark:text-amber-400">Asli kitob</span>
-                      ) : (
-                        l.inventar_raqami
-                      )}
-                    </div>
+                    {!l.asli && l.inventar_raqami && (
+                      <div className="text-xs text-slate-400 dark:text-slate-500">{l.inventar_raqami}</div>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
-                    {l.oquvchi_fish} {l.oquvchi.sinf ? `- ${l.oquvchi.sinf}-sinf` : ''}
+                    {l.oquvchi_fish} {l.oquvchi_sinf ? `- ${l.oquvchi_sinf}-sinf` : ''}
+                  </td>
                   <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
                     {formatDate(l.berilgan_sana)}
                   </td>
@@ -357,7 +350,7 @@ function onSubmit(e: FormEvent) {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         title="Kitob berish"
-        description="O‘quvchini va kitobni tanlang. Nusxa mavjud bo‘lsa avtomatik tanlanadi, aks holda kitobning aslini beriladi — «nusxa yo‘q» degan xatoga yo‘q qolmaydi. Berish Telegram orqali xabar bilan tasdiqlanadi."
+        description="O‘quvchini va kitobni tanlang. Nusxa mavjud bo‘lsa avtomatik tanlanadi, aks holda kitob beriladi — «nusxa yo‘q» degan xatoga yo‘q qolmaydi. Berish Telegram orqali xabar bilan tasdiqlanadi."
       >
         <ErrorBanner message={error} />
         <form onSubmit={onSubmit}>
@@ -417,7 +410,7 @@ function onSubmit(e: FormEvent) {
                     {k.mavjud_nusxalar > 0
                       ? ` (${k.mavjud_nusxalar}/${k.jami_nusxalar} nusxa)`
                       : k.jami_nusxalar === 0
-                        ? ' (asli)'
+                        ? ' (nusxa yo‘q)'
                         : ' (barcha nusxalar band)'}
                   </option>
                 ))}
@@ -484,7 +477,7 @@ function onSubmit(e: FormEvent) {
                 </Select>
               ) : (
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Hozircha mavjud nusxa yo‘q — kitobning aslini beriladi. Nusxa
+                  Hozircha mavjud nusxa yo‘q — kitob beriladi. Nusxa
                   qo‘shish shart emas.
                 </p>
               )}
@@ -515,7 +508,8 @@ function onSubmit(e: FormEvent) {
         message={
           qaytariladigan && (
             <>
-              <b>{qaytariladigan.kitob_nomi}</b> ({berishNomi(qaytariladigan)}) kitobini{' '}
+              <b>{qaytariladigan.kitob_nomi}</b>
+              {berishNomi(qaytariladigan) && ` (${berishNomi(qaytariladigan)})`} kitobini{' '}
               <b>{qaytariladigan.oquvchi_fish}</b>dan qaytarasizmi?
               <br />
               <br />

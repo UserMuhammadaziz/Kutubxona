@@ -95,7 +95,7 @@ async def _yordam_ber(message: Message, state: FSMContext) -> None:
             klaviatura = None
         else:
             # Qidiruv/inventar maydonida bo'lim tugmalari foydali: yangi
-            # bo'limga o'tish arizani bekor qilmaydi (`_arizani_tugatish`
+            # bo'limga o'tish arizani bekor qilmaydi (arizani tugatish
             # faqat ARIZA bosqichlariga taalluq).
             klaviatura = asosiy_tugmalar_klaviaturasi()
 

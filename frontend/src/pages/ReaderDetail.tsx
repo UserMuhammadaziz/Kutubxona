@@ -135,16 +135,6 @@ export function ReaderDetail() {
               </dd>
             </div>
             <div>
-              <dt className="text-slate-500 dark:text-slate-400">Tug'ilgan sana</dt>
-              <dd className="font-medium text-slate-900 dark:text-slate-100">
-                {formatDate(reader.tugilgan_sana)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-slate-500 dark:text-slate-400">Manzil</dt>
-              <dd className="font-medium text-slate-900 dark:text-slate-100">{reader.manzil || '—'}</dd>
-            </div>
-            <div>
               <dt className="text-slate-500 dark:text-slate-400">Telegram</dt>
               <dd className="font-medium text-slate-900 dark:text-slate-100">
                 {reader.telegram_id ? `#${reader.telegram_id}` : 'Bog‘lanmagan'}
@@ -172,7 +162,7 @@ export function ReaderDetail() {
                       </Badge>
                     </div>
                     <div className="text-xs text-slate-500 dark:text-slate-400">
-                      {l.asli ? 'Asli kitob' : `№ ${l.inventar_raqami}`} · Muddat:{' '}
+                      {!l.asli && l.inventar_raqami && `№ ${l.inventar_raqami} · `}Muddat:{' '}
                       {formatDate(l.qaytarish_muddati)}
                     </div>
                     <Button size="sm" className="w-full" onClick={() => setQaytariladigan(l)}>
@@ -316,8 +306,10 @@ export function ReaderDetail() {
           qaytariladigan && (
             <>
               <b>{qaytariladigan.kitob_nomi}</b>{' '}
-              {qaytariladigan.asli ? '(asli kitob)' : `(${qaytariladigan.inventar_raqami})`} kitobini{' '}
-              <b>{reader.fish}</b>dan qaytarasizmi?
+              {!qaytariladigan.asli &&
+                qaytariladigan.inventar_raqami &&
+                `(${qaytariladigan.inventar_raqami})`}{' '}
+              kitobini <b>{reader.fish}</b>dan qaytarasizmi?
               <br />
               <br />
               Muddat o‘tganda jarima avtomatik hisoblanadi.
