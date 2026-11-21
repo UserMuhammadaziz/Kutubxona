@@ -212,10 +212,10 @@ class LimitTekshiruvTest(AuditTestBase):
         self.assertIn("Oquvchi.objects.select_for_update()", manba)
 
     def test_limit_oshganda_xato(self):
-        # Limit endi global sozlama emas — har kutubxonaning o'z limiti.
+        # Limit endi kutubxona (Organization.limit_kitob) bo'yicha.
         self.org.limit_kitob = 1
         self.org.save(update_fields=["limit_kitob"])
-
+        self.oquvchi.refresh_from_db()
         kitob_ber(self.nusxa, self.oquvchi, self.xodim)
         ikkinchi = Nusxa.objects.create(
             kitob=self.kitob,

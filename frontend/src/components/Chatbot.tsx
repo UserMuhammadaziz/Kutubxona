@@ -62,6 +62,21 @@ export function Chatbot() {
     }
   }
 
+  // Saqlangan suhbatni bir marta yuklaymiz (ochilganda).
+  const yuklandi = useRef(false)
+  useEffect(() => {
+    if (!isOpen || yuklandi.current) return
+    yuklandi.current = true
+    api
+      .get<Array<{ role: 'user' | 'model'; content: string }>>('/chatbot/')
+      .then((r) => {
+        if (!r.data.length) return
+        setMessages(r.data.map((m) => ({ role: m.role === 'model' ? 'assistant' : 'user', content: m.content })))
+        setHistory(r.data.map((m) => ({ role: m.role, parts: [m.content] })))
+      })
+      .catch(() => {})
+  }, [isOpen])
+
   const toggleChat = () => {
     setIsOpen((prev) => !prev)
     if (!isOpen && messages.length === 0) {
@@ -75,27 +90,25 @@ export function Chatbot() {
   }
 
   const clearChat = () => {
+    api.delete('/chatbot/').catch(() => {})
     setMessages([])
     setHistory([])
   }
 
   return (
     <>
-      <button
-        onClick={toggleChat}
-        aria-label={isOpen ? "Chatni yopish" : "Chatni ochish"}
-        className={clsx(
-          'fixed bottom-6 right-6 z-50 rounded-full p-3 shadow-lg transition-all duration-300',
-          'bg-brand-600 text-white hover:bg-brand-700',
-          isOpen && 'rotate-45 bg-red-500 hover:bg-red-600',
-          'dark:bg-brand-500 dark:hover:bg-brand-600'
-        )}
-      >
-        {isOpen ? <Icons.close className='h-6 w-6' /> : <Icons.chat className='h-6 w-6' />}
-      </button>
+      {!isOpen && (
+        <button
+          onClick={toggleChat}
+          aria-label="Chatni ochish"
+          className="fixed bottom-20 right-4 z-50 rounded-full bg-brand-600 p-3 text-white shadow-lg transition-colors hover:bg-brand-700 lg:bottom-6 lg:right-6 dark:bg-brand-500 dark:hover:bg-brand-600"
+        >
+          <Icons.chat className="h-6 w-6" />
+        </button>
+      )}
 
       {isOpen && (
-        <div className="fixed bottom-24 right-4 z-40 w-[calc(100vw-2rem)] max-w-sm sm:right-6 lg:max-w-md">
+        <div className="fixed inset-x-4 bottom-20 z-50 sm:left-auto sm:w-96 lg:bottom-6 lg:right-6">
           <div className="flex flex-col rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden dark:border-slate-700 dark:bg-slate-800">
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700">
               <div className="flex items-center gap-2">
@@ -123,7 +136,7 @@ export function Chatbot() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[400px]">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[min(400px,55dvh)]">
               {messages.map((msg, idx) => (
                 <div
                   key={idx}
@@ -179,6 +192,12 @@ export function Chatbot() {
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Xabar yozing..."
                   rows={1}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      e.currentTarget.form?.requestSubmit()
+                    }
+                  }}
                   disabled={isLoading}
                   className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                   aria-label="Xabar matni"

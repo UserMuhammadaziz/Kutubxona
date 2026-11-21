@@ -8,6 +8,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+_REDIS = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+FSM_REDIS_URL = os.environ.get("BOT_FSM_REDIS_URL", _REDIS.rsplit("/", 1)[0] + "/2")
 API_BASE_URL = os.environ.get("BOT_API_BASE_URL", "http://127.0.0.1:8000/api")
 
 # Bot IsAuthenticated/IsLibrarian talab qiladigan endpointlarga kirishi uchun

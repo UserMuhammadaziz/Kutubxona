@@ -4,7 +4,8 @@ from datetime import timedelta
 from django.utils import timezone
 from django.db.models import Count, Q, Avg
 
-from organization.models import Organization, LibraryRating
+from organization.models import Organization
+from stats.models import LibraryActivityRating, LibraryRating
 from kitob.models import Kitob
 from nusxa.models import Nusxa
 from berish.models import Berish

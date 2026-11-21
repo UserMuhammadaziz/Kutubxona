@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import { booksApi, copiesApi, loansApi, readersApi } from '../api/resources'
@@ -23,9 +24,9 @@ import {
   ResponsiveList,
   Select,
   Spinner,
-  Table,
   TableSkeleton,
 } from '../components/ui'
+import DataTable, { type DataTableColumn } from '../components/DataTable'
 import { useToast } from '../components/Toast'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { formatDate, formatMoney } from '../lib/format'
@@ -36,9 +37,9 @@ const TONE: Record<BerishHolati, 'blue' | 'green' | 'red'> = {
   yoqolgan: 'red',
 }
 
-/** Berish ro'yxatida ko'rsatiladigan inventar raqami (nusxasiz kitobda bo'sh). */
+/** Berish ro'yxatida nusxa o'rniga ko'rsatiladigan matn. */
 function berishNomi(b: Berish): string {
-  return b.inventar_raqami || ''
+  return b.asli || !b.inventar_raqami ? 'Asli kitob' : b.inventar_raqami
 }
 
 /**
@@ -61,7 +62,7 @@ function berishRejasi(kitob: Kitob | null): {
   }
   if (kitob.jami_nusxalar === 0) {
     return {
-      matn: "Beriladi: kitob (bu kitobning umuman nusxasi yo'q)",
+      matn: "Beriladi: kitob asli (bu kitobning umuman nusxasi yo'q)",
       mumkin: true,
       aside: true,
     }
@@ -77,7 +78,15 @@ export function Loans() {
   const qc = useQueryClient()
   const toast = useToast()
   const [page, setPage] = useState(1)
-  const [holati, setHolati] = useState<BerishHolati | ''>('')
+  // AI buyruq paneli (Ctrl+K) shu parametrlar orqali sahifani tayyorlab beradi.
+  const [params, setParams] = useSearchParams()
+  const kechikkanRejim = params.get('kechikkan') === '1'
+  const [holati, setHolati] = useState<BerishHolati | ''>(() => {
+    const h = params.get('holat')
+    if (h === 'faol' || h === 'qaytarilgan' || h === 'yoqolgan') return h
+    // Havola holat bermasa, standart bo'yicha faol (qaytarilmagan) berishlar ko'rsatiladi.
+    return 'faol'
+  })
   const [modalOpen, setModalOpen] = useState(false)
   const [readerSearch, setReaderSearch] = useState('')
   const kechikkanReaderSearch = useDebouncedValue(readerSearch)
@@ -89,8 +98,14 @@ export function Loans() {
   const [qaytariladigan, setQaytariladigan] = useState<Berish | null>(null)
 
   const { data, isLoading, isError, error: listError, refetch, isFetching } = useQuery({
-    queryKey: ['loans', page, holati],
-    queryFn: () => loansApi.list({ page, holati: holati || undefined }),
+    queryKey: ['loans', page, holati, kechikkanRejim],
+    queryFn: async () => {
+      if (kechikkanRejim) {
+        const results = await loansApi.overdue()
+        return { count: results.length, next: null, previous: null, results }
+      }
+      return loansApi.list({ page, holati: holati || undefined })
+    },
   })
 
   const { data: readers, isLoading: readersLoading } = useQuery({
@@ -110,6 +125,17 @@ export function Loans() {
     queryFn: () => copiesApi.list({ holati: 'mavjud' }),
     enabled: modalOpen && aniqNusxa,
   })
+
+  useEffect(() => {
+    if (params.get('berish') !== '1') return
+    setForm({ kitob: 0, oquvchi: 0 })
+    setError(null)
+    setReaderSearch(params.get('reader') ?? '')
+    setBookSearch(params.get('book') ?? '')
+    setAniqNusxa(false)
+    setModalOpen(true)
+    setParams({}, { replace: true })
+  }, [params, setParams])
 
   const createMut = useMutation({
     mutationFn: (payload: BerishCreatePayload) => loansApi.create(payload),
@@ -206,7 +232,7 @@ function onSubmit(e: FormEvent) {
     <div>
       <PageHeader
         title="Berish / Qaytarish"
-        subtitle="Kitob berish va qaytarish jarayonlari"
+        subtitle={kechikkanRejim ? 'Muddati o‘tgan kitoblar' : 'Kitob berish va qaytarish jarayonlari'}
         actions={
           <Button onClick={openCreate} className="w-full sm:w-auto">
             + Kitob berish
@@ -221,6 +247,7 @@ function onSubmit(e: FormEvent) {
             onChange={(e) => {
               setHolati(e.target.value as BerishHolati | '')
               setPage(1)
+              setParams({}, { replace: true })
             }}
             aria-label="Berish holati"
           >
@@ -278,9 +305,13 @@ function onSubmit(e: FormEvent) {
                   <div className="font-medium text-slate-900 dark:text-slate-100">
                     {l.kitob_nomi}
                   </div>
-                  {!l.asli && l.inventar_raqami && (
-                    <div className="text-xs text-slate-400">{l.inventar_raqami}</div>
-                  )}
+                  <div className="text-xs text-slate-400">
+                    {l.asli ? (
+                      <span className="text-amber-600 dark:text-amber-400">Asli kitob</span>
+                    ) : (
+                      l.inventar_raqami
+                    )}
+                  </div>
                 </div>
                 <Badge tone={TONE[l.holati]}>{BERISH_HOLATI_LABELS[l.holati]}</Badge>
               </div>
@@ -296,61 +327,84 @@ function onSubmit(e: FormEvent) {
             </div>
           )}
         >
-          <Table>
-            <thead className="border-b border-slate-200 bg-canvas text-xs uppercase text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
-              <tr>
-                <th className="px-4 py-3">Kitob</th>
-                <th className="px-4 py-3">O'quvchi</th>
-                <th className="px-4 py-3">Berilgan</th>
-                <th className="px-4 py-3">Muddat</th>
-                <th className="px-4 py-3">Holati</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-              {data.results.map((l) => (
-                <tr key={l.id} className="hover:bg-canvas dark:hover:bg-slate-800/50">
-<td className="px-4 py-3">
-                    <div className="font-medium text-slate-900 dark:text-slate-100">
-                      {l.kitob_nomi}
+          <DataTable<Berish>
+            data={data.results}
+            getRowId={(l) => l.id}
+            emptyText="Berish topilmadi"
+            pagination={
+              !kechikkanRejim
+                ? {
+                    count: data.count,
+                    page: page - 1,
+                    rowsPerPage: 20,
+                    onPageChange: (p) => setPage(p + 1),
+                  }
+                : undefined
+            }
+            columns={
+              [
+                {
+                  id: 'kitob_nomi',
+                  label: 'Kitob',
+                  sortBy: (l) => l.kitob_nomi,
+                  render: (l) => (
+                    <div>
+                      <div className="font-medium text-slate-900 dark:text-slate-100">{l.kitob_nomi}</div>
+                      <div className="text-xs text-slate-400 dark:text-slate-500">
+                        {l.asli ? <span className="text-amber-600 dark:text-amber-400">Asli kitob</span> : l.inventar_raqami}
+                      </div>
                     </div>
-                    {!l.asli && l.inventar_raqami && (
-                      <div className="text-xs text-slate-400 dark:text-slate-500">{l.inventar_raqami}</div>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
-                    {l.oquvchi_fish} {l.oquvchi_sinf ? `- ${l.oquvchi_sinf}-sinf` : ''}
-                  </td>
-                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
-                    {formatDate(l.berilgan_sana)}
-                  </td>
-                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
-                    {formatDate(l.qaytarish_muddati)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge tone={TONE[l.holati]}>{BERISH_HOLATI_LABELS[l.holati as BerishHolati]}</Badge>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {l.holati === 'faol' && (
+                  ),
+                },
+                { id: 'oquvchi_fish', label: "O'quvchi", sortBy: (l) => l.oquvchi_fish },
+                {
+                  id: 'berilgan_sana',
+                  label: 'Berilgan',
+                  sortBy: (l) => l.berilgan_sana,
+                  render: (l) => formatDate(l.berilgan_sana),
+                },
+                {
+                  id: 'qaytarish_muddati',
+                  label: 'Muddat',
+                  sortBy: (l) => l.qaytarish_muddati,
+                  render: (l) => formatDate(l.qaytarish_muddati),
+                },
+                {
+                  id: 'holati',
+                  label: 'Holati',
+                  sortBy: (l) => l.holati,
+                  render: (l) => <Badge tone={TONE[l.holati]}>{BERISH_HOLATI_LABELS[l.holati as BerishHolati]}</Badge>,
+                },
+                {
+                  id: 'amallar',
+                  label: '',
+                  sortable: false,
+                  align: 'right',
+                  render: (l) =>
+                    l.holati === 'faol' ? (
                       <Button size="sm" onClick={() => setQaytariladigan(l)} disabled={returnMut.isPending}>
                         Qaytarish
                       </Button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
+                    ) : null,
+                },
+              ] as DataTableColumn<Berish>[]
+            }
+          />
         </ResponsiveList>
       )}
 
-      {data && <Pagination count={data.count} page={page} onChange={setPage} />}
+      {/* Mobilda jadvaldagi MUI pagination ko'rinmaydi */}
+      {data && !kechikkanRejim && (
+        <div className="md:hidden">
+          <Pagination count={data.count} page={page} onChange={setPage} />
+        </div>
+      )}
 
-<Modal
+      <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         title="Kitob berish"
-        description="O‘quvchini va kitobni tanlang. Nusxa mavjud bo‘lsa avtomatik tanlanadi, aks holda kitob beriladi — «nusxa yo‘q» degan xatoga yo‘q qolmaydi. Berish Telegram orqali xabar bilan tasdiqlanadi."
+        description="O‘quvchini va kitobni tanlang. Nusxa mavjud bo‘lsa avtomatik tanlanadi, aks holda kitobning aslini beriladi — «nusxa yo‘q» degan xatoga yo‘q qolmaydi. Berish Telegram orqali xabar bilan tasdiqlanadi."
       >
         <ErrorBanner message={error} />
         <form onSubmit={onSubmit}>
@@ -410,7 +464,7 @@ function onSubmit(e: FormEvent) {
                     {k.mavjud_nusxalar > 0
                       ? ` (${k.mavjud_nusxalar}/${k.jami_nusxalar} nusxa)`
                       : k.jami_nusxalar === 0
-                        ? ' (nusxa yo‘q)'
+                        ? ' (asli)'
                         : ' (barcha nusxalar band)'}
                   </option>
                 ))}
@@ -477,7 +531,7 @@ function onSubmit(e: FormEvent) {
                 </Select>
               ) : (
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Hozircha mavjud nusxa yo‘q — kitob beriladi. Nusxa
+                  Hozircha mavjud nusxa yo‘q — kitobning aslini beriladi. Nusxa
                   qo‘shish shart emas.
                 </p>
               )}
@@ -508,8 +562,7 @@ function onSubmit(e: FormEvent) {
         message={
           qaytariladigan && (
             <>
-              <b>{qaytariladigan.kitob_nomi}</b>
-              {berishNomi(qaytariladigan) && ` (${berishNomi(qaytariladigan)})`} kitobini{' '}
+              <b>{qaytariladigan.kitob_nomi}</b> ({berishNomi(qaytariladigan)}) kitobini{' '}
               <b>{qaytariladigan.oquvchi_fish}</b>dan qaytarasizmi?
               <br />
               <br />

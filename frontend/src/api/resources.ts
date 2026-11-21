@@ -37,13 +37,12 @@ import type {
 // ---- Auth ----
 
 export interface RegisterPayload {
+  kutubxona_nomi: string
+  turi: 'library' | 'school' | 'university' | 'office' | 'other'
+  full_name: string
   username: string
   password: string
   password_confirm: string
-  full_name: string
-  kutubxona_nomi: string
-  turi: 'library' | 'school' | 'university' | 'office' | 'other'
-  telefon?: string
 }
 
 export const authApi = {

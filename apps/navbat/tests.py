@@ -21,19 +21,18 @@ from navbat.services import keyingi_navbatga_taklif_yubor, taklifni_bekor_qil_va
 from navbat.tasks import takliflarni_tekshir
 from nusxa.models import Nusxa
 from oquvchi.models import Oquvchi
-from config.test_helpers import TenantTestMixin
 
 User = get_user_model()
 
 YUBORILGAN = []
 
 
-def _yubor(chat_id, matn, parse_mode="HTML", organization=None):
+def _yubor(chat_id, matn, parse_mode="HTML", **kwargs):
     YUBORILGAN.append({"chat_id": chat_id, "matn": matn})
     return True
 
 
-class NavbatTestBase(TenantTestMixin, TestCase):
+class NavbatTestBase(TestCase):
     def setUp(self):
         super().setUp()
         YUBORILGAN.clear()
@@ -49,7 +48,6 @@ class NavbatTestBase(TenantTestMixin, TestCase):
         self.xodim = User.objects.create_user(
             username="kutubxonachi", password="parol12345", full_name="K", rol="kutubxonachi"
         )
-        self.azolik(self.xodim)
         self.kitob = Kitob.objects.create(
             nomi="O'tkan kunlar", muallif="Abdulla Qodiriy", janr="badiiy", nashr_yili=2015
         )

@@ -6,14 +6,24 @@ from jarima.models import Jarima
 class JarimaSerializer(serializers.ModelSerializer):
 
     oquvchi_fish = serializers.CharField(source="berish.oquvchi.fish", read_only=True)
+    oquvchi_id = serializers.IntegerField(source="berish.oquvchi_id", read_only=True)
+    oquvchi_telefon = serializers.CharField(source="berish.oquvchi.telefon", read_only=True)
+    oquvchi_sinf = serializers.SerializerMethodField()
     kitob_nomi = serializers.CharField(source="berish.kitob.nomi", read_only=True)
+
+    def get_oquvchi_sinf(self, obj):
+        o = obj.berish.oquvchi
+        return (f"{o.sinf}-sinf" if o.sinf else "") or o.kasb or ""
 
     class Meta:
         model = Jarima
         fields = [
             "id",
             "berish",
+            "oquvchi_id",
             "oquvchi_fish",
+            "oquvchi_telefon",
+            "oquvchi_sinf",
             "kitob_nomi",
             "kechikkan_kunlar",
             "kunlik_stavka",

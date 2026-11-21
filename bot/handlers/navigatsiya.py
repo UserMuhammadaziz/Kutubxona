@@ -113,7 +113,7 @@ async def _yordam_ber(message: Message, state: FSMContext) -> None:
 
 
 async def _menyuni_ochish(message: Message, state: FSMContext) -> None:
-    """Menyu — pastdigi katta tugmalarni ko'rsatadi.
+    """Menyu — pastdagi katta tugmalarni ko'rsatadi.
 
     Bo'limlar endi inline emas, pastdagi klaviatura bo'lib chiqadi: ular
     eng tez-tez bosiladigan joyda turishi kerak (bosilganda matn keladi,
@@ -158,7 +158,7 @@ async def yordam_buyrugi(message: Message, state: FSMContext):
 
 @router.message(Command("menu", "menyu", "bo'limlar"))
 async def menyu_buyrugi(message: Message, state: FSMContext):
-    """`/menu` — pastdigi bo'lim tugmalarini ko'rsatadi.
+    """`/menu` — pastdagi bo'lim tugmalarini ko'rsatadi.
 
     `/menu` «Menu» tugmasi ro'yxatiga qo'yilmaydi (u yerda faqat `/start` va
     `/yordam` bor), lekin qo'lda yozilishi va eski xabarlardagi havolalar

@@ -3,6 +3,8 @@ from datetime import date
 
 from rest_framework import serializers
 
+from organization.tenancy import scope
+
 from .constants import FANLAR, FISH_RE, SINF_RE
 from .models import Ariza, Oquvchi
 from .services import oquvchi_yarat
@@ -67,7 +69,8 @@ class OquvchiYaratishSerializer(serializers.ModelSerializer):
         return attrs
 
     def validate_telefon(self, value):
-        if Oquvchi.objects.filter(telefon=value).exists():
+        org = self.context.get("organization")
+        if scope(Oquvchi.objects, org).filter(telefon=value).exists():
             raise serializers.ValidationError(
                 "Bu telefon raqamiga allaqachon o'quvchi kartasi ochilgan."
             )

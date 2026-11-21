@@ -83,6 +83,7 @@ class Command(BaseCommand):
         # Muddati o'tgan faol berish (jarima hisoblash uchun)
         Berish.objects.get_or_create(
             nusxa=nusxa1,
+            kitob=kitob1,
             oquvchi=oquvchilar[0],
             defaults=dict(
                 bergan_xodim=xodim,
@@ -95,6 +96,7 @@ class Command(BaseCommand):
         # kitob2 uchun bitta faol berish (nusxa band) + 3 kishi navbatda
         Berish.objects.get_or_create(
             nusxa=nusxa2,
+            kitob=kitob2,
             oquvchi=oquvchilar[1],
             defaults=dict(
                 bergan_xodim=xodim,

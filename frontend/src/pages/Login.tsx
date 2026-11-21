@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/auth'
 import { errorMessage } from '../api/client'
 import { Button, Card, ErrorBanner, Field, Input, Label } from '../components/ui'
@@ -39,7 +39,7 @@ export function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-canvas px-4 dark:bg-slate-900">
+    <div className="flex min-h-dvh items-center justify-center bg-canvas px-4 dark:bg-slate-900">
       <Card className="w-full max-w-sm p-8">
         <div className="mb-6 text-center">
           <LogoMark className="mx-auto mb-3 h-14 w-14" />
@@ -72,6 +72,12 @@ export function Login() {
             {loading ? 'Kirilmoqda...' : 'Kirish'}
           </Button>
         </form>
+        <Link
+          to="/yordam"
+          className="mt-5 flex items-center justify-center gap-2 rounded-lg bg-brand-50 px-3 py-2.5 text-sm font-medium text-brand-700 hover:bg-brand-100 dark:bg-brand-900/30 dark:text-brand-300"
+        >
+          Tizimdan foydalanish qo‘llanmasi
+        </Link>
       </Card>
     </div>
   )
