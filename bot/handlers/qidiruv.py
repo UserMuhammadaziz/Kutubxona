@@ -66,7 +66,7 @@ async def _menyu_tugmasi_bo_lsa(message: Message, matn: str) -> None:
     """Qidiruv maydoniga bo'lim tugmasi matni keldi — shu bo'limni ochamiz.
 
     Bo'lim tugmalari matn yuboradi, shuning uchun ular qidiruv so'ziga
-    tushmasligi SHART. Holat allaqach tozalandi (`qidiruv_natija` boshida),
+    tushmasligi SHART. Holat allaqachon tozalandi (`qidiruv_natija` boshida),
     keyin foydalanuvchi «Kitob qidirish»ni qayta bosmasdan boshqa bo'limga
     o'tishi mumkin."""
     if matn == KATEGORIYALAR:
@@ -113,7 +113,7 @@ async def _janr_sahifa_kitoblari(janr: str, sahifa: int):
 async def qidiruv_boshla(message: Message, state: FSMContext):
     """Pastdigi «Kitob qidirish» tugmasi (yoki `/qidiruv` buyrug'i).
 
-    Tugma allaqach qidiruv holatida bosilsa, foydalanuvchi «Kitob qidirish»
+    Tugma allaqachon qidiruv holatida bosilsa, foydalanuvchi «Kitob qidirish»
     so'zini qidirib topmaydi — shuning uchun savolni qayta ko'rsatamiz."""
     if await state.get_state() == Qidiruv.matn.state:
         await message.answer(QIDIRUV_SAVOLI)
@@ -172,7 +172,7 @@ async def kategoriyalar(message: Message):
     except ApiXato as e:
         await message.answer(
             f"Kategoriyalarni yuklab bo'lmadi: {x(e.detail)}\n\n"
-            "Bir ozdan keyin yana urinib ko'ring yoki /start bosing."
+            "Bir oz vaqtdan keyin yana urinib ko'ring yoki /start bosing."
         )
         return
 
@@ -382,7 +382,7 @@ def _kitob_batafsil_matn(kitob: dict) -> str:
         )
 
     matn += (
-        "\n\n<b>Band qilish</b> — kitobni maxsus maqsadga saqlab qoyish"
+        "\n\n<b>Band qilish</b> — kitobni maxsus maqsadga saqlab qo'yish"
         " (o'qituvchi darsga, o'quvchi imtihonga tayyorlanmoqda). "
         "Band qilingan kitob boshqalarga berilmaydi: uni faqat kutubxonachi "
         "tasdiqlagandan keyin sizga beriladi va tasdiqlanganligi xabar qilinadi."

@@ -232,6 +232,7 @@ export interface Ariza {
   ariza_sanasi: string
   tasdiqlangan_sana: string | null
   izoh: string
+  qayta_ariza_kerak: boolean
 }
 
 // ---- Berish (Loan) ----
@@ -460,6 +461,8 @@ export interface SinfReytingi {
   sinf: string
   oquvchilar: number
   berishlar: number
+  faol_berishlar: number
+  faol_oquvchilar_soni: number
   qaytarilganlar: number
   ball: number
   o_rin: number

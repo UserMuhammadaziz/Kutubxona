@@ -160,13 +160,15 @@ va allaqachon to'langan jarimaga tegilmaydi.
 
 ## Bot buyruqlari
 
-- `/start` — ro'yxatga olingan bo'lsa asosiy menyu; aks holda a'riza yuborish
-  uchun inline tugmalar: «<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 14l9-5-9-5-9 5 9 5zM12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg> Oquvchi sifatida a'riza yuborish» va
-  «<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg> O'qituvchi sifatida a'riza yuborish».
-  Tanlangan rolga qarab so'raladigan ma'lumotlar:
-  - **Oquvchi** → ism-familiya → telefon → sinf
-  - **O'qituvchi** → ism-familiya → telefon → kasb (o'qitayotgan fan,
-    masalan Matematika, Ona tili)
+- `/start` — ro'yxatga olingan bo'lsa asosiy menyu; aks holda ariza yuborish
+  uchun inline tugmalar: «O'quvchi» va «O'qituvchi».
+  Tanlangan rolga qarab so'raladigan ma'lumotlar (qat'iy formatda):
+  - **Oquvchi** → ism-familiya (`Ali Valiyev`) → telefon (`+998901234567`) → sinf (`7-A`)
+  - **O'qituvchi** → ism-familiya → telefon → fan(lar) — ro'yxatdagi ✅ tugmalaridan
+    tanlanadi (`Matematika`, `Algebra`, `Geometriya`, `Chizmachilik`, `Logoped` va boshqalar).
+  Format buzilsa ariza boshidan qayta to'ldiriladi; eski formatdagi (qabul qilinganlari
+  ham) arizalar `qayta_ariza_kerak` deb belgilanadi va `/start` da qayta yuborish
+  so'raladi. To'g'ri formatda qayta yuborilgan ariza qabul qilinadi.
 - «Kitob qidirish», «Mening kitoblarim», «Navbatlarim», «Jarimalarim» — asosiy menyu tugmalari
 
 ## Texnologiyalar

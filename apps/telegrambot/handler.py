@@ -16,6 +16,7 @@ from jarima.models import Jarima
 from kitob.models import BandQilish, Kitob
 from navbat.models import Navbat
 from organization.models import Membership
+from oquvchi.constants import FANLAR, FISH_RE, SINF_RE, format_xatolari
 from oquvchi.models import Ariza, Oquvchi
 
 from .client import answer_callback_query
@@ -92,12 +93,56 @@ def _menu(bot, telegram_id):
     return READER_MENU
 
 
+def _qayta_ariza_kerak(bot, telegram_id):
+    """Eski formatdagi ariza/azo qaytadan ariza yuborishi kerakmi?"""
+    return Oquvchi.objects.filter(
+        organization=bot.organization,
+        telegram_id=telegram_id,
+        qayta_ariza_kerak=True,
+    ).exists() or Ariza.objects.filter(
+        organization=bot.organization,
+        telegram_id=telegram_id,
+        qayta_ariza_kerak=True,
+    ).exists()
+
+
+QAYTA_ARIZA_XABARI = (
+    "⚠️ Oldingi arizangiz belgilangan formatda to'ldirilmagan.\n\n"
+    "Yangi qoidalarga muvofiq arizani boshidan, aynan ko'rsatilgan "
+    "formatda qaytadan yuborishingiz kerak. Rolingizni tanlang:"
+)
+
+FORMAT_XATO_XABARI = (
+    "❌ Ma'lumot belgilangan formatda yozilmadi.\n\n"
+    "Ism-familiya «Ali Valiyev», telefon «+998901234567», "
+    "sinf «7-A» ko'rinishida bo'lishi kerak. Fanlarni ro'yxatdan tanlang.\n\n"
+    "Arizani boshidan qayta to'ldiring. Rolingizni tanlang:"
+)
+
+
+def _rol_tanlash(bot, chat_id, matn):
+    _send(
+        bot,
+        chat_id,
+        matn,
+        _inline(
+            [
+                [
+                    {"text": "🎓 O'quvchi", "callback_data": "rol:oquvchi"},
+                    {"text": "👨‍🏫 O'qituvchi", "callback_data": "rol:oqituvchi"},
+                ]
+            ]
+        ),
+    )
+
+
 def _start(bot, message):
     chat_id = message["chat"]["id"]
     telegram_id = message["from"]["id"]
     _clear_session(bot, telegram_id)
+    qayta_ariza = _qayta_ariza_kerak(bot, telegram_id)
     oquvchi = _reader(bot, telegram_id)
-    if oquvchi:
+    if oquvchi and not qayta_ariza:
         _send(
             bot,
             chat_id,
@@ -121,13 +166,20 @@ def _start(bot, message):
     ariza = Ariza.objects.filter(
         organization=bot.organization, telegram_id=telegram_id
     ).first()
-    if ariza and ariza.holati == "kutmoqda":
+    if ariza and ariza.holati == "kutmoqda" and not qayta_ariza:
         _send(
             bot,
             chat_id,
             "Arizangiz ko'rib chiqilmoqda. Tasdiqlangach xabar beramiz.",
             {"remove_keyboard": True},
         )
+        return
+    if qayta_ariza:
+        # Eski (noto'g'ri formatdagi) arizalar yangi arizaga to'siq bo'lmasin.
+        Ariza.objects.filter(
+            organization=bot.organization, telegram_id=telegram_id
+        ).delete()
+        _rol_tanlash(bot, chat_id, QAYTA_ARIZA_XABARI)
         return
     _send(
         bot,
@@ -149,9 +201,22 @@ def _start(bot, message):
 def _ariza_rol(bot, chat_id, telegram_id, rol):
     if rol not in ("oquvchi", "oqituvchi"):
         return
-    if _reader(bot, telegram_id) or _staff(bot, telegram_id):
+    qayta_ariza = _qayta_ariza_kerak(bot, telegram_id)
+    bandlangan = _reader(bot, telegram_id) and not qayta_ariza
+    if not qayta_ariza and Ariza.objects.filter(
+        organization=bot.organization,
+        telegram_id=telegram_id,
+        holati="kutmoqda",
+        qayta_ariza_kerak=False,
+    ).exists():
+        bandlangan = True
+    if bandlangan or _staff(bot, telegram_id):
         _send(bot, chat_id, "Siz allaqachon ro'yxatdan o'tgansiz.", _menu(bot, telegram_id))
         return
+    if qayta_ariza:
+        Ariza.objects.filter(
+            organization=bot.organization, telegram_id=telegram_id
+        ).delete()
     _set_session(bot, telegram_id, chat_id, "ariza_fish", {"rol": rol})
     _send(bot, chat_id, "Ism va familiyangizni kiriting:", {"remove_keyboard": True})
 
@@ -163,10 +228,11 @@ def _ariza_text(bot, message, sessiya):
     data = sessiya.data or {}
     step = sessiya.step
     if step == "ariza_fish":
-        if len(matn) < 3:
-            _send(bot, chat_id, "Ism-familiya juda qisqa. Qaytadan kiriting.")
+        if len(matn) < 3 or len(matn) > 130 or not FISH_RE.fullmatch(matn):
+            _clear_session(bot, telegram_id)
+            _rol_tanlash(bot, chat_id, FORMAT_XATO_XABARI)
             return
-        data["fish"] = matn[:130]
+        data["fish"] = matn
         _set_session(bot, telegram_id, chat_id, "ariza_telefon", data)
         _send(bot, chat_id, "Telefon raqamingizni +998XXXXXXXXX formatida kiriting:")
         return
@@ -188,23 +254,36 @@ def _ariza_text(bot, message, sessiya):
             _send(bot, chat_id, "Sinfingizni kiriting (masalan: 7-A):")
         return
     if step in ("ariza_sinf", "ariza_kasb"):
-        if len(matn) < 1 or len(matn) > 60:
-            _send(bot, chat_id, "Qiymat 1-60 belgi orasida bo'lishi kerak.")
-            return
         rol = data.get("rol", "oquvchi")
         if rol == "oqituvchi":
-            data["kasb"] = matn
+            fanlar = [fan.strip() for fan in matn.split(",") if fan.strip()]
+            togri = bool(fanlar) and len(matn) <= 60 and all(f in FANLAR for f in fanlar)
+            data["kasb"] = ", ".join(fanlar)
         else:
+            togri = len(matn) <= 30 and bool(SINF_RE.fullmatch(matn))
             data["sinf"] = matn
+        if not togri or format_xatolari(
+            fish=data.get("fish", ""),
+            telefon=data.get("telefon", ""),
+            rol=rol,
+            sinf=data.get("sinf", ""),
+            kasb=data.get("kasb", ""),
+        ):
+            _clear_session(bot, telegram_id)
+            _rol_tanlash(bot, chat_id, FORMAT_XATO_XABARI)
+            return
         if Ariza.objects.filter(
-            organization=bot.organization, telegram_id=telegram_id, holati="kutmoqda"
+            organization=bot.organization,
+            telegram_id=telegram_id,
+            holati="kutmoqda",
+            qayta_ariza_kerak=False,
         ).exists():
             _send(bot, chat_id, "Arizangiz allaqachon ko'rib chiqilmoqda.")
             _clear_session(bot, telegram_id)
             return
         Ariza.objects.filter(
             organization=bot.organization, telegram_id=telegram_id
-        ).exclude(holati="kutmoqda").delete()
+        ).delete()
         Ariza.objects.create(
             organization=bot.organization,
             telegram_id=telegram_id,

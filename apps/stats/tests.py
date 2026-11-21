@@ -170,6 +170,74 @@ class FaollikReytingiTest(TestCase):
         self.assertEqual(javob.status_code, 200, javob.data)
         self.assertEqual(javob.data["results"][0]["oquvchi_sinf"], "9-V")
 
+    def test_bir_xil_sinf_turli_yozilishlarda_bitta_sinf(self):
+        """5-B, 5-B sinf, 5b va 5-B (probel bilan) bitta sinf bo'lishi kerak."""
+        for index, xom_sinf in enumerate(("5-B", "5-B sinf", "5b", "5-B "), 1):
+            oquvchi = Oquvchi.objects.create(
+                organization=self.org,
+                fish=f"5-B o'quvchi {index}",
+                telefon=f"+99890123456{index:02d}",
+                karta_raqami=f"K{index}",
+                sinf=xom_sinf,
+            )
+            kitob = Kitob.objects.create(
+                organization=self.org,
+                nomi=f"5-B kitob {index}",
+                muallif="Muallif",
+                janr="badiiy",
+                nashr_yili=2020,
+            )
+            self._berish(oquvchi, qaytarilgan=False, kitob=kitob)
+
+        javob = self.client.get("/api/stats/ratings/activity/")
+        self.assertEqual(javob.status_code, 200, javob.data)
+        sinflar = javob.data["sinflar"]
+        self.assertEqual(len(sinflar), 1, sinflar)
+        self.assertEqual(sinflar[0]["sinf"], "5-B")
+        self.assertEqual(sinflar[0]["oquvchilar"], 4)
+        self.assertEqual(sinflar[0]["faol_berishlar"], 4)
+        self.assertEqual(sinflar[0]["o_rin"], 1)
+        self.assertEqual(javob.data["faol_oquvchilar"][0]["sinf"], "5-B")
+
+    def test_sinf_tartibi_kitob_oqish_faolligiga_bog_liq(self):
+        """Ko'p qaytarilgan sinf emas, hozir o'qiyotgan sinf birinchi."""
+        kitoblar = [
+            Kitob.objects.create(
+                organization=self.org,
+                nomi=f"Faol kitob {i}",
+                muallif="Muallif",
+                janr="badiiy",
+                nashr_yili=2020,
+            )
+            for i in range(1, 3)
+        ]
+        eski = Oquvchi.objects.create(
+            organization=self.org,
+            fish="Eski sinf oquvchisi",
+            telefon="+998901234570",
+            karta_raqami="KE",
+            sinf="4-A",
+        )
+        yangi = Oquvchi.objects.create(
+            organization=self.org,
+            fish="Faol sinf oquvchisi",
+            telefon="+998901234571",
+            karta_raqami="KY",
+            sinf="4-B",
+        )
+        # 4-A da 3 ta qaytarilgan, 4-B da 2 ta hozirda o'qilayotgan kitob.
+        for _ in range(3):
+            self._berish(eski, qaytarilgan=True)
+        for kitob in kitoblar:
+            self._berish(yangi, qaytarilgan=False, kitob=kitob)
+
+        javob = self.client.get("/api/stats/ratings/activity/")
+        self.assertEqual(javob.status_code, 200, javob.data)
+        sinflar = javob.data["sinflar"]
+        self.assertEqual([s["sinf"] for s in sinflar], ["4-B", "4-A"])
+        self.assertEqual([s["o_rin"] for s in sinflar], [1, 2])
+        self.assertGreater(sinflar[0]["ball"], sinflar[1]["ball"])
+
 
 class RecentActivityTest(TestCase):
     def setUp(self):

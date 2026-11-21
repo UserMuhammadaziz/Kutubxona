@@ -195,7 +195,7 @@ export function Kitobxonlar() {
             <>
               <ReytingBolimi
                 sarlavha="Faol sinflar"
-                izoh="Sinflar o'quvchi boshiga to'g'ri keladigan berishlar va qaytarishlar bo'yicha tartiblangan."
+                izoh="Bir sinf turli yozilishlarda bitta hisoblanadi. O'rin sinfdagi o'quvchilarning hozirgi kitob o'qish faolligiga qarab aniqlanadi."
                 bor={sinflar.length > 0}
                 boshqaSarlavha="Hali faol sinf yo‘q"
                 boshqaIzoh="O‘quvchi qo‘shib, ularga sinf berilgach reyting paydo bo‘ladi."
@@ -205,7 +205,7 @@ export function Kitobxonlar() {
                     key={s.sinf}
                     orin={s.o_rin}
                     nomi={`${s.sinf}-sinf`}
-                    izoh={`${s.oquvchilar} o‘quvchi · ${s.berishlar} berish · ${s.qaytarilganlar} qaytarilgan`}
+                    izoh={`${s.oquvchilar} o‘quvchi · ${s.faol_oquvchilar_soni} kitob o‘qiyapti · ${s.faol_berishlar} faol berish · ${s.qaytarilganlar} qaytarilgan`}
                     ball={s.ball}
                   />
                 ))}

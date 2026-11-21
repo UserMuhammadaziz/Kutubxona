@@ -697,7 +697,7 @@ const sections: Section[] = [
             <B>Arizalar</B> ni bosing — dastlab faqat <B>kutilayotgan</B> arizalar chiqadi
           </>,
           <>Arizani o‘qing: ism, telefon, sinf/fan, Telegram ID</>,
-          <>Iki variant:</>,
+          <>Ikki variant:</>,
         ]}
       />,
       <H3 key="2">
@@ -744,6 +744,12 @@ const sections: Section[] = [
         <B>Qo‘shimcha:</B> Qidiruv, Rol (O‘quvchi/O‘qituvchi) va Holat filtrlaridan foydalaning.
         Barcha arizalarni ko‘rish uchun Holatni “Barcha holatlar” qiling.
       </Note>,
+      <Note key="7" tone="alert">
+        <B>Noto‘g‘ri formatdagi arizalar.</B> Ism, telefon, sinf yoki fan noto‘g‘ri yozilgan
+        arizalar (qabul qilinganlari ham) qaytadan yuborilishi shart — ular “qayta ariza kerak”
+        deb belgilanadi. Foydalanuvchi to‘g‘ri formatda qayta yuborgach, ariza yana “Kutmoqda”
+        holatida ko‘rinadi va uni tasdiqlash mumkin.
+      </Note>,
     ],
   },
   {
@@ -762,7 +768,7 @@ const sections: Section[] = [
             <B>Bandlar</B> ni bosing — dastlab <B>Kutmoqda</B> so‘rovlar chiqadi
           </>,
           <>So‘rovni o‘qing: qaysi kitob, kim so‘ragan, qachon</>,
-          <>Iki variant:</>,
+          <>Ikki variant:</>,
         ]}
       />,
       <Tbl

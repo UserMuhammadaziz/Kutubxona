@@ -101,7 +101,7 @@ async def _yordam_ber(message: Message, state: FSMContext) -> None:
 
         await message.answer(
             yordam_matni()
-            + "\n\n<b>Sizning yozuingiz saqlanib qoldi</b> — quyidagi savolga "
+            + "\n\n<b>Sizning yozganingiz saqlanib qoldi</b> — quyidagi savolga "
             "javob bering:\n\n"
             f"{savol}",
             reply_markup=klaviatura,

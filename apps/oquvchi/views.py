@@ -181,9 +181,18 @@ class ArizaViewSet(viewsets.ModelViewSet):
         ariza = Ariza.objects.filter(telegram_id=telegram_id).first()
         # Qabul qilinganlar ham eski formatdagi ariza sababli qayta yuborishi
         # kerak — bayroq Oquvchi yoki Ariza ustida turishi mumkin.
-        qayta_ariza_kerak = Oquvchi.objects.filter(
-            telegram_id=telegram_id, qayta_ariza_kerak=True
-        ).exists() or bool(ariza and ariza.qayta_ariza_kerak)
+        # Ammo yangi (to'g'ri formatdagi) ariza allaqachon yuborilgan bo'lsa,
+        # foydalanuvchini yana qayta yuborishga majbur qilmaymiz: ariza
+        # "kutmoqda" holatida ko'rinadi va tasdiqlanishini kutadi.
+        yangi_ariza_yuborildi = bool(
+            ariza and ariza.holati == "kutmoqda" and not ariza.qayta_ariza_kerak
+        )
+        qayta_ariza_kerak = not yangi_ariza_yuborildi and (
+            Oquvchi.objects.filter(
+                telegram_id=telegram_id, qayta_ariza_kerak=True
+            ).exists()
+            or bool(ariza and ariza.qayta_ariza_kerak)
+        )
         if ariza:
             data = {
                 "holati": ariza.holati,

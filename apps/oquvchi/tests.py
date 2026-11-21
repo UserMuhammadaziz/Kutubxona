@@ -14,6 +14,7 @@ from rest_framework.test import APIClient
 
 from config.test_helpers import TenantTestMixin
 
+from .constants import format_xatolari
 from .models import Ariza, Oquvchi
 
 User = get_user_model()
@@ -871,6 +872,125 @@ class QaytaArizaTest(ArizaTestMixin, TestCase):
         self.assertFalse(oquvchi.qayta_ariza_kerak)
         self.assertEqual(oquvchi.fish, "Yangi Ism Familiya")
         self.assertEqual(oquvchi.sinf, "8-A")
+
+    def test_yangi_ariza_qayta_ariza_talabini_toxtatadi(self):
+        """Qayta yuborilgan ariza kutmoqda holatida ko'rinadi, yana
+        «qaytadan yubor» deyilmaydi."""
+        Oquvchi.objects.create(
+            fish="Eski Ism",
+            telefon="+998901234567",
+            telegram_id=111111,
+            karta_raqami="LIB-2026-0001",
+            qayta_ariza_kerak=True,
+        )
+        javob = self.yangi_ariza()
+        self.assertEqual(javob.status_code, 201, javob.data)
+        holat = APIClient().get(
+            "/api/applications/status/", {"telegram_id": 111111}
+        )
+        self.assertEqual(holat.status_code, 200)
+        self.assertEqual(holat.data["holati"], "kutmoqda")
+        self.assertFalse(holat.data["qayta_ariza_kerak"])
+
+    def test_telefon_ozgarganda_telegram_id_boyicha_tasdiqlanadi(self):
+        oquvchi = Oquvchi.objects.create(
+            fish="Eski Ism",
+            telefon="+998901234567",
+            telegram_id=111111,
+            karta_raqami="LIB-2026-0001",
+            qayta_ariza_kerak=True,
+        )
+        ariza = Ariza.objects.create(
+            telegram_id=111111,
+            fish="Yangi Ism Familiya",
+            telefon="+998901234568",
+            sinf="8-A",
+        )
+        with self.xabarni_tekshir():
+            javob = self.client.post(f"/api/applications/{ariza.pk}/approve/")
+        self.assertEqual(javob.status_code, 200, javob.data)
+        oquvchi.refresh_from_db()
+        self.assertEqual(oquvchi.telefon, "+998901234568")
+        self.assertFalse(oquvchi.qayta_ariza_kerak)
+
+
+class ArizaFormatAuditTest(TestCase):
+    """Noto'g'ri formatdagi arizalar hamma joyda belgilanishi kerak."""
+
+    def test_format_xatolari(self):
+        self.assertEqual(
+            format_xatolari(
+                fish="Ali Valiyev",
+                telefon="+998901234567",
+                rol="oquvchi",
+                sinf="7-A",
+                kasb="",
+            ),
+            [],
+        )
+        self.assertEqual(
+            format_xatolari(
+                fish="Ali Valiyev",
+                telefon="+998901234567",
+                rol="oqituvchi",
+                sinf="",
+                kasb="Algebra, Geometriya",
+            ),
+            [],
+        )
+        self.assertIn(
+            "fish",
+            format_xatolari(
+                fish="Ali123", telefon="+998901234567", rol="oquvchi", sinf="7-A", kasb=""
+            ),
+        )
+        self.assertIn(
+            "sinf",
+            format_xatolari(
+                fish="Ali Valiyev", telefon="+998901234567", rol="oquvchi", sinf="7-sinf", kasb=""
+            ),
+        )
+        self.assertIn(
+            "kasb",
+            format_xatolari(
+                fish="Ali Valiyev", telefon="+998901234567", rol="oqituvchi", sinf="", kasb="Astrologiya"
+            ),
+        )
+        self.assertIn(
+            "telefon",
+            format_xatolari(
+                fish="Ali Valiyev", telefon="998901234567", rol="oquvchi", sinf="7-A", kasb=""
+            ),
+        )
+
+    def test_audit_faqat_notogri_formatlilarni_belgilaydi(self):
+        from importlib import import_module
+
+        from django.apps import apps as django_apps
+
+        yaxshi_ariza = Ariza.objects.create(
+            telegram_id=1, fish="Ali Valiyev", telefon="+998901234567", sinf="7-A"
+        )
+        yomon_ariza = Ariza.objects.create(
+            telegram_id=2, fish="Ali123", telefon="998901234567", sinf="7-sinf"
+        )
+        yaxshi_azo = Oquvchi.objects.create(
+            fish="Vali Valiyev", telefon="+998901234568", karta_raqami="K1", sinf="8-B"
+        )
+        yomon_azo = Oquvchi.objects.create(
+            fish="Vali123", telefon="998901234569", karta_raqami="K2", sinf="8-sinf"
+        )
+        migratsiya = import_module(
+            "oquvchi.migrations.0013_notogri_formatni_qayta_belgilash"
+        )
+        migratsiya.qayta_belgilash(django_apps, None)
+
+        for obj in (yaxshi_ariza, yomon_ariza, yaxshi_azo, yomon_azo):
+            obj.refresh_from_db()
+        self.assertFalse(yaxshi_ariza.qayta_ariza_kerak)
+        self.assertTrue(yomon_ariza.qayta_ariza_kerak)
+        self.assertFalse(yaxshi_azo.qayta_ariza_kerak)
+        self.assertTrue(yomon_azo.qayta_ariza_kerak)
 
 
 class ReaderTenantIsolationTests(TestCase):

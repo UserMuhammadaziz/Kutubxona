@@ -176,7 +176,7 @@ O'quvchi botda ariza yuboradi → siz faqat **tasdiqlaysiz**. Batafsil — 9-bo'
 |---|---|---|
 | To'liq ismi | **Ha** | Aliyev Vali |
 | Telefon | **Ha** | +998901234567 |
-| Sinf (fan) | **Ha** (o'qituvchi uchun) | 7-A / Matematika |
+| Sinf (fan) | **Ha** (o'qituvchi uchun) | `7-A` / `Matematika`, `Algebra`, `Geometriya`, `Chizmachilik`, `Logoped` |
 | Tug'ilgan sana | **Yo'q** | 15.03.2012 |
 | Manzil | **Yo'q** | Toshkent sh. |
 
@@ -254,6 +254,8 @@ O'quvchi/o'qituvchi botda ariza yuborganda, saytda **Arizalar** bo'limida "Kutmo
 3. **Rad etish** — sabab o'quvchiga Telegram'dan yuboriladi
 
 > **Qo'shimcha:** Qidiruv, Rol (O'quvchi/O'qituvchi) va Holat filtrlaridan foydalaning. Barcha arizalarni ko'rish uchun Holatni "Barcha holatlar" qiling.
+
+> **Noto'g'ri formatdagi arizalar.** Ism, telefon, sinf yoki fan formati buzilgan arizalar (qabul qilinganlari ham) **«Qayta ariza kerak»** deb belgilanadi. Bunday foydalanuvchi botdan `/start` yuborganda arizani qat'iy formatda boshidan qayta topshirishga yo'naltiriladi. U to'g'ri formatda qayta yuborgach, ariza yana **«Kutmoqda»** holatida chiqadi va uni tasdiqlashingiz mumkin. «Qabul qilingan arizalar» ro'yxatidagi noto'g'ri formatli kitobxonlar ham qayta ariza yuborishi shart.
 
 ---
 
@@ -383,7 +385,7 @@ Telegram ID si bo'lmaganlar hisobga olinadi, lekin ularga xabar bormaydi — nat
 - Faqat **qo'lidagi kitobi qaytarilmagan** yoki **kutilayotgan band so'rovi** borlar o'chirilmaydi — ular Berishlar/Bandlar bo'limida ko'rinadi
 - **Qaytarilgan kitoblar** va yakunlangan band so'rovlari (tasdiqlangan/rad etilgan/bekor qilingan) tarixi endi to'siq bo'lmaydi
 - O'chirib bo'lmaganlar sababi bilan pastda ro'yxatlanadi — avval kitobni qaytarib oling yoki band so'rovini hal qiling
-- O'chirilgan kitobxonga (Telegram ID si bo'lsa) xabar ketadi: **/start** buyrug'i bilan qaytadan a'riza topshirishi so'raladi. Eski arizasi o'chiriladi, shuning uchun yangi arizani bemalol yuborish mumkin
+- O'chirilgan kitobxonga (Telegram ID si bo'lsa) xabar ketadi: **/start** buyrug'i bilan qaytadan ariza topshirishi so'raladi. Eski arizasi o'chiriladi, shuning uchun yangi arizani bemalol yuborish mumkin
 
 ---
 

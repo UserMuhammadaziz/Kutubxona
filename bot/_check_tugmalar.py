@@ -1075,6 +1075,17 @@ async def main() -> int:
         ("da.\n", "kutubxonachi.py da «X da» egalik qo'shimchasi"),
         ("yuboriladi — yoki", "kutubxonachi.py da noto'g'ri tire"),
         ("va sababi yuborildi", "kutubxonachi.py da «rad etilganligi va sababi»"),
+        ("allaqon", "bot matnlarida «allaqon» xatosi yo'q"),
+        ("allaqach ", "bot matnlarida «allaqach» xatosi yo'q"),
+        ("2️⃣ Rahmat", "telefon bosqichida «Rahmat» oldida takroriy 2️⃣ yo'q"),
+        ("A'riza", "bot matnlarida «A'riza» xatosi yo'q"),
+        ("a'riza", "bot matnlarida «a'riza» xatosi yo'q"),
+        ("fanningiz", "bot matnlarida «fanningiz» xatosi yo'q"),
+        ("Noma'lum ro'l", "bot matnlarida «ro'l» xatosi yo'q"),
+        ("yozuingiz", "bot matnlarida «yozuingiz» xatosi yo'q"),
+        ("Bir ozdan", "bot matnlarida «Bir ozdan» xatosi yo'q"),
+        ("qoyish", "bot matnlarida «qoyish» xatosi yo'q"),
+        ("Sohraydi", "bot matnlarida «Sohraydi» xatosi yo'q"),
     ]
     for izoh_matn, izoh in NOTO_GRI:
         topildi = [
@@ -1106,6 +1117,29 @@ async def main() -> int:
         "sana_vaqt(" in kutubxonachi_py,
         "sana `sana_vaqt()` yordamchisi orqali formatlanadi",
     )
+
+    # 11. Fanlar ro'yxati ikki nusxada saqlanadi — ular bir xil bo'lishi shart.
+    print()
+    print("=" * 72)
+    print("11. FANLAR RO'YXATI")
+    print("=" * 72)
+    import ast
+
+    def _fanlar_ol(fayl):
+        daraxt = ast.parse(fayl.read_text(encoding="utf-8-sig"))
+        for tugun in daraxt.body:
+            if isinstance(tugun, ast.Assign) and any(
+                isinstance(n, ast.Name) and n.id == "FANLAR" for n in tugun.targets
+            ):
+                return [e.value for e in tugun.value.elts]
+        return []
+
+    bot_fanlar = _fanlar_ol(BOT_DIR / "fanlar.py")
+    django_fanlar = _fanlar_ol(ROOT / "apps" / "oquvchi" / "constants.py")
+    tekshir(bool(bot_fanlar), "bot/fanlar.py da FANLAR ro'yxati bor")
+    tekshir(bot_fanlar == django_fanlar, "FANLAR ikkala faylda bir xil")
+    for fan in ("Algebra", "Chizmachilik", "Geometriya", "Logoped"):
+        tekshir(fan in bot_fanlar, f"FANLAR tarkibida «{fan}» bor")
 
     if "--live" in sys.argv:
         print()

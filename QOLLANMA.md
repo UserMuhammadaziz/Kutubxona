@@ -744,9 +744,11 @@ Kutubxonachi va administrator hisoblarini boshqarish. **Faqat administrator** ko
 
 **Kitobxonlarga xabar yuborish:** rol (o'quvchi/o'qituvchi) va usul (bitta kitobxon / sinf / barcha sinflar) tanlanadi. Telegram ID si yo'qlar hisobga olinadi, lekin ularga xabar bormaydi — natijada `telegramsiz` soni ko'rsatiladi. Xabar yuborish uchun kutubxonaning Telegram boti ulangan bo'lishi (yoki bitta kutubxonali rejimda `.env` dagi token sozlangan) shart.
 
+**Faol sinflar (reyting):** `Kitobxonlar` sahifasidagi **Faol sinflar** bo'limi sinflarni kitob o'qish faoliyatiga qarab tartiblaydi (faol kitobxonlar ulushi 0.6 + faol berishlar 0.3 + qaytarilganlar 0.1). `5-B sinf`, `5b`, `5-B ` kabi yozilishlar bitta sinfga (`5-B`) keltirilib, takror paydo bo'lmaydi; xabar yuborishda ham shu normalizatsiya qo'llaniladi.
+
 **Kitobxonlarni o'chirish:** rol bo'yicha qidirib, belgilang va **O'chirish** bosing. Faqat **qaytarilmagan kitobi** yoki **kutilayotgan band so'rovi** (`kutmoqda`) borlar o'chirilmaydi — sababi natijada ko'rsatiladi. Qaytarilgan kitoblar va yakunlangan band tarixi (tasdiqlangan/rad etilgan/bekor qilingan) endi to'siq bo'lmaydi: ular bir tranzaksiyada tozalanib, kitobxon o'chiriladi.
 
-O'chirilgan kitobxonning Telegram ID si bo'lsa, unga avtomatik xabar ketadi: ro'yxatdan o'chirilganligi va **/start** buyrug'i bilan qaytadan a'riza topshirishi so'raladi. Eski arizasi ham o'chiriladi, shuning uchun bot uni "arizangiz kutmoqda" deb bloklamaydi. Telegram ID si yo'qlarga xabar yuborilmaydi.
+O'chirilgan kitobxonning Telegram ID si bo'lsa, unga avtomatik xabar ketadi: ro'yxatdan o'chirilganligi va **/start** buyrug'i bilan qaytadan ariza topshirishi so'raladi. Eski arizasi ham o'chiriladi, shuning uchun bot uni "arizangiz kutmoqda" deb bloklamaydi. Telegram ID si yo'qlarga xabar yuborilmaydi.
 
 > API: `PATCH /api/auth/profile/`, `POST /api/auth/change-password/`, `POST /api/messages/send/`, `GET /api/messages/classes/`, `POST /api/readers/ochirish/`.
 
@@ -816,15 +818,17 @@ yoki `start_all.bat` orqali avtomatik.
 
 ### 6.4 Botdan foydalanish oqimi
 
-#### Birinchi marta foydalanuvchi (aro'lik arizasi)
+#### Birinchi marta foydalanuvchi (a'zolik arizasi)
 
 1. Botga `/start` yuboring
 2. Rolni tanlang: **O'quvchi** yoki **O'qituvchi**
 3. Ma'lumotlarni kiriting:
-   - **O'quvchi** → Ism-familiya → Telefon → Sinf
-   - **O'qituvchi** → Ism-familiya → Telefon → Kasb (o'qitayotgan fan)
+   - **O'quvchi** → Ism-familiya → Telefon → Sinf (`7-A`, `9-B`, `10-` ko'rinishida)
+   - **O'qituvchi** → Ism-familiya → Telefon → Fan(lar) — pastdagi ✅ tugmalardan tanlanadi; oxirida **✅ Tayyor** bosing. Ro'yxatda `Matematika`, `Algebra`, `Geometriya`, `Chizmachilik`, `Logoped` va boshqa fanlar bor.
 4. Ariza yuboriladi — kutubxonachidan tasdiq kutiladi
 5. Tasdiqlangandan keyin karta raqami beriladi
+
+> **Noto'g'ri format.** Ism-familiya, telefon, sinf yoki fan noto'g'ri yozilsa, ariza boshidan qayta to'ldiriladi. Eski formatda yuborgan (qabul qilinganlari ham) foydalanuvchilar `/start` da qayta ariza topshirishga yo'naltiriladi. To'g'ri formatda qayta yuborilgan ariza «kutmoqda» holatida qabul qilinadi va yana qayta yuborish talab qilinmaydi.
 
 #### Asosiy menyu tugmalari
 

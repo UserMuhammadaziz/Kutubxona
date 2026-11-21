@@ -223,7 +223,12 @@ export function Applications() {
                     {a.telefon}
                   </div>
                 </div>
-                <Badge tone={TONE[a.holati]}>{ARIZA_HOLATI_LABELS[a.holati]}</Badge>
+                <div className="flex flex-col items-end gap-1">
+                  <Badge tone={TONE[a.holati]}>{ARIZA_HOLATI_LABELS[a.holati]}</Badge>
+                  {a.qayta_ariza_kerak && (
+                    <Badge tone="red">Qayta ariza kerak</Badge>
+                  )}
+                </div>
               </div>
               <div className="text-xs text-slate-500 dark:text-slate-400">
                 {ARIZA_ROL_LABELS[a.rol]} · {rolBoshqicha(a)} · Telegram: {a.telegram_id}
@@ -303,6 +308,11 @@ export function Applications() {
                   render: (a) => (
                     <>
                       <Badge tone={TONE[a.holati]}>{ARIZA_HOLATI_LABELS[a.holati]}</Badge>
+                      {a.qayta_ariza_kerak && (
+                        <div className="mt-1">
+                          <Badge tone="red">Qayta ariza kerak</Badge>
+                        </div>
+                      )}
                       {a.izoh && <div className="mt-1 text-xs text-slate-400">{a.izoh}</div>}
                     </>
                   ),

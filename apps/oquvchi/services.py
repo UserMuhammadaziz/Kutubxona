@@ -173,19 +173,34 @@ def arizani_tasdiqla(ariza: Ariza, organization=None):
         raise ValueError("Faqat 'kutmoqda' holatidagi ariza tasdiqlanadi")
 
     org = ariza.organization or organization
+    # Avval telegram ID bo'yicha izlaymiz: eski formatdagi a'zo qayta ariza
+    # topshirganda telefon raqamini o'zgartirgan bo'lishi mumkin. Faqat keyin
+    # telefon bo'yicha qidiradi (bu eski, ID bog'lanmagan kartalar uchun).
     oquvchi = Oquvchi.objects.filter(
-        organization=org, telefon=ariza.telefon
+        organization=org, telegram_id=ariza.telegram_id
     ).first()
+    if oquvchi is None:
+        oquvchi = Oquvchi.objects.filter(
+            organization=org, telefon=ariza.telefon
+        ).first()
     yangi_karta = oquvchi is None
 
     if oquvchi:
         if oquvchi.telegram_id and oquvchi.telegram_id != ariza.telegram_id:
             raise ArizaTelegramBandi(ariza)
+        if oquvchi.telefon != ariza.telefon:
+            if (
+                Oquvchi.objects.filter(organization=org, telefon=ariza.telefon)
+                .exclude(pk=oquvchi.pk)
+                .exists()
+            ):
+                raise ArizaTelegramBandi(ariza)
+            oquvchi.telefon = ariza.telefon
         oquvchi.telegram_id = ariza.telegram_id
         oquvchi.fish = ariza.fish
         # Rol va fan arizadan olinadi: "O'quvchilar"/"O'qituvchilar"
         # bo'limlari shu maydonlar orqali ajratiladi.
-        yangilangan = ["telegram_id", "fish"]
+        yangilangan = ["telefon", "telegram_id", "fish"]
         # Yangi formatda qayta ariza topshirganlar endi botga to'siqsiz kira oladi.
         if oquvchi.qayta_ariza_kerak:
             oquvchi.qayta_ariza_kerak = False

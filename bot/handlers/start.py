@@ -40,7 +40,7 @@ FISH_RE = re.compile(r"^[^\W\d_]+(?:[ '\-][^\W\d_]+)+$", re.UNICODE)
 
 FORMAT_XATO_XABAR = (
     "❌ Ma'lumot belgilangan formatda yozilmadi.\n\n"
-    "A'riza faqat quyidagi tartibda to'ldiriladi:\n"
+    "Ariza faqat quyidagi tartibda to'ldiriladi:\n"
     "1️⃣ Ism-familiya — «Ali Valiyev» ko'rinishida (kamida ikki so'z);\n"
     "2️⃣ Telefon — «+998901234567» ko'rinishida;\n"
     "3️⃣ Sinf — «7-A» ko'rinishida yoki fan — tugmalardan tanlanadi.\n\n"
@@ -57,12 +57,12 @@ QAYTA_ARIZA_XABAR = (
 # Rolga qarab so'raladigan uchinchi maydon nomi.
 ROL_UCHUNCHI_MAYDON = {
     ARIZA_ROL_OQUVCHI: "Sinfingiz",
-    ARIZA_ROL_OQITUVCHI: "Kasbingiz (o'qitayotgan fanningiz)",
+    ARIZA_ROL_OQITUVCHI: "Kasbingiz (o'qitayotgan finingiz)",
 }
 # Tasdiqlangan xabar matni (kalit — rol).
 ROL_TASDIQLANDI_XABARI = {
-    ARIZA_ROL_OQUVCHI: "🎓 <b>O'quvchi</b> sifatida a'riza yuborasiz.",
-    ARIZA_ROL_OQITUVCHI: "👨‍🏫 <b>O'qituvchi</b> sifatida a'riza yuborasiz.",
+    ARIZA_ROL_OQUVCHI: "🎓 <b>O'quvchi</b> sifatida ariza yuborasiz.",
+    ARIZA_ROL_OQITUVCHI: "👨‍🏫 <b>O'qituvchi</b> sifatida ariza yuborasiz.",
 }
 
 # Bosqich savollari. Bitta joyda saqlanadi: bir xil savol bir necha marta
@@ -182,7 +182,7 @@ async def _rol_tanlash(message: Message, matn: str | None = None):
         matn
         or (
             "Kutubxona botidan foydalanish uchun avval a'zo bo'lishingiz kerak.\n\n"
-            "A'riza yuborish uchun o'zingizning rolingizni tanlang:"
+            "Ariza yuborish uchun o'zingizning rolingizni tanlang:"
         ),
         reply_markup=ariza_rol_tugmalari(),
     )
@@ -216,10 +216,10 @@ async def ariza_rol_tanlandi(callback: CallbackQuery, state: FSMContext):
     """Rol tugmasi bosilganda rolni saqlaydi va ariza bo'sh bosqichini boshlaydi."""
     rol = (callback.data or "").partition(":")[2]
     if rol not in ROL_TASDIQLANDI_XABARI:
-        await callback.answer("Noma'lum ro'l.", show_alert=True)
+        await callback.answer("Noma'lum rol.", show_alert=True)
         return
 
-    # Tugma eski xabarda qolib qolgan bo'lishi mumkin — ariza allaqon
+    # Tugma eski xabarda qolib qolgan bo'lishi mumkin — ariza allaqachon
     # ko'rib chiqilayotgan bo'lsa, boshidan o'tkazmaymiz.
     try:
         holat = await api.ariza_holati(callback.from_user.id)
@@ -274,7 +274,7 @@ async def ariza_fish(message: Message, state: FSMContext):
     await state.update_data(fish=fish)
     await state.set_state(Ariza.telefon)
     await message.answer(
-        f"2️⃣ Rahmat. {SAVOL_TELEFON}",
+        f"Rahmat. {SAVOL_TELEFON}",
         reply_markup=telefon_sorash(),
     )
 
@@ -483,7 +483,7 @@ async def _arizani_yuborish(
             kasb=kasb,
         )
     except ApiXato as e:
-        # Terminal xatolar — holat tozalanadi (yoki ariza allaqon yuborilgan).
+        # Terminal xatolar — holat tozalanadi (yoki ariza allaqachon yuborilgan).
         if e.kod in ("allaqachon_azo", "ariza_kutmoqda"):
             await state.clear()
             xabarlar = {

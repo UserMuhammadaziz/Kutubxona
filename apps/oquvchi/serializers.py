@@ -8,6 +8,7 @@ from organization.tenancy import scope
 from .constants import FANLAR, FISH_RE, SINF_RE
 from .models import Ariza, Oquvchi
 from .services import oquvchi_yarat
+from .utils import sinf_normal
 
 # Ariza.rol va Oquvchi.rol uchun bir xil qiymatlar (models.RUL_CHOICES ga
 # qarab qo'lda yoziladi, chunki serializer import paytida model sinflariga
@@ -43,6 +44,11 @@ class OquvchiSerializer(serializers.ModelSerializer):
             "qayta_ariza_kerak",
         ]
 
+    def validate_sinf(self, value):
+        # "5-B sinf", "5b", "5 - B" kabi yozilishlar bitta sinfga keltiriladi —
+        # "Faol sinflar" reytingida takror paydo bo'lmasligi uchun.
+        return sinf_normal(value)
+
 
 class OquvchiYaratishSerializer(serializers.ModelSerializer):
     """POST /api/readers/ — karta_raqami avtomatik generatsiya qilinadi.
@@ -75,6 +81,9 @@ class OquvchiYaratishSerializer(serializers.ModelSerializer):
                 "Bu telefon raqamiga allaqachon o'quvchi kartasi ochilgan."
             )
         return value
+
+    def validate_sinf(self, value):
+        return sinf_normal(value)
 
     def create(self, validated_data):
         return oquvchi_yarat(**validated_data)
@@ -210,7 +219,7 @@ class ArizaYaratishSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Sinf «7-A», «9-B» yoki «10-» formatida yozilishi kerak."
             )
-        return sinf
+        return sinf_normal(sinf)
 
     def validate_kasb(self, value):
         """O'qituvchi fanni bot taklif qilgan ro'yxatdan tanlaydi."""
@@ -265,8 +274,12 @@ class ArizaYaratishSerializer(serializers.ModelSerializer):
                 {"error": "allaqachon_azo", "detail": "Bu telegram akkaunt allaqachon ro'yxatdan o'tgan"}
             )
 
-        kutmoqdagi = Ariza.objects.filter(telegram_id=telegram_id, holati="kutmoqda").first()
-        if kutmoqdagi and not kutmoqdagi.qayta_ariza_kerak:
+        # Faqat yangi formatda yuborilgan (belgilanmagan) kutmoqdagi ariza
+        # to'siq bo'ladi. Eski formatdagilar qaytadan yuborishga ruxsat beradi.
+        kutmoqdagi = Ariza.objects.filter(
+            telegram_id=telegram_id, holati="kutmoqda"
+        ).exclude(qayta_ariza_kerak=True).exists()
+        if kutmoqdagi:
             raise serializers.ValidationError(
                 {"error": "ariza_kutmoqda", "detail": "Arizangiz hali ko'rib chiqilmoqda"}
             )

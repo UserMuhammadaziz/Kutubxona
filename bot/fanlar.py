@@ -25,4 +25,8 @@ FANLAR = [
     "Tabiiy fanlar",
     "Huquq",
     "Iqtisodiyot",
+    "Algebra",
+    "Chizmachilik",
+    "Geometriya",
+    "Logoped",
 ]

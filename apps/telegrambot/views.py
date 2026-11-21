@@ -1,7 +1,6 @@
 import hmac
 import json
 import logging
-import re
 
 from django.db import IntegrityError
 from django.db.models import Q
@@ -16,6 +15,7 @@ from rest_framework.views import APIView
 
 from config.telegram import telegram_escape, telegram_xabar_yubor
 from oquvchi.models import Oquvchi
+from oquvchi.utils import sinf_kaliti, sinf_normal
 from organization.tenancy import joriy_kutubxonani_aniqla
 from user.permissions import IsAdmin, IsLibrarian
 
@@ -150,8 +150,7 @@ class TelegramBotActionView(APIView):
 
 def _sinf_kaliti(sinf):
     """Sinflarni tabiiy tartibda saralash: 7-A, 8-B, 10-A."""
-    mos = re.match(r"^(\d+)", sinf or "")
-    return (int(mos.group(1)) if mos else 999, sinf or "")
+    return sinf_kaliti(sinf)
 
 
 def _qabul_qiluvchilar(org, rol):
@@ -190,7 +189,10 @@ class SinflarView(APIView):
             .values_list("sinf", flat=True)
             .distinct()
         )
-        return Response(sorted(set(sinflar), key=_sinf_kaliti))
+        # Bir sinf turli yozilishlarda saqlangan bo'lsa ham bitta ko'rsatiladi.
+        kanonik = {sinf_normal(sinf) for sinf in sinflar}
+        kanonik.discard("")
+        return Response(sorted(kanonik, key=_sinf_kaliti))
 
 
 class XabarYuborishView(APIView):
@@ -215,7 +217,13 @@ class XabarYuborishView(APIView):
                 raise ValidationError({"oquvchi": "Tanlangan kitobxon topilmadi."})
             qabul_qiluvchilar = [kitobxon]
         elif data["tur"] == "sinf":
-            qabul_qiluvchilar = list(qs.filter(sinf=data["sinf"]))
+            # Tanlangan sinf kanonik ko'rinishda keladi; eski yozilishlar ham
+            # shu sinfga tegishli bo'lsa ularga ham xabar yetib borishi kerak.
+            kalit = sinf_normal(data["sinf"])
+            mos_sinflar = {
+                xom for xom in qs.values_list("sinf", flat=True) if sinf_normal(xom) == kalit
+            }
+            qabul_qiluvchilar = list(qs.filter(sinf__in=mos_sinflar))
             if not qabul_qiluvchilar:
                 raise ValidationError({"sinf": "Bu sinfda kitobxon topilmadi."})
         else:

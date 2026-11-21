@@ -54,7 +54,7 @@ async def xabarni_tahrirlash(
         if xabar.message is None:
             # Inline xabarning o'zi yo'q (masalan, juda eski xabar) —
             # yangisini yuborish ham imkonsiz, shuning uchun javob beramiz.
-            await xabar.answer("Bu xabar allaqon eskirgan. /start bosing.")
+            await xabar.answer("Bu xabar allaqachon eskirgan. /start bosing.")
             return False
         xabar = xabar.message
 
