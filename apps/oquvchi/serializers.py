@@ -5,7 +5,7 @@ from rest_framework import serializers
 
 from organization.tenancy import scope
 
-from .constants import FANLAR, FISH_RE, SINF_RE
+from .constants import FAN_LIMIT, FANLAR, FISH_RE, SINF_RE
 from .models import Ariza, Oquvchi
 from .services import oquvchi_yarat
 from .utils import sinf_normal
@@ -226,6 +226,10 @@ class ArizaYaratishSerializer(serializers.ModelSerializer):
         if not value:
             return value
         fanlar = [fan.strip() for fan in value.split(",") if fan.strip()]
+        if len(fanlar) > FAN_LIMIT:
+            raise serializers.ValidationError(
+                f"Ikkitagacha fan tanlash mumkin ({len(fanlar)} ta yuborildi)."
+            )
         notogri = [fan for fan in fanlar if fan not in FANLAR]
         if notogri:
             raise serializers.ValidationError(

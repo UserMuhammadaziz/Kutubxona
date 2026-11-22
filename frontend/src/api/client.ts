@@ -1,5 +1,6 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import type { ApiError } from '../types'
+import { avtomatikXatolikniYubor } from '../lib/xatolikXabari'
 
 const ACCESS_KEY = 'kutubxona_access'
 const REFRESH_KEY = 'kutubxona_refresh'
@@ -63,6 +64,17 @@ api.interceptors.response.use(
         window.location.href = '/login'
         return Promise.reject(error)
       }
+    }
+
+    // Faqat haqiqiy server xatolari (5xx) avtomatik hisobotga yuboriladi.
+    // 4xx — foydalanuvchi xatosi (masalan noto'g'ri parol), ular shovqin bo'lardi.
+    // Xatolik xabari endpointi ham shu interceptor'dan o'tadi, shuning uchun
+    // uni istisno qilamiz (aks holda o'z-o'zini yuborish halqasi yuz beradi).
+    const url = error.config?.url || ''
+    if (error.response && error.response.status >= 500 && !url.includes('xatolik-xabari')) {
+      avtomatikXatolikniYubor(
+        `${error.config?.method?.toUpperCase() || 'GET'} ${url}: ${error.response.status}`,
+      )
     }
 
     return Promise.reject(error)

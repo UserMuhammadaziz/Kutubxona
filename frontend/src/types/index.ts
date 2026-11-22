@@ -505,3 +505,20 @@ export interface FaollikReytingi {
   faol_oquvchilar: FaolKitobxon[]
   faol_oqituvchilar: FaolKitobxon[]
 }
+
+// ---- Profil: xatolik haqida xabar ----
+
+export interface XatolikXabari {
+  id: number
+  matn: string
+  sahifa: string
+  tur: 'qolda' | 'avtomatik'
+  yaratilgan: string
+  yuborgan: string
+}
+
+export interface XatolikXabariNatijasi {
+  id: number
+  saqlandi: boolean
+  telegramga_yuborildi: number
+}

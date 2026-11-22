@@ -16,7 +16,7 @@ from jarima.models import Jarima
 from kitob.models import BandQilish, Kitob
 from navbat.models import Navbat
 from organization.models import Membership
-from oquvchi.constants import FANLAR, FISH_RE, SINF_RE, format_xatolari
+from oquvchi.constants import FAN_LIMIT, FANLAR, FISH_RE, SINF_RE, format_xatolari
 from oquvchi.models import Ariza, Oquvchi
 
 from .client import answer_callback_query
@@ -248,7 +248,12 @@ def _ariza_text(bot, message, sessiya):
         data["telefon"] = matn
         if data.get("rol") == "oqituvchi":
             _set_session(bot, telegram_id, chat_id, "ariza_kasb", data)
-            _send(bot, chat_id, "Qaysi fanni o'qitasiz? (masalan: Matematika)")
+            _send(
+                bot,
+                chat_id,
+                "Qaysi fanlarni o'qitasiz? Ikkitagacha fan nomini vergul bilan yozing "
+                "(masalan: Matematika, Fizika).",
+            )
         else:
             _set_session(bot, telegram_id, chat_id, "ariza_sinf", data)
             _send(bot, chat_id, "Sinfingizni kiriting (masalan: 7-A):")
@@ -257,7 +262,11 @@ def _ariza_text(bot, message, sessiya):
         rol = data.get("rol", "oquvchi")
         if rol == "oqituvchi":
             fanlar = [fan.strip() for fan in matn.split(",") if fan.strip()]
-            togri = bool(fanlar) and len(matn) <= 60 and all(f in FANLAR for f in fanlar)
+            togri = (
+                1 <= len(fanlar) <= FAN_LIMIT
+                and len(matn) <= 60
+                and all(f in FANLAR for f in fanlar)
+            )
             data["kasb"] = ", ".join(fanlar)
         else:
             togri = len(matn) <= 30 and bool(SINF_RE.fullmatch(matn))

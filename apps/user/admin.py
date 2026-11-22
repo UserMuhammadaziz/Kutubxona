@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import User
+from .models import User, XatolikXabari
 
 
 @admin.register(User)
@@ -12,3 +12,12 @@ class UserAdmin(BaseUserAdmin):
     fieldsets = BaseUserAdmin.fieldsets + (
         ("Kutubxona ma'lumotlari", {"fields": ("full_name", "rol", "telefon")}),
     )
+
+
+@admin.register(XatolikXabari)
+class XatolikXabariAdmin(admin.ModelAdmin):
+    list_display = ("id", "yaratilgan", "tur", "yuborgan", "organization", "sahifa")
+    list_filter = ("tur", "organization")
+    search_fields = ("matn", "sahifa")
+    readonly_fields = ("yaratilgan",)
+

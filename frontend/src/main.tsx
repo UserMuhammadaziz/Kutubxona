@@ -5,6 +5,11 @@ import { keepPreviousData, QueryClient, QueryClientProvider } from '@tanstack/re
 import './index.css'
 import App from './App.tsx'
 import { ToastProvider } from './components/Toast.tsx'
+import { avtomatikXatoUshlagichlarniOrnat } from './lib/xatolikXabari'
+
+// Profildagi avtomatik xatolik xabari tugmasi yoqilgan bo'lsa, ushlanmagan
+// xatolar va rad etilgan promise'lar xabar sifatida yuboriladi.
+avtomatikXatoUshlagichlarniOrnat()
 
 const queryClient = new QueryClient({
   defaultOptions: {

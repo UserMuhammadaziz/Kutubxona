@@ -696,7 +696,10 @@ const sections: Section[] = [
           <>
             <B>Arizalar</B> ni bosing — dastlab faqat <B>kutilayotgan</B> arizalar chiqadi
           </>,
-          <>Arizani o‘qing: ism, telefon, sinf/fan, Telegram ID</>,
+          <>
+            Arizani o‘qing: ism, telefon, sinf/fan (o‘qituvchi ikkitagacha fan tanlaydi, jumladan{' '}
+            <B>Boshlang‘ich</B>), Telegram ID
+          </>,
           <>Ikki variant:</>,
         ]}
       />,
@@ -1046,6 +1049,13 @@ const sections: Section[] = [
         “Telegram yo‘q” deb ko‘rsatiladi. Xabar yuborish uchun kutubxonaning Telegram boti ulangan
         bo‘lishi shart.
       </Note>,
+      <H3 key="11a">Xatolik haqida xabar berish</H3>,
+      <P key="11b">
+        <B>Profil</B> → <B>Xatolik haqida xabar berish</B> bo‘limida saytdagi nosozlikni yozib
+        yuboring. Xabar saqlanadi va kutubxona egasi/administratorlarining Telegram‘iga yetkaziladi.
+        <B> «Xatolik yuz berganda avtomatik yuborish»</B> standart yoqilgan: ushlanmagan xatolar
+        va server xatolari ham o‘z-o‘zidan yuboriladi (istamasangiz katakchani o‘chiring).
+      </P>,
       <H3 key="12">O‘quvchi va o‘qituvchilarni o‘chirish</H3>,
       <OL
         key="13"

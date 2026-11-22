@@ -19,7 +19,7 @@ from keyboards import (
     telefon_keltirish,
     telefon_sorash,
 )
-from fanlar import FANLAR
+from fanlar import FAN_LIMIT, FANLAR
 from states import Ariza
 from utils import x, xabarni_tahrirlash
 
@@ -76,7 +76,7 @@ SAVOL_SINF = (
     "qayta to'ldiriladi."
 )
 SAVOL_KASB = (
-    "3️⃣ Qaysi fan(lar)ni dars berasiz? Pastdagi ro'yxatdan tanlang.\n"
+    "3️⃣ Qaysi fan(lar)ni dars berasiz? Ikkitagacha fan tanlang.\n"
     "Tanlangan fanlar ✅ bilan belgilanadi. Oxirida «✅ Tayyor» bosing.\n"
     "⚠️ Fanlarni o'zingiz yozmang — xato yozilsa ariza boshidan qayta "
     "to'ldiriladi."
@@ -402,6 +402,11 @@ async def ariza_fan_tanlandi(callback: CallbackQuery, state: FSMContext):
         if not tanlanganlar:
             await callback.answer("Avval kamida bitta fan tanlang.", show_alert=True)
             return
+        if len(tanlanganlar) > FAN_LIMIT:
+            await callback.answer(
+                f"Faqat {FAN_LIMIT} tagacha fan tanlash mumkin.", show_alert=True
+            )
+            return
         kasb = ", ".join(tanlanganlar)
         if len(kasb) > 60:
             await callback.answer(
@@ -430,6 +435,13 @@ async def ariza_fan_tanlandi(callback: CallbackQuery, state: FSMContext):
         if fan in tanlanganlar:
             tanlanganlar.remove(fan)
         else:
+            if len(tanlanganlar) >= FAN_LIMIT:
+                await callback.answer(
+                    f"Faqat {FAN_LIMIT} tagacha fan tanlash mumkin. "
+                    "Avval birini o'chirib, keyin yangisini tanlang.",
+                    show_alert=True,
+                )
+                return
             tanlanganlar.append(fan)
 
     await state.update_data(fanlar=tanlanganlar)
@@ -439,7 +451,8 @@ async def ariza_fan_tanlandi(callback: CallbackQuery, state: FSMContext):
     tanlangan_matn = ", ".join(tanlanganlar) or "—"
     await xabarni_tahrirlash(
         callback,
-        f"{SAVOL_KASB}\n\n<b>Tanlanganlar:</b> {x(tanlangan_matn)}",
+        f"{SAVOL_KASB}\n\n"
+        f"<b>Tanlanganlar ({len(tanlanganlar)}/{FAN_LIMIT}):</b> {x(tanlangan_matn)}",
         reply_markup=fan_tugmalari(tanlanganlar),
     )
 

@@ -7,6 +7,9 @@ qo'shganda ikkala faylni ham yangilash kerak.
 
 import re
 
+# Ariza yuborishda bir o'qituvchi ikkitagacha fan tanlaydi.
+FAN_LIMIT = 2
+
 FANLAR = [
     "Matematika",
     "Ona tili",
@@ -32,6 +35,7 @@ FANLAR = [
     "Chizmachilik",
     "Geometriya",
     "Logoped",
+    "Boshlang'ich",
 ]
 
 # 1—11-sinf va ixtiyoriy litra: 7-A, 9-B, 10-, 11-V.

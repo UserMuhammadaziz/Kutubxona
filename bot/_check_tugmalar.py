@@ -1138,8 +1138,22 @@ async def main() -> int:
     django_fanlar = _fanlar_ol(ROOT / "apps" / "oquvchi" / "constants.py")
     tekshir(bool(bot_fanlar), "bot/fanlar.py da FANLAR ro'yxati bor")
     tekshir(bot_fanlar == django_fanlar, "FANLAR ikkala faylda bir xil")
-    for fan in ("Algebra", "Chizmachilik", "Geometriya", "Logoped"):
+    for fan in ("Algebra", "Chizmachilik", "Geometriya", "Logoped", "Boshlang'ich"):
         tekshir(fan in bot_fanlar, f"FANLAR tarkibida «{fan}» bor")
+    for fayl in (BOT_DIR / "fanlar.py", ROOT / "apps" / "oquvchi" / "constants.py"):
+        tekshir(
+            "FAN_LIMIT = 2" in fayl.read_text(encoding="utf-8-sig"),
+            f"{fayl.name} da FAN_LIMIT = 2",
+        )
+    for fayl in (
+        BOT_DIR / "handlers" / "start.py",
+        ROOT / "apps" / "telegrambot" / "handler.py",
+        ROOT / "apps" / "oquvchi" / "serializers.py",
+    ):
+        tekshir(
+            "FAN_LIMIT" in fayl.read_text(encoding="utf-8-sig"),
+            f"{fayl.name} da ikki fan cheklovi qo'llanilgan",
+        )
 
     if "--live" in sys.argv:
         print()

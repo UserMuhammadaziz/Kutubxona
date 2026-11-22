@@ -155,6 +155,7 @@ va allaqachon to'langan jarimaga tegilmaydi.
 | GET | `/api/applications/status/?telegram_id=` | Bot: ariza holati |
 | POST | `/api/applications/{id}/approve/` | Arizani qabul qilish (karta ochiladi) |
 | POST | `/api/applications/{id}/reject/` | Arizani rad etish |
+| GET/POST | `/api/auth/xatolik-xabari/` | Profil: xatolik haqida xabar (saqlash + adminlarga Telegram) |
 | GET | `/api/stats/top-books/?limit=10` | Top kitoblar |
 | GET | `/api/stats/dashboard/` | Umumiy statistika |
 
@@ -165,7 +166,8 @@ va allaqachon to'langan jarimaga tegilmaydi.
   Tanlangan rolga qarab so'raladigan ma'lumotlar (qat'iy formatda):
   - **Oquvchi** → ism-familiya (`Ali Valiyev`) → telefon (`+998901234567`) → sinf (`7-A`)
   - **O'qituvchi** → ism-familiya → telefon → fan(lar) — ro'yxatdagi ✅ tugmalaridan
-    tanlanadi (`Matematika`, `Algebra`, `Geometriya`, `Chizmachilik`, `Logoped` va boshqalar).
+    **ikkitagacha** tanlanadi (`Matematika`, `Algebra`, `Geometriya`, `Chizmachilik`,
+    `Logoped`, `Boshlang'ich` va boshqalar).
   Format buzilsa ariza boshidan qayta to'ldiriladi; eski formatdagi (qabul qilinganlari
   ham) arizalar `qayta_ariza_kerak` deb belgilanadi va `/start` da qayta yuborish
   so'raladi. To'g'ri formatda qayta yuborilgan ariza qabul qilinadi.

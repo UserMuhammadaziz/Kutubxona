@@ -150,7 +150,8 @@ def fan_tugmalari(tanlanganlar: list[str] | None = None) -> InlineKeyboardMarkup
     """O'qituvchi fan(lar)ni bosib tanlaydigan inline klaviatura.
 
     Tanlangan fanlar tugmada ✅ bilan belgilanadi, yana bosilsa belgi
-    o'chiriladi. «Tayyor» bosilgandan keyingina ariza yuboriladi.
+    o'chiriladi. Ikkitagacha fan tanlash mumkin. «Tayyor» bosilgandan
+    keyingina ariza yuboriladi.
     """
     tanlanganlar = tanlanganlar or []
     qatorlar = []

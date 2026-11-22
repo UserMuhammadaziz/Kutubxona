@@ -176,7 +176,7 @@ O'quvchi botda ariza yuboradi → siz faqat **tasdiqlaysiz**. Batafsil — 9-bo'
 |---|---|---|
 | To'liq ismi | **Ha** | Aliyev Vali |
 | Telefon | **Ha** | +998901234567 |
-| Sinf (fan) | **Ha** (o'qituvchi uchun) | `7-A` / `Matematika`, `Algebra`, `Geometriya`, `Chizmachilik`, `Logoped` |
+| Sinf (fan) | **Ha** (o'qituvchi uchun, ikkitagacha fan) | `7-A` / `Matematika`, `Algebra`, `Geometriya`, `Chizmachilik`, `Logoped`, `Boshlang'ich` |
 | Tug'ilgan sana | **Yo'q** | 15.03.2012 |
 | Manzil | **Yo'q** | Toshkent sh. |
 
@@ -377,6 +377,14 @@ Bitta o'quvchining hamma narsasini bir joyda ko'rish:
 - **Barcha sinflarga** — tanlangan roldagi hamma faol kitobxonlarga
 
 Telegram ID si bo'lmaganlar hisobga olinadi, lekin ularga xabar bormaydi — natijada "Telegram yo'q" deb ko'rsatiladi.
+
+### Xatolik haqida xabar berish
+
+**Profil → Xatolik haqida xabar berish** bo'limida saytdagi nosozlikni tavsiflab yuboring:
+
+- Xabar bazada saqlanadi va **oxirgi xatolik xabarlari** ro'yxatida ko'rinadi
+- Kutubxona egasi/administratorlarining Telegram ID si bo'lsa, ularga xabar yetkaziladi (aks holda `.env` dagi `BOT_ADMIN_CHAT_IDS` ishlatiladi)
+- **«Xatolik yuz berganda avtomatik yuborish»** standart yoqilgan; ushlanmagan JS xatolari, rad etilgan so'rovlar va server (5xx) xatolari yuboriladi (bir xil xato 1 daqiqada faqat bir marta). Kerak bo'lsa shu katakchani o'chirib qo'yishingiz mumkin
 
 ### Kitobxon va o'qituvchilarni o'chirish
 

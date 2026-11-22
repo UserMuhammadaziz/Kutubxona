@@ -746,6 +746,8 @@ Kutubxonachi va administrator hisoblarini boshqarish. **Faqat administrator** ko
 
 **Faol sinflar (reyting):** `Kitobxonlar` sahifasidagi **Faol sinflar** bo'limi sinflarni kitob o'qish faoliyatiga qarab tartiblaydi (faol kitobxonlar ulushi 0.6 + faol berishlar 0.3 + qaytarilganlar 0.1). `5-B sinf`, `5b`, `5-B ` kabi yozilishlar bitta sinfga (`5-B`) keltirilib, takror paydo bo'lmaydi; xabar yuborishda ham shu normalizatsiya qo'llaniladi.
 
+**Xatolik haqida xabar berish (`POST/GET /api/auth/xatolik-xabari/`):** `Profil → Xatolik haqida xabar berish` orqali yuboriladi. `XatolikXabari` modelida saqlanadi (`organization`, `yuborgan`, `matn`, `sahifa`, `tur`, `yaratilgan`) va joriy kutubxoning `egasi`/`administrator` a'zolarining Telegram'iga `config.telegram.telegram_xabar_yubor` orqali yuboriladi (ularning a'zoligida Telegram ID si bo'lmasa, `.env` dagi `BOT_ADMIN_CHAT_IDS` ishlatiladi). Telegram yuborish ishlamasa ham xabar bazada qoladi. `tur=avtomatik` frontend tomonidan ushlangan xatolar uchun ishlatiladi; ular Profildagi katakcha yoqilganda (standart yoqilgan) keladi (bir xil xato 1 daqiqada bir marta). Boshqalarining xabarlarini ko'rish uchun Django admin'dagi **Xatolik xabarlari** bo'limi ishlatiladi.
+
 **Kitobxonlarni o'chirish:** rol bo'yicha qidirib, belgilang va **O'chirish** bosing. Faqat **qaytarilmagan kitobi** yoki **kutilayotgan band so'rovi** (`kutmoqda`) borlar o'chirilmaydi — sababi natijada ko'rsatiladi. Qaytarilgan kitoblar va yakunlangan band tarixi (tasdiqlangan/rad etilgan/bekor qilingan) endi to'siq bo'lmaydi: ular bir tranzaksiyada tozalanib, kitobxon o'chiriladi.
 
 O'chirilgan kitobxonning Telegram ID si bo'lsa, unga avtomatik xabar ketadi: ro'yxatdan o'chirilganligi va **/start** buyrug'i bilan qaytadan ariza topshirishi so'raladi. Eski arizasi ham o'chiriladi, shuning uchun bot uni "arizangiz kutmoqda" deb bloklamaydi. Telegram ID si yo'qlarga xabar yuborilmaydi.
@@ -824,7 +826,7 @@ yoki `start_all.bat` orqali avtomatik.
 2. Rolni tanlang: **O'quvchi** yoki **O'qituvchi**
 3. Ma'lumotlarni kiriting:
    - **O'quvchi** → Ism-familiya → Telefon → Sinf (`7-A`, `9-B`, `10-` ko'rinishida)
-   - **O'qituvchi** → Ism-familiya → Telefon → Fan(lar) — pastdagi ✅ tugmalardan tanlanadi; oxirida **✅ Tayyor** bosing. Ro'yxatda `Matematika`, `Algebra`, `Geometriya`, `Chizmachilik`, `Logoped` va boshqa fanlar bor.
+   - **O'qituvchi** → Ism-familiya → Telefon → Fan(lar) — pastdagi ✅ tugmalardan **ikkitagacha** tanlanadi; oxirida **✅ Tayyor** bosing. Ro'yxatda `Matematika`, `Algebra`, `Geometriya`, `Chizmachilik`, `Logoped`, `Boshlang'ich` va boshqa fanlar bor.
 4. Ariza yuboriladi — kutubxonachidan tasdiq kutiladi
 5. Tasdiqlangandan keyin karta raqami beriladi
 

@@ -32,6 +32,8 @@ import type {
   BandHolati,
   FaollikReytingi,
   RecentActivity,
+  XatolikXabari,
+  XatolikXabariNatijasi,
 } from '../types'
 
 // ---- Auth ----
@@ -154,6 +156,20 @@ export const messagesApi = {
     api.get<string[]>('/messages/classes/', { params: { rol } }).then((r) => r.data),
   send: (payload: XabarYuborishPayload) =>
     api.post<XabarNatijasi>('/messages/send/', payload).then((r) => r.data),
+}
+
+// ---- Profil: xatolik haqida xabar ----
+
+export interface XatolikXabariPayload {
+  matn: string
+  sahifa?: string
+  tur?: 'qolda' | 'avtomatik'
+}
+
+export const xatolikApi = {
+  list: () => api.get<XatolikXabari[]>('/auth/xatolik-xabari/').then((r) => r.data),
+  send: (payload: XatolikXabariPayload) =>
+    api.post<XatolikXabariNatijasi>('/auth/xatolik-xabari/', payload).then((r) => r.data),
 }
 
 // ---- Applications (Arizalar) ----

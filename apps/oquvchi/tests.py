@@ -783,6 +783,21 @@ class ArizaFormatTest(ArizaTestMixin, TestCase):
         self.assertEqual(ariza.kasb, "Matematika, Fizika")
         self.assertIsNone(ariza.sinf)
 
+    def test_ikkitagacha_fan_qabul_qilinadi(self):
+        javob = self.yubor(
+            rol="oqituvchi", sinf="", kasb="Boshlang'ich, Matematika"
+        )
+        self.assertEqual(javob.status_code, 201, javob.data)
+        self.assertEqual(Ariza.objects.get().kasb, "Boshlang'ich, Matematika")
+
+    def test_uchta_fan_rad_etiladi(self):
+        javob = self.yubor(
+            rol="oqituvchi", sinf="", kasb="Matematika, Fizika, Boshlang'ich"
+        )
+        self.assertEqual(javob.status_code, 400)
+        self.assertIn("kasb", str(javob.data))
+        self.assertEqual(Ariza.objects.count(), 0)
+
 
 class QaytaArizaTest(ArizaTestMixin, TestCase):
     """Eski (noto'g'ri formatdagi) arizalar qaytadan topshirilishi kerak.

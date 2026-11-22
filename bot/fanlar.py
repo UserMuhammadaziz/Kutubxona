@@ -4,6 +4,9 @@ Django tomonidagi nusxa: `apps/oquvchi/constants.py::FANLAR`. Ikkalasi bir
 xil bo'lishi shart — bot Django modullarini import qila olmaydi.
 """
 
+# O'qituvchi arizasida ikkitagacha fan tanlash mumkin.
+FAN_LIMIT = 2
+
 FANLAR = [
     "Matematika",
     "Ona tili",
@@ -29,4 +32,5 @@ FANLAR = [
     "Chizmachilik",
     "Geometriya",
     "Logoped",
+    "Boshlang'ich",
 ]

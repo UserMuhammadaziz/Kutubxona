@@ -4,6 +4,7 @@ import {
   authApi,
   messagesApi,
   readersApi,
+  xatolikApi,
   type OchirishNatijasi,
   type ParolAlmashtirishPayload,
   type ProfilYangilashPayload,
@@ -12,6 +13,10 @@ import {
 import { errorMessage } from '../api/client'
 import { useToast } from '../components/Toast'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
+import {
+  avtomatikHolatniSaqla,
+  avtomatikYoqilgan,
+} from '../lib/xatolikXabari'
 import { useAuthStore } from '../store/auth'
 import { useThemeStore } from '../store/theme'
 import { Icons } from '../components/icons'
@@ -29,7 +34,7 @@ import {
   Spinner,
   Textarea,
 } from '../components/ui'
-import type { OquvchiRol } from '../types'
+import type { OquvchiRol, XatolikXabari } from '../types'
 
 const ROL_LABELS: Record<string, string> = {
   egasi: 'Egasi',
@@ -100,6 +105,11 @@ export function Profile() {
   const [kitobxonQidiruv, setKitobxonQidiruv] = useState('')
   const kechikkanQidiruv = useDebouncedValue(kitobxonQidiruv)
 
+  // Xatolik haqida xabar berish
+  const [xatoMatn, setXatoMatn] = useState('')
+  const [xatoSahifa, setXatoSahifa] = useState('')
+  const [autoXato, setAutoXato] = useState(avtomatikYoqilgan())
+
   const { data: sinflar, isLoading: sinflarYuklanmoqda } = useQuery({
     queryKey: ['message-classes', xabar.rol],
     queryFn: () => messagesApi.classes(xabar.rol),
@@ -155,6 +165,30 @@ export function Profile() {
         .join(', ')
       toast.success(`Jami ${natija.jami} ta: ${izoh}.`)
       setXabar((old) => ({ ...old, matn: '' }))
+    },
+    onError: (err) => toast.error(errorMessage(err)),
+  })
+
+  const { data: xatoliklar, isLoading: xatoliklarYuklanmoqda } = useQuery({
+    queryKey: ['xatolik-xabarlari'],
+    queryFn: () => xatolikApi.list(),
+  })
+
+  const xatoMut = useMutation({
+    mutationFn: () =>
+      xatolikApi.send({
+        matn: xatoMatn.trim(),
+        sahifa: xatoSahifa.trim() || window.location.pathname,
+        tur: 'qolda',
+      }),
+    onSuccess: (natija) => {
+      setXatoMatn('')
+      void queryClient.invalidateQueries({ queryKey: ['xatolik-xabarlari'] })
+      toast.success(
+        natija.telegramga_yuborildi
+          ? `Xabar saqlandi va ${natija.telegramga_yuborildi} ta administratorga yuborildi.`
+          : 'Xabar saqlandi. Administratorlarning Telegram ID si topilmadi.',
+      )
     },
     onError: (err) => toast.error(errorMessage(err)),
   })
@@ -673,6 +707,95 @@ export function Profile() {
             Xabarni yuborish
           </Button>
         </form>
+      </Card>
+
+      <Card className="mt-5 p-5">
+        <h2 className="mb-1 flex items-center gap-2 font-semibold text-slate-900 dark:text-slate-100">
+          <Icons.alert className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+          Xatolik haqida xabar berish
+        </h2>
+        <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+          Saytda biror nosozlik yuz bersa, uning tavsifini yuboring — xabar saqlanadi va
+          kutubxona egasi/administratorlarining Telegram'iga yetkaziladi.
+        </p>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (!xatoMatn.trim()) return
+            xatoMut.mutate()
+          }}
+        >
+          <Field>
+            <Label htmlFor="xato-matn">Nima xatolik yuz berdi?</Label>
+            <Textarea
+              id="xato-matn"
+              rows={3}
+              maxLength={2000}
+              placeholder="Masalan: kitob berishda «Saqlash» tugmasi ishlamayapti..."
+              value={xatoMatn}
+              onChange={(e) => setXatoMatn(e.target.value)}
+              required
+            />
+          </Field>
+          <Field>
+            <Label htmlFor="xato-sahifa">Qaysi sahifada? (ixtiyoriy)</Label>
+            <Input
+              id="xato-sahifa"
+              placeholder={window.location.pathname}
+              value={xatoSahifa}
+              onChange={(e) => setXatoSahifa(e.target.value)}
+              maxLength={300}
+            />
+          </Field>
+          <label className="mb-4 flex cursor-pointer items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
+            <input
+              type="checkbox"
+              checked={autoXato}
+              onChange={(e) => {
+                setAutoXato(e.target.checked)
+                avtomatikHolatniSaqla(e.target.checked)
+              }}
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500 dark:border-slate-600"
+            />
+            <span>
+              Xatolik yuz berganda avtomatik yuborish
+              <span className="block text-xs text-slate-400">
+                Ushlanmagan xatolar, rad etilgan so'rovlar va server (5xx) xatolari yuboriladi.
+              </span>
+            </span>
+          </label>
+          <Button type="submit" loading={xatoMut.isPending} disabled={!xatoMatn.trim()}>
+            <Icons.alert className="h-4 w-4" />
+            Xatolik haqida yuborish
+          </Button>
+        </form>
+
+        <div className="mt-5 border-t border-slate-100 pt-4 dark:border-slate-700">
+          <h3 className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+            Oxirgi xatolik xabarlari
+          </h3>
+          {xatoliklarYuklanmoqda ? (
+            <Spinner label="Yuklanmoqda..." className="py-3" />
+          ) : xatoliklar?.length ? (
+            <ul className="divide-y divide-slate-100 dark:divide-slate-700">
+              {xatoliklar.map((x: XatolikXabari) => (
+                <li key={x.id} className="py-2 text-sm">
+                  <div className="whitespace-pre-wrap break-words text-slate-800 dark:text-slate-200">
+                    {x.matn}
+                  </div>
+                  <div className="mt-0.5 text-xs text-slate-400">
+                    {x.tur === 'avtomatik' ? 'Avtomatik' : 'Qo‘lda'} · {x.yuborgan} ·{' '}
+                    {x.sahifa || '—'} ·{' '}
+                    {new Date(x.yaratilgan).toLocaleString('uz-UZ')}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="py-2 text-sm text-slate-400">Hali xatolik xabari yuborilmagan.</p>
+          )}
+        </div>
       </Card>
 
       <ConfirmDialog
