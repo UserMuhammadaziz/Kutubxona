@@ -191,18 +191,10 @@ def kitob_ber(nusxa, oquvchi, xodim, kitob=None, band_tasdiqlandi=False):
         taklif_xabari_yuborilgan=False,
     )
 
-    # Kitob olgan kundan boshlab qaytarish muddati boshlanadi.
-    try:
-        from telegrambot.models import KitobXabari
-
-        KitobXabari.objects.get_or_create(
-            organization=berish.organization, kitob=kitob, tur="berildi"
-        )
-        from telegrambot.tasks import yangi_kitob_xabari_yubor
-
-        yangi_kitob_xabari_yubor.delay(kitob_id=kitob.pk)
-    except Exception:
-        pass
+    # Kitob olgan kundan boshlab qaytarish muddati boshlanadi. Xabar tranzaksiya
+    # commit bo'lgandan keyin yuboriladi. `yangi_kitob_xabari_yubor` faqat YANGI
+    # kitob qo'shilganda ishlatiladigan ommaviy xabar — uni bu yerda chaqirish
+    # "YANGI KITOB QO'SHILDI" deb noto'g'ri xabar tarqatardi.
     transaction.on_commit(lambda: _kitob_berildi_xabarini_yubor(berish))
 
     return berish

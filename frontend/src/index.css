@@ -18,6 +18,12 @@
   --color-paper: #fbf9f5;
 }
 
+:root {
+  /* Pastki tab panelining taxminiy balandligi — chat FAB va PwaBanner shu
+     qiymatdan foydalanib uning ustida turadi. PWA'da ildiz shrifti katta. */
+  --pwa-bottom-bar: 4rem;
+}
+
 html, body, #root {
   height: 100%;
 }
@@ -86,12 +92,14 @@ html.pwa body {
 @media (max-width: 420px) {
   html.pwa {
     font-size: 18px;
+    --pwa-bottom-bar: 5rem;
   }
 }
 
 @media (min-width: 421px) and (max-width: 640px) {
   html.pwa {
     font-size: 17px;
+    --pwa-bottom-bar: 4.75rem;
   }
 }
 
@@ -100,12 +108,13 @@ html.pwa .pwa-safe-top {
   padding-top: calc(0.75rem + env(safe-area-inset-top, 0px));
 }
 
-/* Pastki tezkor tugmalar ham xavfsiz zona ichida, bosish joyi kattaroq. */
-html.pwa .pwa-tabs {
+/* Pastki tezkor tugmalar ham xavfsiz zona ichida. Qoshimcha env() classda
+   yozilmaydi — ikki joyda bo'lsa PWA'da balandlik ikki barobar oshib ketadi. */
+.pwa-tabs {
   padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
 }
-html.pwa .pwa-tab {
-  padding-top: 0.625rem;
-  padding-bottom: 0.625rem;
-  font-size: 0.75rem;
+.pwa-tab {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  font-size: 0.6875rem;
 }

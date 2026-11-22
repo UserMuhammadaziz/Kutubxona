@@ -161,15 +161,17 @@ def _qabul_qiluvchilar(org, rol):
     qiluvchilarga qo'shamiz — aks holda kutubxonachi ularni na ko'radi,
     na xabar yubora oladi. Ko'p kutubxonada bunday qilish xavfsiz emas.
     """
-    qs = Oquvchi.objects.filter(rol=rol, faol=True)
-    if org is not None:
-        from organization.models import Organization
+    from organization.tenancy import legacy_rejimmi
 
-        if Organization.objects.filter(status=Organization.HOLAT_ACTIVE).count() <= 1:
-            qs = qs.filter(Q(organization=org) | Q(organization__isnull=True))
-        else:
-            qs = qs.filter(organization=org)
-    return qs
+    qs = Oquvchi.objects.filter(rol=rol, faol=True)
+    if org is None:
+        # Ko'p kutubxonada tenant aniqlanmasa, hech kimga xabar yuborilmaydi.
+        return qs if legacy_rejimmi() else qs.none()
+    from organization.models import Organization
+
+    if Organization.objects.filter(status=Organization.HOLAT_ACTIVE).count() <= 1:
+        return qs.filter(Q(organization=org) | Q(organization__isnull=True))
+    return qs.filter(organization=org)
 
 
 class SinflarView(APIView):
@@ -181,7 +183,7 @@ class SinflarView(APIView):
         rol = request.query_params.get("rol", "oquvchi")
         if rol not in ("oquvchi", "oqituvchi"):
             rol = "oquvchi"
-        org = joriy_kutubxonani_aniqla(request, required=False)
+        org = joriy_kutubxonani_aniqla(request, required=True)
         sinflar = (
             _qabul_qiluvchilar(org, rol)
             .exclude(sinf__isnull=True)
@@ -208,7 +210,7 @@ class XabarYuborishView(APIView):
         serializer = XabarYuborishSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        org = joriy_kutubxonani_aniqla(request, required=False)
+        org = joriy_kutubxonani_aniqla(request, required=True)
         qs = _qabul_qiluvchilar(org, data["rol"])
 
         if data["tur"] == "shaxs":

@@ -21,6 +21,8 @@ import { Guide, PublicGuide } from './pages/Guide'
 import { Register } from './pages/Register'
 import { Home } from './pages/Home'
 import { Profile } from './pages/Profile'
+import { PwaBanner } from './components/PwaBanner'
+import { TenantSwitcher } from './components/TenantSwitcher'
 
 function App() {
   const hydrate = useAuthStore((s) => s.hydrate)
@@ -30,39 +32,45 @@ function App() {
   }, [hydrate])
 
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/yordam" element={<PublicGuide />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/welcome" element={<Home />} />
+    <>
+      {/* Barcha sahifalarda (jumladan /login, /welcome, /yordam) ishlashi uchun
+          PWA eslatmalari va kutubxona tanlagich Route'lardan tashqarida. */}
+      <PwaBanner />
+      <TenantSwitcher />
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/yordam" element={<PublicGuide />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/welcome" element={<Home />} />
 
-      <Route element={<RequireAuth />}>
-        <Route element={<Layout />}>
-          <Route path="/" element={<Home />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/books" element={<Books />} />
-          <Route path="/books/:id" element={<BookDetail />} />
-          <Route path="/copies" element={<Copies />} />
-          <Route path="/readers" element={<Readers />} />
-          <Route path="/readers/:id" element={<ReaderDetail />} />
-          <Route path="/teachers" element={<Readers rol="oqituvchi" />} />
-          <Route path="/kitobxonlar" element={<Kitobxonlar />} />
-          <Route path="/applications" element={<Applications />} />
-          <Route path="/loans" element={<Loans />} />
-          <Route path="/bandlar" element={<Bandlar />} />
-          <Route path="/reservations" element={<Reservations />} />
-          <Route path="/fines" element={<Fines />} />
-          <Route path="/guide" element={<Guide />} />
-          <Route path="/profile" element={<Profile />} />
+        <Route element={<RequireAuth />}>
+          <Route element={<Layout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/books" element={<Books />} />
+            <Route path="/books/:id" element={<BookDetail />} />
+            <Route path="/copies" element={<Copies />} />
+            <Route path="/readers" element={<Readers />} />
+            <Route path="/readers/:id" element={<ReaderDetail />} />
+            <Route path="/teachers" element={<Readers rol="oqituvchi" />} />
+            <Route path="/kitobxonlar" element={<Kitobxonlar />} />
+            <Route path="/applications" element={<Applications />} />
+            <Route path="/loans" element={<Loans />} />
+            <Route path="/bandlar" element={<Bandlar />} />
+            <Route path="/reservations" element={<Reservations />} />
+            <Route path="/fines" element={<Fines />} />
+            <Route path="/guide" element={<Guide />} />
+            <Route path="/profile" element={<Profile />} />
 
-          <Route element={<RequireAdmin />}>
-            <Route path="/staff" element={<Staff />} />
+            <Route element={<RequireAdmin />}>
+              <Route path="/staff" element={<Staff />} />
+            </Route>
           </Route>
         </Route>
-      </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   )
 }
 

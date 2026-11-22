@@ -101,14 +101,14 @@ export function Chatbot() {
         <button
           onClick={toggleChat}
           aria-label="Chatni ochish"
-          className="fixed bottom-20 right-4 z-50 rounded-full bg-brand-600 p-3 text-white shadow-lg transition-colors hover:bg-brand-700 lg:bottom-6 lg:right-6 dark:bg-brand-500 dark:hover:bg-brand-600"
+          className="fixed bottom-[calc(var(--pwa-bottom-bar)_+_1rem_+_env(safe-area-inset-bottom,0px))] right-4 z-50 rounded-full bg-brand-600 p-3 text-white shadow-lg transition-colors hover:bg-brand-700 lg:bottom-6 lg:right-6 dark:bg-brand-500 dark:hover:bg-brand-600"
         >
           <Icons.chat className="h-6 w-6" />
         </button>
       )}
 
       {isOpen && (
-        <div className="fixed inset-x-4 bottom-20 z-50 sm:left-auto sm:w-96 lg:bottom-6 lg:right-6">
+        <div className="fixed inset-x-4 bottom-[calc(var(--pwa-bottom-bar)_+_1rem_+_env(safe-area-inset-bottom,0px))] z-50 sm:left-auto sm:w-96 lg:bottom-6 lg:right-6">
           <div className="flex flex-col rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden dark:border-slate-700 dark:bg-slate-800">
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700">
               <div className="flex items-center gap-2">

@@ -161,13 +161,16 @@ class XatolikXabariView(APIView):
     def _adminlarga_yubor(xabar, org):
         from config.telegram import telegram_escape, telegram_xabar_yubor
 
+        # Fail-closed: kutubxona aniqlanmagan xabarni boshqa barcha tenantlarning
+        # administratorlariga tarqatib yubormaymiz.
+        if org is None:
+            return 0
         sorov = Membership.objects.filter(
             rol__in=["egasi", "administrator"],
             faol=True,
             telegram_id__isnull=False,
+            organization=org,
         )
-        if org is not None:
-            sorov = sorov.filter(organization=org)
 
         yuborgan = "—"
         if xabar.yuborgan:

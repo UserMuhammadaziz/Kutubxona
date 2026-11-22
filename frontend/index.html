@@ -21,12 +21,6 @@
             window.matchMedia('(display-mode: standalone)').matches ||
             window.navigator.standalone === true
           root.classList.toggle('pwa', standalone)
-
-          var kichikEkran = Math.min(screen.width, screen.height) < 600
-          root.classList.toggle(
-            'pwa-desktop',
-            standalone && kichikEkran && window.innerWidth > 760,
-          )
         }
 
         tekshir()

@@ -31,6 +31,7 @@ from handlers import kutubxonachi, qidiruv, shaxsiy, start
 from keyboards import (
     MENYU_YORDAM,
     asosiy_tugmalar_klaviaturasi,
+    fan_tugmalari,
     telefon_sorash,
 )
 from states import Ariza, KutubxonachiQaytarish, Qidiruv
@@ -76,16 +77,21 @@ async def _yordam_ber(message: Message, state: FSMContext) -> None:
     joriy = await state.get_state()
 
     if joriy in YOZISH_BOSQICHLARI:
+        ma_lumot = await state.get_data()
         if joriy == Qidiruv.matn.state:
             savol = qidiruv.QIDIRUV_SAVOLI
         elif joriy == KutubxonachiQaytarish.inventar.state:
             savol = kutubxonachi.INVENTAR_SAVOLI
         else:
-            savol = start.joriy_savol(joriy, await state.get_data())
+            savol = start.joriy_savol(joriy, ma_lumot)
 
         if joriy == Ariza.telefon.state:
             # Telefon bosqichida kontakt tugmasi kerak.
             klaviatura = telefon_sorash()
+        elif joriy == Ariza.kasb.state:
+            # Fanlar faqat shu tugmalardan tanlanadi. Ularsiz yordamdan
+            # keyin arizani tugatib bo'lmaydi — tanlanganlar ham saqlansin.
+            klaviatura = fan_tugmalari(ma_lumot.get("fanlar") or [])
         elif joriy in ARIZA_BOSQICHLARI:
             # Ariza maydonlarida (ism, sinf, kasb) bo'lim tugmalari kerak
             # emas: ular matn yuboradi va maydonga tushib, arizani behuda

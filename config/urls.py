@@ -13,15 +13,29 @@ class ThrottledTokenView(TokenObtainPairView):
     """Parol terishdan himoya: IP bo'yicha daqiqasiga 10 urinish (Redis'da umumiy)."""
 
     throttle_classes = [LoginThrottle]
+
+
+class RefreshThrottle(AnonRateThrottle):
+    scope = "refresh"
+
+
+class ThrottledTokenRefreshView(TokenRefreshView):
+    """Refresh token'lar ko'p marta ishlatilishining oldini oladi."""
+
+    throttle_classes = [RefreshThrottle]
+
+
 from berish.views import BerishViewSet
 from jarima.views import JarimaViewSet
 from kitob.views import BandQilishViewSet, KitobViewSet
 from navbat.views import NavbatViewSet
 from nusxa.views import NusxaViewSet
 from organization.views import (
+    AuditLogViewSet,
     OrganizationViewSet,
     RegisterView,
     SaaSOrganizationViewSet,
+    SubscriptionPlanViewSet,
     current_organization,
     my_memberships,
     password_reset_confirm,
@@ -56,13 +70,15 @@ router.register("holds", BandQilishViewSet, basename="holds")
 router.register("staff", UserViewSet, basename="staff")
 router.register("organizations", OrganizationViewSet, basename="organizations")
 router.register("saas/organizations", SaaSOrganizationViewSet, basename="saas-organizations")
+router.register("saas/plans", SubscriptionPlanViewSet, basename="saas-plans")
+router.register("saas/audit-log", AuditLogViewSet, basename="saas-audit-log")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include(router.urls)),
     path("api/stats/", include("stats.urls")),
     path("api/auth/token/", ThrottledTokenView.as_view()),
-    path("api/auth/token/refresh/", TokenRefreshView.as_view()),
+    path("api/auth/token/refresh/", ThrottledTokenRefreshView.as_view()),
     path("api/auth/me/", me),
     path("api/auth/register/", RegisterView.as_view()),
     path("api/auth/logout/", LogoutView.as_view()),

@@ -197,7 +197,10 @@ async def bandlar_koritaz(message: Message, state: FSMContext):
         + "\n\nHar birini tasdiqlang — kitob so'rov qilgan o'quvchiga beriladi "
         "va unga xabar yuboriladi, yoki rad eting."
     )
-    for r in bandlar[:20]:
+    # Eski `bandlar[:20]` kesimi olib tashlandi: api_client endi barcha
+    # sahifalarni (200 tagacha) oladi, kutubxonachi hech bir so'rovni
+    # o'tkazib yubormasligi kerak.
+    for r in bandlar:
         rol = "o'qituvchi" if r.get("oquvchi_rol") == "oqituvchi" else "o'quvchi"
         qator = (
             f"<b>{x(r.get('kitob_nomi'))}</b>\n"

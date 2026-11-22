@@ -222,6 +222,8 @@ REST_FRAMEWORK = {
         "register": "10/hour",
         "bot_webhook": "600/min",
         "login": "10/min",
+        "refresh": "30/min",
+        "password_reset": "10/hour",
         "chatbot": "30/min",
     },
 }
@@ -235,6 +237,8 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=8),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
+    # Aylanishdan keyin eski refresh token ishlamay qoladi (replay himoyasi).
+    "BLACKLIST_AFTER_ROTATION": True,
 }
 
 # --- Celery / Redis ---

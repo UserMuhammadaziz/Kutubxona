@@ -7,8 +7,10 @@ qayta tekshiriladi — boshqa kutubxona obyektiga murojaat qilib bo'lmaydi.
 
 import re
 
+from django.conf import settings
 from django.db.models import Count, Q
 from django.utils import timezone
+from rest_framework.exceptions import ErrorDetail, ValidationError
 
 from berish.models import Berish
 from config.telegram import telegram_escape
@@ -42,6 +44,94 @@ STAFF_MENU = {
     ],
     "resize_keyboard": True,
 }
+
+# Xodim ham, o'quvchi ham bo'lgan foydalanuvchi ikkala bo'limga ham kirishi kerak.
+QOSHMA_MENU = {
+    "keyboard": READER_MENU["keyboard"] + STAFF_MENU["keyboard"][:-1],
+    "resize_keyboard": True,
+}
+
+# Ariza/qidiruv bosqichida tugma matni maydonga yozilmasligi uchun.
+MENYU_TUGMALARI = frozenset(
+    tugma["text"]
+    for menyu in (READER_MENU, STAFF_MENU)
+    for qator in menyu["keyboard"]
+    for tugma in qator
+)
+
+BANDLAR_SAHIFA_O_LCHAMI = settings.REST_FRAMEWORK.get("PAGE_SIZE", 20)
+BANDLAR_CHEKLAMI = 200
+
+ARIZA_SAVOL_FISH = "Ism va familiyangizni kiriting:"
+ARIZA_SAVOL_TELEFON = "Telefon raqamingizni +998XXXXXXXXX formatida kiriting:"
+ARIZA_SAVOL_KASB = (
+    "Qaysi fanlarni o'qitasiz? Ikkitagacha fan nomini vergul bilan yozing "
+    "(masalan: Matematika, Fizika)."
+)
+ARIZA_SAVOL_SINF = "Sinfingizni kiriting (masalan: 7-A):"
+ARIZA_SAVOLLARI = {
+    "ariza_fish": ARIZA_SAVOL_FISH,
+    "ariza_telefon": ARIZA_SAVOL_TELEFON,
+    "ariza_kasb": ARIZA_SAVOL_KASB,
+    "ariza_sinf": ARIZA_SAVOL_SINF,
+}
+
+# Xizmatlar `ValidationError({"error": kod, "detail": ...})` ko'taradi.
+# Kodlarni foydalanuvchiga tushunarli matn bilan almashtiramiz.
+XATO_XABARLARI = {
+    "allaqachon_band_qilingan": "Bu kitob boshqa o'quvchi uchun band qilingan.",
+    "kitob_band_qilingan": (
+        "Bu kitob band qilingan — uni faqat kutubxonachi tasdiqlagandan keyin berish mumkin."
+    ),
+    "allaqachon_berilgan": "Bu kitob allaqachon sizda bor.",
+    "barcha_nusxalar_berilgan": "Bu kitobning barcha nusxalari berilgan.",
+    "limit_oshdi": "Siz allaqachon eng ko'p kitob olgansiz.",
+    "tolanmagan_jarima": "Sizda to'lanmagan jarima bor.",
+    "oquvchi_bloklangan": "Sizning kartangiz bloklangan.",
+    "nusxa_band": "Bu nusxa hozir mavjud emas.",
+    "so_rov_yopilgan": "Bu so'rov allaqachon yopilgan.",
+    "berish_mumkin_emas": "Bu kitobni hozir berib bo'lmaydi.",
+    "allaqachon_qaytarilgan": "Bu kitob allaqachon qaytarib olingan.",
+    "ruxsat_yuq": "Bu amalga ruxsatingiz yo'q.",
+}
+
+
+def _detail_matnlari(detail):
+    """ValidationError.detail (dict/list/ErrorDetail) ichidagi matnlarni oladi."""
+    if isinstance(detail, ErrorDetail):
+        yield str(detail)
+    elif isinstance(detail, dict):
+        for qiymat in detail.values():
+            yield from _detail_matnlari(qiymat)
+    elif isinstance(detail, (list, tuple)):
+        for qiymat in detail:
+            yield from _detail_matnlari(qiymat)
+    elif detail is not None:
+        yield str(detail)
+
+
+def _xato_matni(xato) -> str:
+    """Texnik `ErrorDetail(...)` o'rniga odam o'qiydigan xabar qaytaradi."""
+    detail = xato.detail if isinstance(xato, ValidationError) else xato
+    matnlar = []
+    if isinstance(detail, dict):
+        for kalit in ("error", "kod", "code"):
+            kod = detail.get(kalit)
+            if str(kod) in XATO_XABARLARI:
+                return XATO_XABARLARI[str(kod)]
+        izoh = detail.get("detail", detail.get("xato"))
+        if izoh is not None:
+            matnlar = list(_detail_matnlari(izoh))
+        if not matnlar:
+            matnlar = [
+                matn for matn in _detail_matnlari(detail)
+                if matn not in XATO_XABARLARI
+            ]
+    else:
+        matnlar = list(_detail_matnlari(detail))
+    if not matnlar:
+        return "Amal bajarilmadi."
+    return telegram_escape("; ".join(dict.fromkeys(matnlar)))
 
 
 def _inline(rows):
@@ -89,6 +179,9 @@ def _clear_session(bot, telegram_id):
 
 def _menu(bot, telegram_id):
     if _staff(bot, telegram_id):
+        # Ikkala rolga ega foydalanuvchi o'quvchi bo'limlarini ham yo'qotmasin.
+        if _reader(bot, telegram_id):
+            return QOSHMA_MENU
         return STAFF_MENU
     return READER_MENU
 
@@ -142,6 +235,17 @@ def _start(bot, message):
     _clear_session(bot, telegram_id)
     qayta_ariza = _qayta_ariza_kerak(bot, telegram_id)
     oquvchi = _reader(bot, telegram_id)
+    xodim = _staff(bot, telegram_id)
+    if xodim and oquvchi and not qayta_ariza:
+        _send(
+            bot,
+            chat_id,
+            f"Salom, <b>{telegram_escape(xodim.user.full_name)}</b>!\n"
+            "Siz kutubxonachi ham, o'quvchi ham sifatida ro'yxatdasiz. "
+            "Kerakli bo'limni tanlang.",
+            _menu(bot, telegram_id),
+        )
+        return
     if oquvchi and not qayta_ariza:
         _send(
             bot,
@@ -153,7 +257,6 @@ def _start(bot, message):
             _menu(bot, telegram_id),
         )
         return
-    xodim = _staff(bot, telegram_id)
     if xodim:
         _send(
             bot,
@@ -218,7 +321,7 @@ def _ariza_rol(bot, chat_id, telegram_id, rol):
             organization=bot.organization, telegram_id=telegram_id
         ).delete()
     _set_session(bot, telegram_id, chat_id, "ariza_fish", {"rol": rol})
-    _send(bot, chat_id, "Ism va familiyangizni kiriting:", {"remove_keyboard": True})
+    _send(bot, chat_id, ARIZA_SAVOL_FISH, {"remove_keyboard": True})
 
 
 def _ariza_text(bot, message, sessiya):
@@ -234,7 +337,7 @@ def _ariza_text(bot, message, sessiya):
             return
         data["fish"] = matn
         _set_session(bot, telegram_id, chat_id, "ariza_telefon", data)
-        _send(bot, chat_id, "Telefon raqamingizni +998XXXXXXXXX formatida kiriting:")
+        _send(bot, chat_id, ARIZA_SAVOL_TELEFON)
         return
     if step == "ariza_telefon":
         if not TELEFON_RE.match(matn):
@@ -248,15 +351,10 @@ def _ariza_text(bot, message, sessiya):
         data["telefon"] = matn
         if data.get("rol") == "oqituvchi":
             _set_session(bot, telegram_id, chat_id, "ariza_kasb", data)
-            _send(
-                bot,
-                chat_id,
-                "Qaysi fanlarni o'qitasiz? Ikkitagacha fan nomini vergul bilan yozing "
-                "(masalan: Matematika, Fizika).",
-            )
+            _send(bot, chat_id, ARIZA_SAVOL_KASB)
         else:
             _set_session(bot, telegram_id, chat_id, "ariza_sinf", data)
-            _send(bot, chat_id, "Sinfingizni kiriting (masalan: 7-A):")
+            _send(bot, chat_id, ARIZA_SAVOL_SINF)
         return
     if step in ("ariza_sinf", "ariza_kasb"):
         rol = data.get("rol", "oquvchi")
@@ -354,14 +452,17 @@ def _qidiruv(bot, chat_id, telegram_id, q):
     _send(bot, chat_id, "Topilgan kitoblar:", _inline(rows))
 
 
-def _kitob_karta(bot, chat_id, telegram_id, kitob_id, callback_id=None):
+def _kitob_karta(bot, chat_id, telegram_id, kitob_id):
     kitob = Kitob.objects.filter(organization=bot.organization, pk=kitob_id).first()
     if not kitob:
         _send(bot, chat_id, "Kitob topilmadi.")
         return
-    faol_berishlar = Berish.objects.filter(
-        organization=bot.organization, kitob=kitob, qaytarilgan_sana__isnull=True
-    ).select_related("oquvchi", "nusxa")
+    faol_berishlar = list(
+        Berish.objects.filter(
+            organization=bot.organization, kitob=kitob, qaytarilgan_sana__isnull=True
+        ).select_related("oquvchi", "nusxa")
+    )
+    kimdadimi = bool(faol_berishlar)
     mavjud = kitob.nusxalar.filter(holati="mavjud").count()
     jami = kitob.nusxalar.count()
     matn = (
@@ -377,11 +478,15 @@ def _kitob_karta(bot, chat_id, telegram_id, kitob_id, callback_id=None):
     matn += f"\n📦 Jami nusxa: <b>{jami}</b> · Mavjud: <b>{mavjud}</b>\n"
     if not jami:
         matn += "ℹ️ Nusxa yo'q — kitob berilishi mumkin.\n"
-    elif mavjud:
+    elif mavjud and not kimdadimi:
         matn += "✅ Hozir mavjud, hech kimda emas.\n"
+    elif mavjud:
+        # Ba'zi nusxalar javonda, qolgani allaqachon o'quvchilarda —
+        # "hech kimda emas" deyish noto'g'ri edi.
+        matn += "✅ Javonda mavjud nusxa bor (ba'zi nusxalari o'quvchilarda).\n"
     else:
         matn += "⛔ Hozir barcha nusxalar berilgan.\n"
-    if faol_berishlar.exists():
+    if kimdadimi:
         matn += "\n<b>Hozir kimda:</b>\n"
         for berish in faol_berishlar[:5]:
             kim = berish.oquvchi
@@ -394,16 +499,14 @@ def _kitob_karta(bot, chat_id, telegram_id, kitob_id, callback_id=None):
     tugmalar = [
         [{"text": "🔒 Band qilish", "callback_data": f"band:{kitob.pk}"}],
     ]
-    if not mavjud:
+    # Aiogram bilan bir xil: navbat faqat nusxasi bor, lekin hozir mavjud
+    # nusxasi yo'q kitoblarda ko'rsatiladi. Nusxasi umuman yo'q ("asli")
+    # kitobda navbat darhol berishga olib kelardi.
+    if jami and not mavjud:
         tugmalar.append(
             [{"text": "⏳ Navbatga yozilish", "callback_data": f"navbat:{kitob.pk}"}]
         )
     _send(bot, chat_id, matn, _inline(tugmalar))
-    if callback_id:
-        try:
-            answer_callback_query(bot.get_token(), callback_id)
-        except Exception:
-            pass
 
 
 def _band_qilish(bot, chat_id, telegram_id, kitob_id):
@@ -419,6 +522,9 @@ def _band_qilish(bot, chat_id, telegram_id, kitob_id):
 
     try:
         band, yangi = band_qilish(kitob, oquvchi, "Telegram bot orqali")
+    except ValidationError as xato:
+        _send(bot, chat_id, f"Band qilish mumkin emas: {_xato_matni(xato)}")
+        return
     except Exception as xato:
         _send(bot, chat_id, f"Band qilish mumkin emas: {telegram_escape(xato)}")
         return
@@ -545,12 +651,19 @@ def _statistika(bot, chat_id, telegram_id):
 def _bandlar_royxati(bot, chat_id, telegram_id):
     if not _staff(bot, telegram_id):
         return _send(bot, chat_id, "Bu bo'lim faqat kutubxonachilar uchun.")
-    qs = BandQilish.objects.filter(
-        organization=bot.organization, holati="kutmoqda"
-    ).select_related("kitob", "oquvchi")[:10]
+    # Ilgari faqat 10 ta (yarim API sahifasi) ko'rsatilardi. Endi API
+    # PAGE_SIZE (20) dan boshlab, 200 tagacha bo'lgan barcha so'rovlar
+    # sahifa-sahifa o'qiladi va kutubxonachiga yuboriladi.
+    qs = (
+        BandQilish.objects.filter(
+            organization=bot.organization, holati="kutmoqda"
+        )
+        .select_related("kitob", "oquvchi")
+        .order_by("so_rov_sanasi")[:BANDLAR_CHEKLAMI]
+    )
     if not qs:
         return _send(bot, chat_id, "Kutilayotgan band so'rovlar yo'q.")
-    for band in qs:
+    for band in qs.iterator(chunk_size=BANDLAR_SAHIFA_O_LCHAMI):
         rol = "o'qituvchi" if band.oquvchi.rol == "oqituvchi" else "o'quvchi"
         matn = (
             f"🔔 <b>{telegram_escape(band.kitob.nomi)}</b>\n"
@@ -572,7 +685,7 @@ def _bandlar_royxati(bot, chat_id, telegram_id):
         )
 
 
-def _band_qaror(bot, chat_id, telegram_id, band_id, tasdiq, callback_id=None):
+def _band_qaror(bot, chat_id, telegram_id, band_id, tasdiq):
     xodim = _staff(bot, telegram_id)
     if not xodim:
         _send(bot, chat_id, "Ruxsat yo'q.")
@@ -592,13 +705,10 @@ def _band_qaror(bot, chat_id, telegram_id, band_id, tasdiq, callback_id=None):
         else:
             band_qilishni_rad_et(band, xodim.user, "Telegram bot orqali rad etildi")
             _send(bot, chat_id, f"❌ Rad etildi: {telegram_escape(band.kitob.nomi)}")
+    except ValidationError as xato:
+        _send(bot, chat_id, f"Amal bajarilmadi: {_xato_matni(xato)}")
     except Exception as xato:
         _send(bot, chat_id, f"Amal bajarilmadi: {telegram_escape(xato)}")
-    if callback_id:
-        try:
-            answer_callback_query(bot.get_token(), callback_id)
-        except Exception:
-            pass
 
 
 def _qaytarish(bot, chat_id, telegram_id, inventar):
@@ -610,7 +720,7 @@ def _qaytarish(bot, chat_id, telegram_id, inventar):
     from nusxa.models import Nusxa
 
     nusxa = Nusxa.objects.filter(
-        organization=bot.organization, inventar_raqami=inventar.strip()
+        organization=bot.organization, inventar_raqami=inventar.strip().upper()
     ).first()
     if not nusxa:
         return _send(bot, chat_id, "Bunday inventar raqamli nusxa topilmadi.")
@@ -621,6 +731,8 @@ def _qaytarish(bot, chat_id, telegram_id, inventar):
         return _send(bot, chat_id, "Bu nusxa hozir hech kimda emas.")
     try:
         berish, jarima, _ = kitob_qaytar(berish, xodim.user)
+    except ValidationError as xato:
+        return _send(bot, chat_id, f"Qaytarish xatosi: {_xato_matni(xato)}")
     except Exception as xato:
         return _send(bot, chat_id, f"Qaytarish xatosi: {telegram_escape(xato)}")
     matn = (
@@ -677,6 +789,8 @@ def _yordam(bot, chat_id):
         "/navbatlarim — navbatlar\n"
         "/jarimalarim — jarimalar\n"
         "/bandlarim — band so'rovlar\n"
+        "/bekor — joriy amalni bekor qilish\n"
+        "/qaytar — inventar raqami bilan kitob qaytarish (kutubxonachi)\n"
         "/ulash KOD — xodim Telegramini ulash (kutubxonachi)",
     )
 
@@ -690,11 +804,41 @@ def _text(bot, message):
 
     sessiya = _session(bot, telegram_id)
     if sessiya and not matn.startswith("/"):
-        _ariza_text(bot, message, sessiya)
-        return
+        if matn in MENYU_TUGMALARI:
+            # Pastdagi tugma matn yuboradi — uni qidiruv so'zi yoki ariza
+            # maydoni deb olish mumkin emas (aiogram'dagi himoyaga o'xshash).
+            if matn == "ℹ️ Yordam":
+                # Yordam hech qanday holatni buzmaydi; ariza bosqichi bo'lsa
+                # yordamdan keyin savol qaytariladi.
+                _yordam(bot, chat_id)
+                savol = ARIZA_SAVOLLARI.get(sessiya.step)
+                if savol:
+                    _send(bot, chat_id, savol)
+                return
+            if sessiya.step.startswith("ariza_"):
+                savol = ARIZA_SAVOLLARI.get(sessiya.step)
+                if savol:
+                    _send(
+                        bot, chat_id,
+                        f"{savol}\n\nAvval arizani tugating yoki /bekor bosing.",
+                    )
+                    return
+            _clear_session(bot, telegram_id)
+            # Tugma o'z bo'limiga quyidagi filtrlar orqali yetkaziladi.
+        else:
+            _ariza_text(bot, message, sessiya)
+            return
 
     if matn.startswith("/start"):
         return _start(bot, message)
+    if matn.startswith(("/bekor", "/cancel", "/start_over")):
+        _clear_session(bot, telegram_id)
+        return _send(
+            bot,
+            chat_id,
+            "Bekor qilindi. Qayta urinish uchun /start bosing.",
+            _menu(bot, telegram_id),
+        )
     if matn.startswith("/ulash"):
         qismlar = matn.split(maxsplit=1)
         return _ulash(bot, chat_id, telegram_id, qismlar[1].strip() if len(qismlar) > 1 else "")
@@ -713,7 +857,8 @@ def _text(bot, message):
         return _bandlar_royxati(bot, chat_id, telegram_id)
     if matn.startswith("/statistika") or matn == "📊 Statistika":
         return _statistika(bot, chat_id, telegram_id)
-    if matn.startswith("/qaytarish") or matn == "↩️ Qaytarish":
+    # Hujjatlarda `/qaytar` ham ishlatiladi — ikkala nom ham bir xil ish qiladi.
+    if matn.startswith("/qaytar") or matn == "↩️ Qaytarish":
         if not _staff(bot, telegram_id):
             return _send(bot, chat_id, "Bu amal faqat kutubxonachilar uchun.")
         _set_session(bot, telegram_id, chat_id, "qaytarish")
@@ -740,9 +885,19 @@ def _text(bot, message):
         if not rows:
             return _send(bot, chat_id, "Hozircha kitob yo'q.")
         return _send(bot, chat_id, "Kategoriyani tanlang:", _inline(rows))
-    if _staff(bot, telegram_id):
-        return _send(bot, chat_id, "Kerakli bo'limni tanlang.", STAFF_MENU)
-    return _send(bot, chat_id, "Kerakli bo'limni tanlang.", READER_MENU)
+    return _send(bot, chat_id, "Kerakli bo'limni tanlang.", _menu(bot, telegram_id))
+
+
+def _callback_javob(bot, callback_id):
+    """Inline tugma bosilganda Telegram'dagi aylanma indikatorni to'xtatadi."""
+    if not callback_id:
+        return
+    try:
+        answer_callback_query(bot.get_token(), callback_id)
+    except Exception:
+        # Xabar yuborilgan bo'lsa, spinner'ning qolishi foydalanuvchiga xalaqit
+        # qilmaydi — lekin asosiy oqim buzilmasligi kerak.
+        pass
 
 
 def _callback(bot, callback):
@@ -750,41 +905,46 @@ def _callback(bot, callback):
     telegram_id = callback["from"]["id"]
     data = callback.get("data", "")
     callback_id = callback.get("id")
-    if data.startswith("rol:"):
-        _ariza_rol(bot, chat_id, telegram_id, data.split(":", 1)[1])
-    elif data.startswith("janr:"):
-        janr = data.split(":", 1)[1]
-        labels = dict(Kitob.JANR_CHOICES)
-        kitoblar = (
-            Kitob.objects.filter(organization=bot.organization, janr=janr)
-            .annotate(mavjud_soni=Count("nusxalar", filter=Q(nusxalar__holati="mavjud")))
-            .order_by("nomi")[:10]
-        )
-        rows = [
-            [
-                {
-                    "text": f"{'🟢' if k.mavjud_soni else '🔴'} {k.nomi[:45]}",
-                    "callback_data": f"kitob:{k.pk}",
-                }
+    try:
+        if data.startswith("rol:"):
+            _ariza_rol(bot, chat_id, telegram_id, data.split(":", 1)[1])
+        elif data.startswith("janr:"):
+            janr = data.split(":", 1)[1]
+            labels = dict(Kitob.JANR_CHOICES)
+            kitoblar = (
+                Kitob.objects.filter(organization=bot.organization, janr=janr)
+                .annotate(mavjud_soni=Count("nusxalar", filter=Q(nusxalar__holati="mavjud")))
+                .order_by("nomi")[:10]
+            )
+            rows = [
+                [
+                    {
+                        "text": f"{'🟢' if k.mavjud_soni else '🔴'} {k.nomi[:45]}",
+                        "callback_data": f"kitob:{k.pk}",
+                    }
+                ]
+                for k in kitoblar
             ]
-            for k in kitoblar
-        ]
-        _send(
-            bot,
-            chat_id,
-            f"{labels.get(janr, janr)} bo'limidagi kitoblar:",
-            _inline(rows) if rows else None,
-        )
-    elif data.startswith("kitob:"):
-        _kitob_karta(bot, chat_id, telegram_id, data.split(":", 1)[1], callback_id)
-    elif data.startswith("band_ok:"):
-        _band_qaror(bot, chat_id, telegram_id, data.split(":", 1)[1], True, callback_id)
-    elif data.startswith("band_no:"):
-        _band_qaror(bot, chat_id, telegram_id, data.split(":", 1)[1], False, callback_id)
-    elif data.startswith("band:"):
-        _band_qilish(bot, chat_id, telegram_id, data.split(":", 1)[1])
-    elif data.startswith("navbat:"):
-        _navbatga_qosh(bot, chat_id, telegram_id, data.split(":", 1)[1])
+            _send(
+                bot,
+                chat_id,
+                f"{labels.get(janr, janr)} bo'limidagi kitoblar:",
+                _inline(rows) if rows else None,
+            )
+        elif data.startswith("kitob:"):
+            _kitob_karta(bot, chat_id, telegram_id, data.split(":", 1)[1])
+        elif data.startswith("band_ok:"):
+            _band_qaror(bot, chat_id, telegram_id, data.split(":", 1)[1], True)
+        elif data.startswith("band_no:"):
+            _band_qaror(bot, chat_id, telegram_id, data.split(":", 1)[1], False)
+        elif data.startswith("band:"):
+            _band_qilish(bot, chat_id, telegram_id, data.split(":", 1)[1])
+        elif data.startswith("navbat:"):
+            _navbatga_qosh(bot, chat_id, telegram_id, data.split(":", 1)[1])
+    finally:
+        # `kitob:`/`band_ok:`/`band_no:` dan tashqari holatlar ham javobsiz
+        # qolardi — shuning uchun javob bitta joyda, hamma holatda beriladi.
+        _callback_javob(bot, callback_id)
 
 
 def handle_update(bot, update):

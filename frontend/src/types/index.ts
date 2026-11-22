@@ -23,6 +23,32 @@ export interface UserKutubxona {
   rol: string
 }
 
+/** GET /api/auth/organization/ — to'liq OrganizationSerializer yoki null. */
+export interface JoriyKutubxona {
+  id: number
+  nomi: string
+  slug?: string
+  status?: string
+  rol?: string | null
+}
+
+/** GET /api/auth/memberships/ — MembershipSerializer + organization_status. */
+export interface Azolik {
+  id: number
+  organization: number
+  organization_nomi: string
+  user_id: number
+  username: string
+  full_name: string
+  telefon: string
+  rol: string
+  faol: boolean
+  telegram_id: string | null
+  qoshilgan: string
+  organization_status?: string
+  organization_status_display?: string
+}
+
 export interface User {
   id: number
   username: string

@@ -132,6 +132,29 @@ sahifa kichrayib ko'rinsa, bu Chrome'ning «Kompyuter ko'rinishi» rejimi bo'lad
 uni o'chirib, ilovani qayta ochish kerak (ilova bu holatni o'zi aniqlab
 ogohlantiradi).
 
+## Sinov va tekshiruv
+
+Loyihani to'liq tekshirish uchun quyidagi buyruqlar bajariladi:
+
+```bash
+venv/bin/python manage.py check
+venv/bin/python manage.py makemigrations --check --dry-run
+venv/bin/python bot/_check_tugmalar.py        # Telegram tugmalari/state'lari
+venv/bin/python manage.py test --noinput      # barcha unit + E2E testlar
+cd frontend && npm run lint && npm run build
+```
+
+`web/tests_smoke.py` — **E2E smoke test**: oddiy unit testlardan farqli ravishda
+butun zanjirni bitta oqimda HTTP orqali bosib o'tadi — ro'yxatdan o'tish,
+profil, xodim yaratish, kitob va nusxa, o'quvchi/o'qituvchi, ariza tasdiqlash,
+berish/qaytarish, muddat o'tganidan jarima hisoblash, band qilish, navbat,
+statistika, xabar yuborish, kitobxonni o'chirish va PWA qobig'i (`/`, `/sw.js`).
+Alohida ishga tushirish:
+
+```bash
+venv/bin/python manage.py test web.tests_smoke --noinput
+```
+
 ## Muhim: jarima hisoblash idempotent
 
 `jarima.tasks.jarimalarni_hisobla` vazifasi bir necha marta ketma-ket ishga

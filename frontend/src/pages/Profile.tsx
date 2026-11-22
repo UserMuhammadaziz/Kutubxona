@@ -65,6 +65,8 @@ function InfoRow({ label, children }: { label: string; children: ReactNode }) {
 /** Kutubxonachi o'z hisobini boshqaradi: parol, xabar va kitobxonlarni o'chirish. */
 export function Profile() {
   const { user } = useAuthStore()
+  const organizationId = useAuthStore((s) => s.organizationId)
+  const openTenantPicker = useAuthStore((s) => s.openTenantPicker)
   const toast = useToast()
   const queryClient = useQueryClient()
 
@@ -217,6 +219,8 @@ export function Profile() {
     .join('')
 
   const rolNomi = xabar.rol === 'oquvchi' ? 'o‘quvchi' : 'o‘qituvchi'
+  const joriyKutubxonaNomi =
+    user.kutubxonalar?.find((k) => k.id === organizationId)?.nomi ?? 'Tanlanmagan'
 
   function parolYuborish(e: FormEvent) {
     e.preventDefault()
@@ -277,6 +281,23 @@ export function Profile() {
           </div>
         </div>
       </Card>
+
+      {(user.kutubxonalar?.length ?? 0) > 1 && (
+        <Card className="mb-5 flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h2 className="flex items-center gap-2 font-semibold text-slate-900 dark:text-slate-100">
+              <Icons.books className="h-5 w-5 text-brand-600 dark:text-brand-400" />
+              Kutubxona
+            </h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Hozirgi kutubxona: <b>{joriyKutubxonaNomi}</b>. Bir nechta kutubxonada ishlaysiz.
+            </p>
+          </div>
+          <Button variant="secondary" onClick={openTenantPicker}>
+            Kutubxona almashtirish
+          </Button>
+        </Card>
+      )}
 
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="flex flex-col gap-5">

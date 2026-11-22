@@ -431,8 +431,8 @@ async def band_qilish_sorovi(callback: CallbackQuery):
         f"{b.sarlavha(x(nomi))}\n"
         + (f"<i>{x(izoh)}</i>\n" if izoh else "")
         + "So'rov yuborildi.\n\n"
-        "Kutubxonachi tasdiqlagach kitobni hech kimga berilmaydi va sizga "
-        "ham berilmaydi. Tasdiqlanganligi xabar qilinadi.",
+        "Kutubxonachi tasdiqlasa, kitob sizga beriladi; tasdiqlanmaguncha "
+        "boshqaga berilmaydi. Tasdiqlanganligi xabar qilinadi.",
         # Server javobda `id` qaytarmasa, bekor tugmasi kerak emas —
         # `/bandlarim` orqali so'rovni ko'rib, u yerda bekor qilish mumkin.
         reply_markup=band_bekor_tugmasi(band_id) if band_id else None,
@@ -517,7 +517,7 @@ async def navbat_qoldirish(callback: CallbackQuery):
         o_rin = f"{orin}-o'rindasiz" if orin else "navbatdasiz"
         await callback.message.answer(
             f"<b>Navbatga qo'shildingiz!</b> Siz {o_rin}.\n\n"
-            f"Kitob bo'shagan zahoti «{x(nomi)}» kitobini sizga taklif qilinadi. "
+            f"Kitob bo'shagan zahoti «{x(nomi)}» kitobi sizga taklif qilinadi. "
             "Navbatni bekor qilish uchun «Navbatlarim» bo'limidan foydalaning.\n"
             "Maxsus maqsadga (dars, imtihon, tadbir) ajratish uchun esa "
             "«Band qilish»ni ishlating — u tasdiqlash kutiladi."
@@ -552,8 +552,8 @@ async def _band_so_rovi_yubor(callback: CallbackQuery, kitob_id: int) -> None:
         f"{b.logo(sarlavha='BAND QILINDI')}\n\n"
         f"{b.sarlavha(x(nomi))}\n"
         "So'rov yuborildi.\n\n"
-        "Kutubxonachi tasdiqlagach kitobni hech kimga berilmaydi va sizga "
-        "ham berilmaydi. Tasdiqlanganligi xabar qilinadi.",
+        "Kutubxonachi tasdiqlasa, kitob sizga beriladi; tasdiqlanmaguncha "
+        "boshqaga berilmaydi. Tasdiqlanganligi xabar qilinadi.",
         reply_markup=band_bekor_tugmasi(band_id) if band_id else None,
     )
     await callback.answer()

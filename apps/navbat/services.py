@@ -45,7 +45,15 @@ def navbatga_qosh(kitob, oquvchi):
     if mavjud:
         return NavbatNatija(navbat=mavjud, orin=navbat_oringi(mavjud), yangi=False)
 
-    navbat = Navbat.objects.create(kitob=kitob, oquvchi=oquvchi)
+    # ViewSet endi navbatlarni kutubxona bo'yicha filtrlaydi (cross-tenant
+    # oqishining oldini olish uchun), shuning uchun yangi yozuvga ham
+    # kutubxonani aniq qo'yish shart — aks holda u hech qayerda ko'rinmaydi.
+    navbat = Navbat.objects.create(
+        kitob=kitob,
+        oquvchi=oquvchi,
+        organization=getattr(kitob, "organization", None)
+        or getattr(oquvchi, "organization", None),
+    )
     return NavbatNatija(navbat=navbat, orin=navbat_oringi(navbat), yangi=True)
 
 

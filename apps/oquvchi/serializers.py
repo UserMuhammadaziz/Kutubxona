@@ -3,7 +3,13 @@ from datetime import date
 
 from rest_framework import serializers
 
-from organization.tenancy import scope
+from organization.models import Organization
+from organization.tenancy import (
+    joriy_kutubxonani_aniqla,
+    legacy_rejimmi,
+    organization_from_value,
+    scope,
+)
 
 from .constants import FAN_LIMIT, FANLAR, FISH_RE, SINF_RE
 from .models import Ariza, Oquvchi
@@ -14,6 +20,53 @@ from .utils import sinf_normal
 # qarab qo'lda yoziladi, chunki serializer import paytida model sinflariga
 # murojaat qilmasligimiz kerak).
 ROL_CHOICES = [("oquvchi", "Oquvchi"), ("oqituvchi", "O'qituvchi")]
+
+
+def ariza_kutubxonasi(request):
+    """Bot uchun ochiq ariza endpointlarida kutubxonani aniqlaydi.
+
+    Avval oddiy tenancy qoidasi qo'llanadi (JWT + `X-Organization-Id`,
+    foydalanuvchining yagona a'zoligi). Ariza yaratish/holat so'rovi
+    autentifikatsiyasiz ham kelishi mumkin — bunday holatda kutubxona
+    sarlavha yoki `organization_id` query parametridan olinadi. Hech qayerdan
+    aniqlanmasa, faqat yagona faol kutubxona (eski bitta-kutubxona rejimi)
+    yoki butunlay bo'sh baza (`legacy_rejimmi`) uchun javob beriladi; bir
+    nechta kutubxona bor bo'lsa `None` — keyingi `scope()` chaqiruvi
+    ma'lumotlarni ko'rsatmaydi (fail-closed).
+    """
+    if request is None:
+        return None
+    try:
+        org = joriy_kutubxonani_aniqla(request, required=False)
+    except Exception:
+        # Masalan, bir nechta a'zolik bor va sarlavha yuborilmagan.
+        org = None
+    if org is not None:
+        return org
+
+    # Autentifikatsiyalangan so'rovda tenant allaqachon hal qilingan (yoki
+    # a'zoliklar noaniq). Bunday holatda mijoz bergan `organization_id` ga
+    # ishonib, boshqa kutubxonaga yozishga yo'l qo'ymaymiz.
+    foydalanuvchi = getattr(request, "user", None)
+    if getattr(foydalanuvchi, "is_authenticated", False):
+        return None
+
+    sozlamalar = getattr(request, "query_params", None)
+    if sozlamalar is None:
+        sozlamalar = getattr(request, "GET", {})
+    qiymat = request.headers.get("X-Organization-Id") or sozlamalar.get(
+        "organization_id"
+    )
+    org = organization_from_value(qiymat)
+    if org is not None:
+        return org
+
+    if legacy_rejimmi():
+        return None
+    faollar = Organization.objects.filter(status=Organization.HOLAT_ACTIVE)
+    if faollar.count() == 1:
+        return faollar.first()
+    return None
 
 
 class OquvchiSerializer(serializers.ModelSerializer):
@@ -98,8 +151,10 @@ class OquvchiBindSerializer(serializers.Serializer):
     telegram_id = serializers.IntegerField()
 
     def validate(self, attrs):
+        org = ariza_kutubxonasi(self.context.get("request"))
+        qs = scope(Oquvchi.objects, org)
         try:
-            oquvchi = Oquvchi.objects.get(
+            oquvchi = qs.get(
                 telefon=attrs["telefon"], karta_raqami=attrs["karta_raqami"]
             )
         except Oquvchi.DoesNotExist:
@@ -107,7 +162,7 @@ class OquvchiBindSerializer(serializers.Serializer):
                 {"error": "topilmadi", "detail": "Ma'lumot topilmadi, kutubxonachiga murojaat qiling"}
             )
         if (
-            Oquvchi.objects.filter(telegram_id=attrs["telegram_id"])
+            qs.filter(telegram_id=attrs["telegram_id"])
             .exclude(pk=oquvchi.pk)
             .exists()
         ):
@@ -268,9 +323,15 @@ class ArizaYaratishSerializer(serializers.ModelSerializer):
             attrs["kasb"] = ""
 
         telegram_id = attrs["telegram_id"]
+        # Barcha tekshiruvlar va tozalash faqat joriy kutubxona doirasida:
+        # aks holda boshqa tenant'ning o'quvchisi/arizasi sabab noto'g'ri
+        # xato beriladi yoki uning arizasi o'chirib yuboriladi.
+        org = ariza_kutubxonasi(self.context.get("request"))
+        oquvchilar = scope(Oquvchi.objects, org)
+        arizalar = scope(Ariza.objects, org)
         # Eski formatda ariza yuborgan (qabul qilingan ham) foydalanuvchilarga
         # yangi formatda qaytadan ariza topshirishga ruxsat beramiz.
-        bandlangan = Oquvchi.objects.filter(telegram_id=telegram_id).exclude(
+        bandlangan = oquvchilar.filter(telegram_id=telegram_id).exclude(
             qayta_ariza_kerak=True
         ).exists()
         if bandlangan:
@@ -280,7 +341,7 @@ class ArizaYaratishSerializer(serializers.ModelSerializer):
 
         # Faqat yangi formatda yuborilgan (belgilanmagan) kutmoqdagi ariza
         # to'siq bo'ladi. Eski formatdagilar qaytadan yuborishga ruxsat beradi.
-        kutmoqdagi = Ariza.objects.filter(
+        kutmoqdagi = arizalar.filter(
             telegram_id=telegram_id, holati="kutmoqda"
         ).exclude(qayta_ariza_kerak=True).exists()
         if kutmoqdagi:
@@ -288,8 +349,8 @@ class ArizaYaratishSerializer(serializers.ModelSerializer):
                 {"error": "ariza_kutmoqda", "detail": "Arizangiz hali ko'rib chiqilmoqda"}
             )
         # Eski (noto'g'ri formatdagi, bekor yoki tasdiqlangan) arizalar yangi
-        # ariza ochish uchun o'chiriladi.
-        Ariza.objects.filter(telegram_id=telegram_id).delete()
+        # ariza ochish uchun o'chiriladi — faqat shu kutubxonadagilar.
+        arizalar.filter(telegram_id=telegram_id).delete()
         return attrs
 
 

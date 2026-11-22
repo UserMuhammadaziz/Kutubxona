@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from berish.serializers import BerishSerializer
 from nusxa.models import Nusxa
 from oquvchi.models import Oquvchi
+from organization.tenancy import joriy_kutubxonani_aniqla, scope
 from user.permissions import IsLibrarian
 from . import services
 from .models import Navbat
@@ -46,8 +47,25 @@ class NavbatViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated()]
         return [IsLibrarian()]
 
+    def _org(self):
+        # Legacy (bo'sh baza) holatida `None` qaytadi — `scope()` u yerda
+        # barcha yozuvlarni ko'rsatishga ruxsat beradi.
+        return joriy_kutubxonani_aniqla(self.request, required=True)
+
+    def get_queryset(self):
+        return scope(self.queryset, self._org())
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        # `TenantSerializerMixin` kitob/o'quvchi queryset'larini shu
+        # kutubxonaga cheklashi uchun organization ni uzatish shart.
+        context["organization"] = self._org()
+        return context
+
     def create(self, request, *args, **kwargs):
-        serializer = NavbatYaratishSerializer(data=request.data)
+        serializer = NavbatYaratishSerializer(
+            data=request.data, context=self.get_serializer_context()
+        )
         serializer.is_valid(raise_exception=True)
         kitob = serializer.validated_data["kitob"]
         oquvchi = serializer.validated_data["oquvchi"]
@@ -87,13 +105,17 @@ class NavbatViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"], url_path="my")
     def meni(self, request):
         telegram_id = request.query_params.get("telegram_id")
-        oquvchi = Oquvchi.objects.filter(telegram_id=telegram_id).first()
+        oquvchi = scope(Oquvchi.objects, self._org()).filter(
+            telegram_id=telegram_id
+        ).first()
         if not oquvchi:
             return Response(
                 {"error": "topilmadi", "detail": "O'quvchi bog'lanmagan"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        qs = self.queryset.filter(oquvchi=oquvchi, holati__in=["kutmoqda", "taklif_qilindi"])
+        qs = self.get_queryset().filter(
+            oquvchi=oquvchi, holati__in=["kutmoqda", "taklif_qilindi"]
+        )
         return Response(NavbatMeniSerializer(qs, many=True).data)
 
     @action(detail=True, methods=["post"], url_path="respond")

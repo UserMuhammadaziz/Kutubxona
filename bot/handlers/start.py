@@ -2,7 +2,7 @@ import logging
 import re
 
 from aiogram import F, Router
-from aiogram.filters import Command, CommandStart
+from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
@@ -57,7 +57,7 @@ QAYTA_ARIZA_XABAR = (
 # Rolga qarab so'raladigan uchinchi maydon nomi.
 ROL_UCHUNCHI_MAYDON = {
     ARIZA_ROL_OQUVCHI: "Sinfingiz",
-    ARIZA_ROL_OQITUVCHI: "Kasbingiz (o'qitayotgan finingiz)",
+    ARIZA_ROL_OQITUVCHI: "Kasbingiz (o'qitayotgan faningiz)",
 }
 # Tasdiqlangan xabar matni (kalit — rol).
 ROL_TASDIQLANDI_XABARI = {
@@ -112,6 +112,34 @@ def joriy_savol(state: str | None, ma_lumot: dict | None = None) -> str:
     if ma_lumot.get("rol") == ARIZA_ROL_OQITUVCHI:
         return SAVOL_KASB
     return SAVOL_SINF
+
+
+async def _ariza_menyu_tugmasi(message: Message, state: FSMContext) -> bool:
+    """Pastdagi menyu tugmasi arizaga maydon bo'lib tushmasligining oldini oladi.
+
+    Ilgari bular `_format_xato()` ga borib, foydalanuvchi kiritgan barcha
+    ma'lumotlarni o'chirardi. Endi holat saqlanadi, shu bosqich savoli qayta
+    yuboriladi (fanlar tanlangan bo'lsa ular belgilangan holda) va arizani
+    tugatish yoki `/bekor` qilish eslatiladi.
+    """
+    if not _menyu_tugmasi_bosilganmi(message.text):
+        return False
+
+    joriy = await state.get_state()
+    ma_lumot = await state.get_data()
+    klaviatura = None
+    if joriy == Ariza.telefon.state:
+        klaviatura = telefon_sorash()
+    elif joriy == Ariza.kasb.state:
+        # Tanlangan fanlar saqlanib qolishi uchun ularni ham ko'rsatamiz.
+        klaviatura = fan_tugmalari(ma_lumot.get("fanlar") or [])
+
+    await message.answer(
+        f"{joriy_savol(joriy, ma_lumot)}\n\n"
+        "Avval arizani tugating yoki /bekor bosing.",
+        reply_markup=klaviatura,
+    )
+    return True
 
 
 async def _format_xato(message: Message, state: FSMContext, sabab: str = "") -> None:
@@ -259,8 +287,7 @@ async def ariza_fish(message: Message, state: FSMContext):
     if not fish:
         await _format_xato(message, state, "Ism-familiya kiritilmadi.")
         return
-    if _menyu_tugmasi_bosilganmi(fish):
-        await _format_xato(message, state, "Ism-familiya o'rniga menyu tugmasi yuborildi.")
+    if await _ariza_menyu_tugmasi(message, state):
         return
     if len(fish) > 130 or not FISH_RE.fullmatch(fish):
         await _format_xato(
@@ -309,8 +336,7 @@ async def ariza_telefon_matn(message: Message, state: FSMContext):
 
     # Telefon bosqichida ham menyu tugmasi bosilishi mumkin (eski xabar yoki
     # navbatdagi klaviatura). U raqam emas — savolga qaytarib beramiz.
-    if _menyu_tugmasi_bosilganmi(matn):
-        await _format_xato(message, state, "Telefon o'rniga menyu tugmasi yuborildi.")
+    if await _ariza_menyu_tugmasi(message, state):
         return
 
     telefon = matndan_telefon_keltirish(matn)
@@ -361,8 +387,7 @@ async def ariza_sinf(message: Message, state: FSMContext):
     if not sinf:
         await _format_xato(message, state, "Sinf kiritilmadi.")
         return
-    if _menyu_tugmasi_bosilganmi(sinf):
-        await _format_xato(message, state, "Sinf o'rniga menyu tugmasi yuborildi.")
+    if await _ariza_menyu_tugmasi(message, state):
         return
     if len(sinf) > 30 or not SINF_RE.fullmatch(sinf):
         await _format_xato(
@@ -382,8 +407,11 @@ async def ariza_kasb(message: Message, state: FSMContext):
     """O'qituvchi fanlarni faqat tugmalardan tanlashi kerak.
 
     Matn yuborilsa (hatto to'g'ri fan nomi bo'lsa ham) format buzilgan hisoblanadi
-    va ariza boshidan qayta boshlanadi.
+    va ariza boshidan qayta boshlanadi. Pastdigi menyu tugmasi maydon emas —
+    u bosilsa tanlangan fanlar saqlanadi va savol qayta ko'rsatiladi.
     """
+    if await _ariza_menyu_tugmasi(message, state):
+        return
     await _format_xato(
         message, state, "Fanlarni o'zingiz yozmang — pastdagi ro'yxatdan tanlang."
     )
@@ -457,9 +485,14 @@ async def ariza_fan_tanlandi(callback: CallbackQuery, state: FSMContext):
     )
 
 
-@router.message(Command("bekor", "start_over", "cancel"))
 async def ariza_bekor_qilish(message: Message, state: FSMContext):
-    """Ariza to'ldirishdan voz kechish — holat tozalanadi, bot yana ishlaydi."""
+    """Ariza to'ldirishdan voz kechish — holat tozalanadi, bot yana ishlaydi.
+
+    Buyruqning o'zi `navigatsiya.py` da (birinchi router) qayta ishlanadi;
+    bu yerda faqat o'sha handler chaqiradigan umumiy amal qoladi. Ikkinchi
+    `@router.message(Command("bekor", ...))` qo'shilsa, xabar ikki marta
+    yuborilar va holat ikki marta tozalanardi.
+    """
     await state.clear()
     await message.answer(
         "Bekor qilindi. Qayta urinish uchun /start buyrug'ini "

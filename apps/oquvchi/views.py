@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.db.models import Q
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -7,7 +8,7 @@ from rest_framework.response import Response
 from berish.serializers import BerishMeniSerializer
 from jarima.models import Jarima
 from jarima.serializers import JarimaMeniSerializer
-from organization.tenancy import TenantViewSetMixin, joriy_kutubxonani_aniqla
+from organization.tenancy import TenantViewSetMixin, joriy_kutubxonani_aniqla, scope
 from user.permissions import IsLibrarian
 from . import services
 from .models import Ariza, Oquvchi
@@ -19,6 +20,7 @@ from .serializers import (
     OquvchiYaratishSerializer,
     OquvchiBindSerializer,
     OquvchilarniOchirishSerializer,
+    ariza_kutubxonasi,
 )
 
 
@@ -66,7 +68,12 @@ class OquvchiViewSet(TenantViewSetMixin, viewsets.ModelViewSet):
 
     @action(detail=False, methods=["post"], url_path="bind")
     def bind(self, request):
-        serializer = OquvchiBindSerializer(data=request.data)
+        # Serializer kutubxonani aynan shu so'rov kontekstidan aniqlaydi
+        # (xizmat akkauntining a'zoligi bo'yicha). Kontekstsiz u barcha
+        # kutubxonalarni ko'rmaydi va bog'lash ishlamay qoladi.
+        serializer = OquvchiBindSerializer(
+            data=request.data, context=self.get_serializer_context()
+        )
         serializer.is_valid(raise_exception=True)
         oquvchi = serializer.save()
         return Response(OquvchiSerializer(oquvchi).data, status=status.HTTP_200_OK)
@@ -165,10 +172,32 @@ class ArizaViewSet(viewsets.ModelViewSet):
             return ArizaYaratishSerializer
         return ArizaSerializer
 
+    def _org(self):
+        # Arizalar ro'yxati/tasdiqlash — kutubxonachi endpoint'lari.
+        return joriy_kutubxonani_aniqla(self.request, required=False)
+
+    def get_queryset(self):
+        # `list`, `approve`, `reject` faqat joriy kutubxonaning arizalarini
+        # ko'radi. Bot chaqiradigan ochiq `create`/`holat` bu metodga
+        # tayanmaydi — ular `ariza_kutubxonasi()` orqali aniqlanadi.
+        org = self._org()
+        qs = scope(super().get_queryset(), org)
+        if org is not None:
+            from organization.models import Organization
+
+            # Eski bot arizalarida organization bo'sh qolgan: bitta kutubxona
+            # bo'lgan ular ham ko'rinishi va tasdiqlanishi kerak.
+            if Organization.objects.filter(status=Organization.HOLAT_ACTIVE).count() <= 1:
+                qs = super().get_queryset().filter(Q(organization=org) | Q(organization__isnull=True))
+        return qs
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        ariza = serializer.save()
+        # Endpoint ochiq (bot JWT'siz chaqiradi), lekin kutubxona aniqlansa
+        # ariza shu kutubxonaga bog'lanadi — aks holda tasdiqlovchi xodim
+        # uni ro'yxatda ko'rmaydi va boshqa tenant'ga "oqib ketadi".
+        ariza = serializer.save(organization=ariza_kutubxonasi(request))
         return Response(ArizaSerializer(ariza).data, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=["get"], url_path="status")
@@ -178,7 +207,8 @@ class ArizaViewSet(viewsets.ModelViewSet):
             raise ValidationError(
                 {"error": "telegram_id_kerak", "detail": "telegram_id parametri kiritilishi shart"}
             )
-        ariza = Ariza.objects.filter(telegram_id=telegram_id).first()
+        org = ariza_kutubxonasi(request)
+        ariza = scope(Ariza.objects, org).filter(telegram_id=telegram_id).first()
         # Qabul qilinganlar ham eski formatdagi ariza sababli qayta yuborishi
         # kerak — bayroq Oquvchi yoki Ariza ustida turishi mumkin.
         # Ammo yangi (to'g'ri formatdagi) ariza allaqachon yuborilgan bo'lsa,
@@ -188,7 +218,7 @@ class ArizaViewSet(viewsets.ModelViewSet):
             ariza and ariza.holati == "kutmoqda" and not ariza.qayta_ariza_kerak
         )
         qayta_ariza_kerak = not yangi_ariza_yuborildi and (
-            Oquvchi.objects.filter(
+            scope(Oquvchi.objects, org).filter(
                 telegram_id=telegram_id, qayta_ariza_kerak=True
             ).exists()
             or bool(ariza and ariza.qayta_ariza_kerak)
@@ -217,9 +247,9 @@ class ArizaViewSet(viewsets.ModelViewSet):
             )
         # Faqat eski formatda qayta ariza yuborgan foydalanuvchigina mavjud
         # o'quvchi ustiga tasdiqlanishi mumkin.
-        if Oquvchi.objects.filter(telegram_id=ariza.telegram_id).exclude(
-            qayta_ariza_kerak=True
-        ).exists():
+        if scope(Oquvchi.objects, ariza.organization or self._org()).filter(
+            telegram_id=ariza.telegram_id
+        ).exclude(qayta_ariza_kerak=True).exists():
             raise ValidationError(
                 {"error": "telegram_band", "detail": "Bu telegram akkaunt allaqachon o'quvchiga bog'langan"}
             )

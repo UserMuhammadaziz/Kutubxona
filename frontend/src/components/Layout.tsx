@@ -6,7 +6,6 @@ import { useThemeStore } from '../store/theme'
 import { Logo, LogoMark } from './Logo'
 import { Chatbot } from './Chatbot'
 import { CommandBar } from './CommandBar'
-import { PwaBanner } from './PwaBanner'
 import { Icons } from './icons'
 
 const navItems = [
@@ -34,9 +33,9 @@ const tabItems = [
 ]
 
 function BottomTabs({ onMenu }: { onMenu: () => void }) {
-  const tab = 'pwa-tab flex flex-1 flex-col items-center gap-0.5 py-2 text-xs font-medium'
+  const tab = 'pwa-tab flex min-w-0 flex-1 flex-col items-center gap-0.5 whitespace-nowrap px-0.5 text-[0.6875rem] font-medium'
   return (
-    <nav className="pwa-tabs fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-paper pb-[env(safe-area-inset-bottom)] lg:hidden dark:border-slate-700 dark:bg-slate-800">
+    <nav className="pwa-tabs fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-paper lg:hidden dark:border-slate-700 dark:bg-slate-800">
       {tabItems.map((item) => (
         <NavLink
           key={item.to}
@@ -223,7 +222,6 @@ export function Layout() {
         </main>
       </div>
       <BottomTabs onMenu={() => setDrawerOpen(true)} />
-      <PwaBanner />
       <Chatbot />
       <CommandBar />
     </div>

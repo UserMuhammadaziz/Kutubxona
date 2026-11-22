@@ -495,10 +495,12 @@ def rate_library(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def my_ratings(request):
-    org = joriy_kutubxonani_aniqla(request, required=False)
-    qs = LibraryRating.objects.filter(oquvchi__telegram_id__isnull=False)
-    if org:
-        qs = qs.filter(organization=org)
+    # Fail-closed: tenant aniqlanmasa boshqa kutubxonalarning reytinglarini
+    # qaytarmaymiz.
+    org = joriy_kutubxonani_aniqla(request, required=True)
+    qs = LibraryRating.objects.filter(
+        organization=org, oquvchi__telegram_id__isnull=False
+    ).select_related("organization")
     return Response(
         [
             {

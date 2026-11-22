@@ -14,12 +14,18 @@ Django REST API bilan ishlash uchun yagona darvoza.
 import asyncio
 import json
 import logging
+from urllib.parse import parse_qs, urlparse
 
 import aiohttp
 
 import config
 
 logger = logging.getLogger(__name__)
+
+# Kutubxonachi bir o'choqda ko'rishi mumkin bo'lgan kutilayotgan band so'rovlari
+# soni. Sahifalar shu cheklamagacha (yoki `next` tugaguncha) o'qiladi.
+BANDLAR_CHEKLAMI = 200
+
 
 class ApiXato(Exception):
     """API dan kelgan {"error": kod, "detail": matn} formatidagi xato.
@@ -325,11 +331,36 @@ class ApiClient:
         """GET /holds/?holati= — kutubxonachi uchun ro'yxat (botda ruxsat
         BOT_ADMIN_CHAT_IDS orqali tekshiriladi).
 
-        `/holds/` endi pagination qiladi (`{count, results}`, frontend shu
-        shaklda kutadi), shuning uchun botga kerakli `results` listi
-        ajratib beriladi — xuddi `nusxa_qidir()` kabi."""
-        data = await self._so_rov("GET", "/holds/", params={"holati": holati})
-        return data.get("results", []) if isinstance(data, dict) else data
+        `/holds/` pagination qiladi (`{count, next, previous, results}`).
+        Faqat birinchi sahifani olish kutubxonachining qolgan so'rovlarini
+        ko'rinmay qoldirardi — shuning uchun `next` tugaguncha (yoki
+        `BANDLAR_CHEKLAMI` ga yetguncha) barcha sahifalarni o'qimizu,
+        faqat `results` listini qaytaramiz."""
+        natijalar = []
+        params = {"holati": holati}
+        sahifalar = 0
+        while True:
+            data = await self._so_rov("GET", "/holds/", params=params)
+            if not isinstance(data, dict):
+                # Pagination'siz eski javob ham ishlashda davom etsin.
+                natijalar.extend(data or [])
+                break
+            natijalar.extend(data.get("results", []))
+            sahifalar += 1
+            keyingi = data.get("next")
+            if (
+                not keyingi
+                or len(natijalar) >= BANDLAR_CHEKLAMI
+                or sahifalar >= 20  # server `next` ni qayta-qayta qaytarsa ham to'xtaymiz
+            ):
+                break
+            # `next` to'liq URL bo'ladi; `_so_rov` ga yo'l va parametrlar
+            # alohida beriladi, shuning uchun faqat `page` ni ajratib olamiz.
+            sahifa = parse_qs(urlparse(keyingi).query).get("page", [None])[0]
+            if not sahifa or not sahifa.isdigit():
+                break
+            params = {"holati": holati, "page": sahifa}
+        return natijalar[:BANDLAR_CHEKLAMI]
 
     async def bandni_tasdiqla(self, band_id: int, izoh: str = ""):
         return await self._so_rov(
