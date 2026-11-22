@@ -6,10 +6,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Kutubxona</title>
 
+    <!-- PWA: ilova sifatida ochilganda qurilma kengligini qayta-qayta tasdiqlaymiz.
+         Android ba'zan eski kesh yoki "kompyuter ko'rinishi" tufayli sahifani
+         980px kenglikda chizib, butun interfeysni kichraytirib qo'yadi. -->
+    <script>
+      (function () {
+        var root = document.documentElement
+        var meta = document.querySelector('meta[name="viewport"]')
+        var viewport = 'width=device-width, initial-scale=1.0, viewport-fit=cover'
+        if (meta) meta.setAttribute('content', viewport)
+
+        function tekshir() {
+          var standalone =
+            window.matchMedia('(display-mode: standalone)').matches ||
+            window.navigator.standalone === true
+          root.classList.toggle('pwa', standalone)
+
+          var kichikEkran = Math.min(screen.width, screen.height) < 600
+          root.classList.toggle(
+            'pwa-desktop',
+            standalone && kichikEkran && window.innerWidth > 760,
+          )
+        }
+
+        tekshir()
+        window.addEventListener('resize', tekshir)
+        window.addEventListener('orientationchange', tekshir)
+        window.addEventListener('pageshow', tekshir)
+      })()
+    </script>
+
     <!-- PWA -->
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <meta name="theme-color" content="#2563EB" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Kutubxona" />

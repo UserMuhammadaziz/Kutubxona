@@ -1,10 +1,10 @@
 // Service worker: PWA uchun offline qobiq (app shell) va statik assetlar keshi.
 // Manzili /sw.js — scope barcha sahifalarni qamrab oladi (Django route qiladi).
-const VERSION = 'v2'
+const VERSION = 'v3'
 const SHELL_CACHE = `kutubxona-shell-${VERSION}`
-// Hash'langan build fayllari immutable, shuning uchun kesh versiyasiz —
-// aks holda yangi buildda eski tab ochiq turganda assetlar o'chib ketardi.
-const STATIC_CACHE = 'kutubxona-static'
+// Hash'langan fayllar o'zgarimsiz, lekin keshni versiyalaymiz: PWA o'rnatilgan
+// qurilmalarda eski (kichik ko'rinishli) qobiq qolib ketmasligi uchun.
+const STATIC_CACHE = `kutubxona-static-${VERSION}`
 const SHELL_URL = '/'
 
 self.addEventListener('install', (event) => {
@@ -28,7 +28,9 @@ self.addEventListener('activate', (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key.startsWith('kutubxona-shell-') && key !== SHELL_CACHE)
+            .filter(
+              (key) => key.startsWith('kutubxona-') && key !== SHELL_CACHE && key !== STATIC_CACHE,
+            )
             .map((key) => caches.delete(key)),
         ),
       )

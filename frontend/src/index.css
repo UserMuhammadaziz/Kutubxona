@@ -64,3 +64,48 @@ button:disabled,
   --color-slate-900: #151c2e;
   --color-slate-950: #0e1424;
 }
+
+/* --- PWA (ilova sifatida ochilganda) -----------------------------------
+   Brauzerda ochilgandan farqli ravishda PWA oynasida status bar bo'lmaydi
+   va foydalanuvchi kichik ekranda ishlaydi. Shuning uchun:
+   - ildiz shriftini kattalashtiramiz (Tailwind o'lchamlari rem'da — hamma
+     matn, tugma va bo'shliqlar proporsional ravishda kattalashadi);
+   - xavfsiz zonalar (status bar / pastki panela) hisobga olinadi;
+   - matnning o'z-o'zidan kichrayishining va ikki marta bosish zoom'ining
+     oldini olamiz. */
+
+html.pwa {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+html.pwa body {
+  touch-action: manipulation;
+}
+
+@media (max-width: 420px) {
+  html.pwa {
+    font-size: 18px;
+  }
+}
+
+@media (min-width: 421px) and (max-width: 640px) {
+  html.pwa {
+    font-size: 17px;
+  }
+}
+
+/* Yuqori header status bar ostiga tushmasligi uchun. */
+html.pwa .pwa-safe-top {
+  padding-top: calc(0.75rem + env(safe-area-inset-top, 0px));
+}
+
+/* Pastki tezkor tugmalar ham xavfsiz zona ichida, bosish joyi kattaroq. */
+html.pwa .pwa-tabs {
+  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+}
+html.pwa .pwa-tab {
+  padding-top: 0.625rem;
+  padding-bottom: 0.625rem;
+  font-size: 0.75rem;
+}

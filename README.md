@@ -125,6 +125,13 @@ yuqorida chiqadi, chat boti esa pastki tugmalarni yopib qo'ymaydi.
 `Profil` sahifasidagi `Sozlamalar` bo'limi olib tashlangan: mavzu yuqori
 qismdagi tugma, chiqish esa chap menyudagi `Chiqish` tugmasi orqali.
 
+**PWA ilovasi:** o'rnatilgan ilovada interfeys avtomatik ravishda kattalashtiriladi
+(telefon ekranida ildiz shrifti 17–18px), status bar va pastki xavfsiz zona
+hisobga olinadi, eski kesh `sw.js` v3 bilan tozalanadi. Agar Android ilovada
+sahifa kichrayib ko'rinsa, bu Chrome'ning «Kompyuter ko'rinishi» rejimi bo'ladi:
+uni o'chirib, ilovani qayta ochish kerak (ilova bu holatni o'zi aniqlab
+ogohlantiradi).
+
 ## Muhim: jarima hisoblash idempotent
 
 `jarima.tasks.jarimalarni_hisobla` vazifasi bir necha marta ketma-ket ishga

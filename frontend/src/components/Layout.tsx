@@ -34,9 +34,9 @@ const tabItems = [
 ]
 
 function BottomTabs({ onMenu }: { onMenu: () => void }) {
-  const tab = 'flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium'
+  const tab = 'pwa-tab flex flex-1 flex-col items-center gap-0.5 py-2 text-xs font-medium'
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-paper pb-[env(safe-area-inset-bottom)] lg:hidden dark:border-slate-700 dark:bg-slate-800">
+    <nav className="pwa-tabs fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-paper pb-[env(safe-area-inset-bottom)] lg:hidden dark:border-slate-700 dark:bg-slate-800">
       {tabItems.map((item) => (
         <NavLink
           key={item.to}
@@ -147,7 +147,7 @@ export function Layout() {
   return (
     <div className="min-h-dvh bg-canvas dark:bg-slate-900">
       {/* Mobil yuqori panel */}
-      <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-slate-200 bg-paper px-4 py-3 lg:hidden dark:border-slate-700 dark:bg-slate-800">
+      <header className="pwa-safe-top sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-slate-200 bg-paper px-4 py-3 lg:hidden dark:border-slate-700 dark:bg-slate-800">
         <button
           onClick={() => setDrawerOpen(true)}
           aria-label="Menyuni ochish"

@@ -24,6 +24,10 @@ export function usePwa() {
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null)
   const [online, setOnline] = useState(() => navigator.onLine)
   const [updateReady, setUpdateReady] = useState<ServiceWorkerRegistration | null>(null)
+  // Android ba'zan PWA'ni "kompyuter ko'rinishi"da ochadi: sahifa 980px kenglikda
+  // chizilib, butun interfeys kichrayib ketadi. Buni aniqlab, foydalanuvchiga
+  // aniq ko'rsatma beramiz.
+  const [desktopMode, setDesktopMode] = useState(false)
   const [dismissed, setDismissed] = useState(() => {
     try {
       return localStorage.getItem(DISMISS_KEY) === '1'
@@ -49,6 +53,25 @@ export function usePwa() {
       window.removeEventListener('appinstalled', onInstalled)
       window.removeEventListener('online', goOnline)
       window.removeEventListener('offline', goOffline)
+    }
+  }, [])
+
+  // Viewport'ni har qayta ochilishda tasdiqlaymiz va kichrayish sababini aniqlaymiz.
+  useEffect(() => {
+    const check = () => {
+      const meta = document.querySelector('meta[name="viewport"]')
+      if (meta) meta.setAttribute('content', 'width=device-width, initial-scale=1.0, viewport-fit=cover')
+      const phone = Math.min(screen.width, screen.height) < 600
+      setDesktopMode(isStandalone() && phone && window.innerWidth > 760)
+    }
+    check()
+    window.addEventListener('resize', check)
+    window.addEventListener('orientationchange', check)
+    window.addEventListener('pageshow', check)
+    return () => {
+      window.removeEventListener('resize', check)
+      window.removeEventListener('orientationchange', check)
+      window.removeEventListener('pageshow', check)
     }
   }, [])
 
@@ -128,5 +151,6 @@ export function usePwa() {
     dismiss,
     updateReady: !!updateReady,
     applyUpdate,
+    desktopMode,
   }
 }

@@ -1,12 +1,16 @@
+import { useState } from 'react'
 import { usePwa } from '../hooks/usePwa'
 import { Button } from './ui'
 
-/** Offline holat, yangi versiya va «ilova sifatida o'rnatish» takliflari. */
+/** Offline holat, yangi versiya, «ilova sifatida o'rnatish» va kichrayish ogohlantirishi. */
 export function PwaBanner() {
-  const { online, canInstall, showIosHint, install, dismiss, updateReady, applyUpdate } = usePwa()
+  const { online, canInstall, showIosHint, install, dismiss, updateReady, applyUpdate, desktopMode } =
+    usePwa()
+  const [desktopHintYopildi, setDesktopHintYopildi] = useState(false)
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-36 z-40 flex flex-col items-center gap-2 px-4 lg:bottom-4">
+    <>
+      <div className="pointer-events-none fixed inset-x-0 bottom-36 z-40 flex flex-col items-center gap-2 px-4 lg:bottom-4">
       {!online && (
         <div
           role="status"
@@ -42,6 +46,31 @@ export function PwaBanner() {
           </button>
         </div>
       )}
-    </div>
+      </div>
+
+      {desktopMode && !desktopHintYopildi && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/70 p-5">
+          <div className="w-full max-w-sm rounded-2xl bg-paper p-6 text-center shadow-2xl dark:bg-slate-800">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-2xl dark:bg-amber-900/30">
+              ⚠️
+            </div>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+              Ilova kichik ko‘rinishda ochildi
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+              Brauzerda bu sayt uchun <b>«Kompyuter ko‘rinishi»</b> yoqilgan bo‘lishi mumkin. Chrome
+              menyusidan u rejimni o‘chirib, ilovani yopib qayta oching — interfeys to‘liq ekranga
+              moslashadi.
+            </p>
+            <div className="mt-5 flex flex-col gap-2">
+              <Button onClick={() => window.location.reload()}>Qayta yuklash</Button>
+              <Button variant="secondary" onClick={() => setDesktopHintYopildi(true)}>
+                Tushundim
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }

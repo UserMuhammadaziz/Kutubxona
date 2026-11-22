@@ -77,6 +77,8 @@ Bu qo'llanma saytdan **kundalik ishda** foydalanish uchun yozilgan. Texnik tafsi
 - Matn kiritish maydonlari telefonda 16px — iOS qurilmalarda fokusda sahifa avtomatik kattalashmaydi.
 - **Profil**da **Sozlamalar** bo'limi yo'q: mavzu yuqoridagi tugma bilan, **Chiqish** esa chap menyudagi tugma bilan amalga oshiriladi.
 
+**Ilova (PWA) sifatida ishlatsangiz:** matn va tugmalar brauzerga qaraganda biroz kattaroq chiqadi, yuqori va pastki xavfsiz zonalar hisobga olinadi. «Yangi versiya tayyor» degan xabar chiqsa, **Yangilash** tugmasini bosing. Agar Android ilovada hamma narsa kichrayib, atrofida oq joy paydo bo'lsa, Chrome menyusidagi **«Kompyuter ko'rinishi»**ni o'chirib, ilovani qayta oching — ekranda ham shu ko'rsatma chiqadi.
+
 ### Umumiy qoidalar (barcha sahifalarda bir xil)
 
 - **Qidiruv maydoni** — kerakli ma'lumotni tez topish uchun. Yozishni boshlaganingizda avtomatik qidiradi.
