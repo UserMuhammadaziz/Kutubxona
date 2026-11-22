@@ -1018,19 +1018,6 @@ const sections: Section[] = [
         <B>Profil</B> → <B>Parol almashtirish</B>: avval eski parolni, keyin yangi parolni ikki marta
         kiriting. Eski parol noto‘g‘ri bo‘lsa, parol o‘zgarmaydi.
       </P>,
-      <H3 key="6">Sozlamalar</H3>,
-      <UL
-        key="7"
-        items={[
-          <>
-            <B>Ko‘rinish</B> — Yorug / Qorong‘i rejimni tanlaysiz (tanlov saqlanadi)
-          </>,
-          <>
-            <B>Tizimdan chiqish</B> — tasdiqlash oynasi chiqadi, tasodifiy chiqib ketishning oldi
-            olinadi
-          </>,
-        ]}
-      />,
       <H3 key="8">Kitobxonlarga xabar yuborish</H3>,
       <P key="9">
         <B>Profil</B> → <B>Kitobxonlarga xabar yuborish</B> orqali Telegram orqali xabar yuborasiz:
@@ -1253,7 +1240,7 @@ export function Guide() {
         <style>{kitobAnimatsiyasi}</style>
         {umumiySarlavha}
 
-        <div className="flex min-h-[65vh] items-center justify-center px-4 py-10">
+        <div className="flex min-h-[65dvh] items-center justify-center px-4 py-10">
           <button
             type="button"
             onClick={() => setOchilgan(true)}
@@ -1265,7 +1252,7 @@ export function Guide() {
             <div className="absolute -right-0.5 top-0.5 h-full w-full rounded-r-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800" />
 
             {/* Muqova */}
-            <div className="relative flex h-[26rem] flex-col justify-between overflow-hidden rounded-2xl rounded-l-md bg-gradient-to-br from-brand-500 via-brand-700 to-brand-900 p-7 text-white shadow-2xl ring-1 ring-black/10 transition-all duration-300 group-hover:-translate-y-2 group-hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.35)] group-focus-visible:ring-4 group-focus-visible:ring-brand-400">
+            <div className="relative flex h-[min(26rem,52dvh)] min-h-[17rem] flex-col justify-between overflow-hidden rounded-2xl rounded-l-md bg-gradient-to-br from-brand-500 via-brand-700 to-brand-900 p-7 text-white shadow-2xl ring-1 ring-black/10 transition-all duration-300 group-hover:-translate-y-2 group-hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.35)] group-focus-visible:ring-4 group-focus-visible:ring-brand-400">
               {/* Umurtqa */}
               <div className="absolute inset-y-0 left-0 w-3.5 bg-black/25" />
               <div className="absolute inset-y-0 left-3.5 w-px bg-white/25" />

@@ -118,6 +118,13 @@ Build natijalari (`web/static/web/dist/`, `web/templates/web/index.html`)
 `.gitignore`'da — reponi klon qilganidan keyin frontend'ni ishlatish uchun
 kamida bir marta `npm run build` bajarish kerak.
 
+**Mobil ko'rinish:** panel telefon ekraniga moslashgan — pastki tezkor
+tugmalar, ☰ menyusi, ro'yxat kartochkalari, pastdan ochiladigan modallar,
+sahifalash va 16px kiritish maydonlari (iOS zoom yo'q). Xabarnomalar
+yuqorida chiqadi, chat boti esa pastki tugmalarni yopib qo'ymaydi.
+`Profil` sahifasidagi `Sozlamalar` bo'limi olib tashlangan: mavzu yuqori
+qismdagi tugma, chiqish esa chap menyudagi `Chiqish` tugmasi orqali.
+
 ## Muhim: jarima hisoblash idempotent
 
 `jarima.tasks.jarimalarni_hisobla` vazifasi bir necha marta ketma-ket ishga

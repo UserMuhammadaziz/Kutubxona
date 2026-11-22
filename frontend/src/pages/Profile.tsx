@@ -18,7 +18,6 @@ import {
   avtomatikYoqilgan,
 } from '../lib/xatolikXabari'
 import { useAuthStore } from '../store/auth'
-import { useThemeStore } from '../store/theme'
 import { Icons } from '../components/icons'
 import {
   Badge,
@@ -65,9 +64,7 @@ function InfoRow({ label, children }: { label: string; children: ReactNode }) {
 
 /** Kutubxonachi o'z hisobini boshqaradi: parol, xabar va kitobxonlarni o'chirish. */
 export function Profile() {
-  const { user, logout } = useAuthStore()
-  const theme = useThemeStore((s) => s.theme)
-  const setTheme = useThemeStore((s) => s.setTheme)
+  const { user } = useAuthStore()
   const toast = useToast()
   const queryClient = useQueryClient()
 
@@ -78,7 +75,6 @@ export function Profile() {
   const [shaxsiy, setShaxsiy] = useState<ProfilYangilashPayload>({})
   const [tahrir, setTahrir] = useState(false)
   const [shaxsiyXato, setShaxsiyXato] = useState<string | null>(null)
-  const [chiqishTasdiq, setChiqishTasdiq] = useState(false)
 
   useEffect(() => {
     if (!user || tahrir) return
@@ -533,47 +529,6 @@ export function Profile() {
             )}
           </Card>
 
-          <Card className="p-5">
-            <h2 className="mb-3 flex items-center gap-2 font-semibold text-slate-900 dark:text-slate-100">
-              <Icons.info className="h-5 w-5 text-brand-600 dark:text-brand-400" />
-              Sozlamalar
-            </h2>
-
-            <div className="mb-4">
-              <div className="mb-2 text-sm text-slate-500 dark:text-slate-400">Ko‘rinish</div>
-              <div className="grid grid-cols-2 gap-2 rounded-lg bg-canvas p-1 dark:bg-slate-800/60">
-                {(['light', 'dark'] as const).map((tanlov) => (
-                  <button
-                    key={tanlov}
-                    type="button"
-                    onClick={() => setTheme(tanlov)}
-                    className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
-                      theme === tanlov
-                        ? 'bg-paper text-brand-700 shadow-sm dark:text-brand-300'
-                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-                    }`}
-                  >
-                    {tanlov === 'light'
-                      ? Icons.sun({ className: 'h-4 w-4' })
-                      : Icons.moon({ className: 'h-4 w-4' })}
-                    {tanlov === 'light' ? 'Yorug' : 'Qorong‘i'}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="mb-4 border-t border-slate-100 pt-4 dark:border-slate-700">
-              <div className="mb-2 text-sm text-slate-500 dark:text-slate-400">Hisob</div>
-              <Button variant="secondary" onClick={() => setChiqishTasdiq(true)} className="w-full !justify-start">
-                <Icons.close className="h-4 w-4" />
-                Tizimdan chiqish
-              </Button>
-            </div>
-
-            <p className="text-xs text-slate-400">
-              Shaxsiy ma'lumotlar va parolni yuqoridagi bo‘limlarda o‘zgartirishingiz mumkin.
-            </p>
-          </Card>
         </div>
       </div>
 
@@ -812,14 +767,6 @@ export function Profile() {
         onCancel={() => setOchirishTasdiq(false)}
       />
 
-      <ConfirmDialog
-        open={chiqishTasdiq}
-        title="Tizimdan chiqish"
-        message="Hisobingizdan chiqmoqchimisiz?"
-        confirmLabel="Chiqish"
-        onConfirm={logout}
-        onCancel={() => setChiqishTasdiq(false)}
-      />
     </div>
   )
 }

@@ -26,7 +26,7 @@ export function Register() {
 
   if (done) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-canvas px-4 dark:bg-slate-900">
+      <div className="flex min-h-dvh items-center justify-center bg-canvas px-4 py-8 dark:bg-slate-900">
         <Card className="w-full max-w-md p-8 text-center">
           <LogoMark className="mx-auto mb-3 h-14 w-14" />
           <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
@@ -86,7 +86,7 @@ export function Register() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-canvas px-4 dark:bg-slate-900">
+    <div className="flex min-h-dvh items-center justify-center bg-canvas px-4 py-8 dark:bg-slate-900">
       <Card className="w-full max-w-md p-8">
         <div className="mb-6 text-center">
           <LogoMark className="mx-auto mb-3 h-14 w-14" />
@@ -156,7 +156,7 @@ export function Register() {
               <Field>
                 <Label>Tashkilot turi</Label>
                 <select
-                  className="w-full rounded-lg border border-slate-300 bg-paper px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
+                  className="w-full rounded-lg border border-slate-300 bg-paper px-3 py-2 text-base sm:text-sm dark:border-slate-600 dark:bg-slate-800"
                   value={turi}
                   onChange={(e) => setTuri(e.target.value as OrgTuri)}
                 >

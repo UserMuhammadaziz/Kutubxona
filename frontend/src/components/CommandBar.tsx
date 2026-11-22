@@ -193,9 +193,9 @@ export function CommandBar() {
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-start justify-center p-4 pt-[15vh]" role="dialog" aria-label="AI buyruqlar paneli">
+    <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto p-4 pt-[8vh] sm:pt-[15vh]" role="dialog" aria-label="AI buyruqlar paneli">
       <div className="absolute inset-0 bg-slate-900/50 dark:bg-slate-950/70" onClick={close} />
-      <div className="relative w-full max-w-xl rounded-xl bg-paper p-4 shadow-xl dark:bg-slate-800">
+      <div className="relative max-h-[84dvh] w-full max-w-xl overflow-y-auto rounded-xl bg-paper p-4 shadow-xl dark:bg-slate-800">
         <form onSubmit={onSubmit} className="flex items-center gap-2">
           <input
             ref={inputRef}
@@ -213,7 +213,7 @@ export function CommandBar() {
             }}
             maxLength={300}
             placeholder="Buyruq yozing yoki ayting…"
-            className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-transparent px-3 py-2.5 text-sm text-slate-900 dark:border-slate-600 dark:text-slate-100"
+            className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-transparent px-3 py-2.5 text-base text-slate-900 sm:text-sm dark:border-slate-600 dark:text-slate-100"
           />
           {speechCtor() && (
             <button

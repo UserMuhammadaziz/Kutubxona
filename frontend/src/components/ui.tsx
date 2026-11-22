@@ -66,7 +66,7 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
   return (
     <input
       className={clsx(
-        'w-full rounded-lg border border-slate-300 bg-paper px-3 py-2 text-sm outline-none placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:focus:border-brand-400 dark:focus:ring-brand-900',
+        'w-full rounded-lg border border-slate-300 bg-paper px-3 py-2 text-base outline-none placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:opacity-60 sm:text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:focus:border-brand-400 dark:focus:ring-brand-900',
         className,
       )}
       {...props}
@@ -78,7 +78,7 @@ export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTex
   return (
     <textarea
       className={clsx(
-        'w-full rounded-lg border border-slate-300 bg-paper px-3 py-2 text-sm outline-none placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:focus:border-brand-400 dark:focus:ring-brand-900',
+        'w-full rounded-lg border border-slate-300 bg-paper px-3 py-2 text-base outline-none placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 sm:text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:focus:border-brand-400 dark:focus:ring-brand-900',
         className,
       )}
       {...props}
@@ -90,7 +90,7 @@ export function Select({ className, children, ...props }: SelectHTMLAttributes<H
   return (
     <select
       className={clsx(
-        'w-full rounded-lg border border-slate-300 bg-paper px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:focus:border-brand-400 dark:focus:ring-brand-900',
+        'w-full rounded-lg border border-slate-300 bg-paper px-3 py-2 text-base outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 sm:text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:focus:border-brand-400 dark:focus:ring-brand-900',
         className,
       )}
       {...props}
@@ -311,7 +311,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-paper p-5 shadow-xl sm:max-w-lg sm:rounded-xl sm:p-6 dark:bg-slate-800 dark:shadow-black/40"
+        className="max-h-[90dvh] w-full overflow-y-auto rounded-t-2xl bg-paper p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-xl sm:max-w-lg sm:rounded-xl sm:p-6 dark:bg-slate-800 dark:shadow-black/40"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-start justify-between gap-3">

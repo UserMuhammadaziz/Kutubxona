@@ -199,7 +199,7 @@ export function Chatbot() {
                     }
                   }}
                   disabled={isLoading}
-                  className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                  className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-base resize-none focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent sm:text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                   aria-label="Xabar matni"
                 />
                 <button

@@ -20,7 +20,7 @@ Bu qo'llanma saytdan **kundalik ishda** foydalanish uchun yozilgan. Texnik tafsi
 12. [Jarimani qabul qilish](#12-jarimani-qabul-qilish)
 13. [O'quvchini kuzatish](#13-o'quvchini-kuzatish)
 14. [Xodim qo'shish (faqat administrator)](#14-xodim-qo'shish-faqat-administrator)
-15. [Profil va sozlamalar](#15-profil-va-sozlamalar)
+15. [Profil](#15-profil)
 16. [Kunlik ish tartibi](#16-kunlik-ish-tartibi)
 17. [Tez-tez so'raladigan savollar](#17-tez-tez-so'raladigan-savollar)
 
@@ -37,7 +37,7 @@ Bu qo'llanma saytdan **kundalik ishda** foydalanish uchun yozilgan. Texnik tafsi
 
 **Muhim:**
 - Saytga kirish faqat **kutubxonachi** va **administrator** uchun. O'quvchi/o'qituvchilar saytga kirmaydi — ular Telegram botdan foydalanadi.
-- Ish tugagach, **Profil → Sozlamalar → Tizimdan chiqish** yoki chap paneldagi **Chiqish** tugmasini bosing — tasdiqlash oynasi chiqadi.
+- Ish tugagach, chap paneldagi **Chiqish** tugmasini bosing (telefonda menyuni ochib, pastdagi **Chiqish**).
 
 ---
 
@@ -68,12 +68,21 @@ Bu qo'llanma saytdan **kundalik ishda** foydalanish uchun yozilgan. Texnik tafsi
 - **<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg> / <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>** — qorong'i (tungi) va yorug' (kunduzgi) rejimni almashtiradi
 - **<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M4 6h16M4 12h16M4 18h16"/></svg>** — telefonda chap menyuni ochadi/yopadi
 
+### Telefonda ishlash (mobil ko'rinish)
+
+- Pastdagi **Bosh / Berish / Kitoblar / O'quvchilar / Yana** tugmalari asosiy bo'limlarga tez o'tish uchun. **Yana** orqali qolgan bo'limlar, **Profil** va **Chiqish** ochiladi.
+- Yuqoridagi ☰ tugmasi chap menyuni ochadi; bo'lim tanlangach menyu o'z-o'zidan yopiladi.
+- Keng jadvallar o'rniga qulay ro'yxat kartochkalari chiqadi; sahifa raqamlari ro'yxat ostida joylashgan. Chat bot tugmasi ularni yopib qo'ymaydi.
+- Oynalar (masalan, kitob berish) telefonda pastdan ko'tarilib chiqadi; xabarnomalar esa yuqorida ko'rsatiladi.
+- Matn kiritish maydonlari telefonda 16px — iOS qurilmalarda fokusda sahifa avtomatik kattalashmaydi.
+- **Profil**da **Sozlamalar** bo'limi yo'q: mavzu yuqoridagi tugma bilan, **Chiqish** esa chap menyudagi tugma bilan amalga oshiriladi.
+
 ### Umumiy qoidalar (barcha sahifalarda bir xil)
 
 - **Qidiruv maydoni** — kerakli ma'lumotni tez topish uchun. Yozishni boshlaganingizda avtomatik qidiradi.
 - **Filtr** (ro'yxat tepasidagi tanlash) — masalan, faqat "Kutmoqda" holatidagi arizalarni ko'rish.
 - **Sahifalar** — ro'yxat uzun bo'lsa, pastda sahifa raqamlari chiqadi.
-- **O'ng yuqorida xabar** — biror ish muvaffaqiyatli bajarilsa, yashil xabar paydo bo'ladi.
+- **Xabar** — biror ish muvaffaqiyatli bajarilsa yoki xato yuz bersa, xabar yuqorida paydo bo'ladi (telefonda pastki tugmalarga to'sqinlik qilmaydi).
 - **Tasdiqlash oynasi** — o'chirish yoki muhim amal bajarishdan oldin "ishonchingiz komilmi?" so'raladi. Xato qilsangiz, **Bekor qilish** tugmasini bosing.
 
 ---
@@ -347,7 +356,7 @@ Bitta o'quvchining hamma narsasini bir joyda ko'rish:
 
 ---
 
-## 15. Profil va sozlamalar
+## 15. Profil
 
 **Profil** sahifasi chap menyuda **Chiqish** tugmasi ustida joylashgan.
 
@@ -362,11 +371,6 @@ Bitta o'quvchining hamma narsasini bir joyda ko'rish:
 ### Parol almashtirish
 
 **Profil → Parol almashtirish**: eski parol, yangi parol va uning takrori. Eski parol noto'g'ri bo'lsa, hech narsa o'zgarmaydi.
-
-### Sozlamalar
-
-- **Ko'rinish** — Yorug' / Qorong'i rejimni tanlang (tanlov saqlanadi)
-- **Tizimdan chiqish** — tasdiqlash oynasi bilan
 
 ### Kitobxonlarga xabar yuborish
 

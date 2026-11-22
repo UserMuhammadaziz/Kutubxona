@@ -6,7 +6,7 @@ export function PwaBanner() {
   const { online, canInstall, showIosHint, install, dismiss, updateReady, applyUpdate } = usePwa()
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-20 z-40 flex flex-col items-center gap-2 px-4 lg:bottom-4">
+    <div className="pointer-events-none fixed inset-x-0 bottom-36 z-40 flex flex-col items-center gap-2 px-4 lg:bottom-4">
       {!online && (
         <div
           role="status"

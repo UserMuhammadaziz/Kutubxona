@@ -91,8 +91,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         aria-atomic="false"
         className={clsx(
           'pointer-events-none fixed z-[100] flex flex-col gap-2',
-          // Mobil: ekran pastida, to'liq kenglikda. Desktop: o'ng yuqorida.
-          'inset-x-3 bottom-3 items-stretch sm:inset-x-auto sm:bottom-auto sm:right-4 sm:top-4 sm:w-96 sm:items-end',
+          // Mobil: pastki menyu va chat tugmasi ustiga tushmaslik uchun yuqorida. Desktop: o'ng yuqorida.
+          'inset-x-3 top-16 items-stretch sm:inset-x-auto sm:bottom-auto sm:right-4 sm:top-4 sm:w-96 sm:items-end',
         )}
       >
         {toasts.map((t) => {
