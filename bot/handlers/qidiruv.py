@@ -381,7 +381,10 @@ def _navbat_mavjud(kitob: dict) -> bool:
 
 
 def _kitob_batafsil_matn(kitob: dict) -> str:
-    """Kitob kartochkasi matni — batafsil ma'lumot + nusxa/asil holati."""
+    """Kitob kartochkasi matni — faqat batafsil ma'lumot.
+
+    Nusxa yo'qligi/berilganligi haqida xabar berilmaydi; faqat olish mumkin
+    bo'lganda javon ko'rsatiladi."""
     nusxalar = kitob.get("nusxalar") or []
     mavjud_nusxa = next((n for n in nusxalar if n.get("holati") == "mavjud"), None)
 

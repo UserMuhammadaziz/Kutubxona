@@ -768,7 +768,7 @@ async def main() -> int:
         )
     tekshir(
         "o'rindasiz" in manba,
-        "faqat haqqiqiy navbatda 'o'rindasiz' deyiladi",
+        "faqat haqiqiy navbatda 'o'rindasiz' deyiladi",
     )
     # Muddatdan oldin qaytarish xabari — servisda, barcha yo'llar uchun.
     servis = (ROOT / "apps" / "berish" / "services.py").read_text(encoding="utf-8")
