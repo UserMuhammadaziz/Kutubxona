@@ -755,6 +755,8 @@ async def main() -> int:
         "Hozirda yo'q",
         "Nusxa yo'q — kitob berilishi mumkin",
         "Hozir barcha nusxalar berilgan",
+        "Bu kitobning barcha nusxalari berilgan.",
+        "Bu nusxa hozir mavjud emas.",
     )
     for fayl in (
         BOT_DIR / "handlers" / "qidiruv.py",

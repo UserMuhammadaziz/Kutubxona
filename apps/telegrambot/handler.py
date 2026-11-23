@@ -84,11 +84,11 @@ XATO_XABARLARI = {
         "Bu kitob band qilingan — uni faqat kutubxonachi tasdiqlagandan keyin berish mumkin."
     ),
     "allaqachon_berilgan": "Bu kitob allaqachon sizda bor.",
-    "barcha_nusxalar_berilgan": "Bu kitobning barcha nusxalari berilgan.",
+    "barcha_nusxalar_berilgan": "Hozir bu amalni bajarib bo'lmaydi. Iltimos, keyinroq urinib ko'ring.",
     "limit_oshdi": "Siz allaqachon eng ko'p kitob olgansiz.",
     "tolanmagan_jarima": "Sizda to'lanmagan jarima bor.",
     "oquvchi_bloklangan": "Sizning kartangiz bloklangan.",
-    "nusxa_band": "Bu nusxa hozir mavjud emas.",
+    "nusxa_band": "Hozir bu amalni bajarib bo'lmaydi. Iltimos, keyinroq urinib ko'ring.",
     "so_rov_yopilgan": "Bu so'rov allaqachon yopilgan.",
     "berish_mumkin_emas": "Bu kitobni hozir berib bo'lmaydi.",
     "allaqachon_qaytarilgan": "Bu kitob allaqachon qaytarib olingan.",
