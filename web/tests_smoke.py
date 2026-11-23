@@ -340,4 +340,6 @@ class ButunLoyihaSmokeTest(TestCase):
         self.assertIn("javascript", sw["Content-Type"])
         sw_matn = b"".join(sw.streaming_content).decode()
         self.assertIn("kutubxona-static-", sw_matn)
-        self.assertIn("const VERSION = 'v3'", sw_matn)
+        # Versiya oshirilganda bu test ham yangilanadi — eski kesh o'chirilishi
+        # uchun PWA o'rnatilgan qurilmalarda yangi versiya darrov olinadi.
+        self.assertIn("const VERSION = 'v4'", sw_matn)

@@ -5,7 +5,7 @@ import axios from 'axios'
 import { booksApi, copiesApi, loansApi, readersApi } from '../api/resources'
 import { errorMessage } from '../api/client'
 import { Icons } from '../components/icons'
-import { BERISH_HOLATI_LABELS, type Berish, type BerishCreatePayload, type BerishHolati, type Kitob } from '../types'
+import { BERISH_HOLATI_LABELS, type Berish, type BerishCreatePayload, type BerishHolati, type Kitob, type OquvchiRol } from '../types'
 import {
   Badge,
   Button,
@@ -90,6 +90,10 @@ export function Loans() {
   const [modalOpen, setModalOpen] = useState(false)
   const [readerSearch, setReaderSearch] = useState('')
   const kechikkanReaderSearch = useDebouncedValue(readerSearch)
+  // O'quvchi va o'qituvchilar bitta jadvalda — ro'l bo'yicha filtr ularning
+  // hammasini tanlash imkoniyatini beradi (faqat 20 ta bo'lgan sahifada
+  // o'qituvchilar pastlab qolib ketmasligi uchun).
+  const [readerRol, setReaderRol] = useState<OquvchiRol | ''>('')
   const [bookSearch, setBookSearch] = useState('')
   const kechikkanBookSearch = useDebouncedValue(bookSearch)
   const [aniqNusxa, setAniqNusxa] = useState(false)
@@ -109,8 +113,12 @@ export function Loans() {
   })
 
   const { data: readers, isLoading: readersLoading } = useQuery({
-    queryKey: ['readers', 'for-select', kechikkanReaderSearch],
-    queryFn: () => readersApi.list({ search: kechikkanReaderSearch || undefined }),
+    queryKey: ['readers', 'for-select', kechikkanReaderSearch, readerRol],
+    queryFn: () =>
+      readersApi.list({
+        search: kechikkanReaderSearch || undefined,
+        rol: readerRol || undefined,
+      }),
     enabled: modalOpen,
   })
 
@@ -131,6 +139,7 @@ export function Loans() {
     setForm({ kitob: 0, oquvchi: 0 })
     setError(null)
     setReaderSearch(params.get('reader') ?? '')
+    setReaderRol('')
     setBookSearch(params.get('book') ?? '')
     setAniqNusxa(false)
     setModalOpen(true)
@@ -148,7 +157,7 @@ onSuccess: (berish) => {
       const xabar = berish.asli
         ? `“${berish.kitob_nomi}” berildi (nusxasi yo‘q — kitob aslida berildi).`
         : `“${berish.kitob_nomi}” berildi (${berish.inventar_raqami}).`
-      toast.success(`${xabar} O‘quvchiga Telegram orqali xabar yuborildi.`)
+      toast.success(`${xabar} Kitobxonga Telegram orqali xabar yuborildi.`)
     },
     onError: (err) => {
       const kod = axios.isAxiosError(err) ? (err.response?.data as { error?: string })?.error : undefined
@@ -191,6 +200,7 @@ function openCreate() {
   setError(null)
   setBookSearch('')
   setReaderSearch('')
+  setReaderRol('')
   setAniqNusxa(false)
   setModalOpen(true)
 }
@@ -427,6 +437,21 @@ function onSubmit(e: FormEvent) {
               value={readerSearch}
               onChange={(e) => setReaderSearch(e.target.value)}
             />
+          </Field>
+          <Field>
+            <Label htmlFor="l-reader-rol">Kitobxon turi</Label>
+            <Select
+              id="l-reader-rol"
+              value={readerRol}
+              onChange={(e) => {
+                setReaderRol(e.target.value as OquvchiRol | '')
+                setForm((old) => ({ ...old, oquvchi: 0 }))
+              }}
+            >
+              <option value="">Hammasi — o‘quvchi va o‘qituvchi</option>
+              <option value="oquvchi">Faqat o‘quvchilar</option>
+              <option value="oqituvchi">Faqat o‘qituvchilar</option>
+            </Select>
           </Field>
           <Field>
             <Label htmlFor="l-oquvchi">Kitobxon (o‘quvchi yoki o‘qituvchi)</Label>

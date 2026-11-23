@@ -1,6 +1,6 @@
 // Service worker: PWA uchun offline qobiq (app shell) va statik assetlar keshi.
 // Manzili /sw.js — scope barcha sahifalarni qamrab oladi (Django route qiladi).
-const VERSION = 'v3'
+const VERSION = 'v4'
 const SHELL_CACHE = `kutubxona-shell-${VERSION}`
 // Hash'langan fayllar o'zgarimsiz, lekin keshni versiyalaymiz: PWA o'rnatilgan
 // qurilmalarda eski (kichik ko'rinishli) qobiq qolib ketmasligi uchun.

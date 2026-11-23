@@ -64,7 +64,9 @@ export function Applications() {
   const qc = useQueryClient()
   const toast = useToast()
   const [page, setPage] = useState(1)
-  const [holati, setHolati] = useState<ArizaHolati | ''>('kutmoqda')
+  // Standart bo'yicha BARCHA arizalar ko'rsatiladi: tasdiqlangan/rad etilgan
+  // arizalar (jumladan o'qituvchilarniki) filtr orqasida yashirinib qolmasin.
+  const [holati, setHolati] = useState<ArizaHolati | ''>('')
   const [rol, setRol] = useState<ArizaRol | ''>('')
   const [search, setSearch] = useState('')
   const kechikkanQidiruv = useDebouncedValue(search)
@@ -85,6 +87,9 @@ export function Applications() {
         rol: rol || undefined,
         search: kechikkanQidiruv.trim() || undefined,
       }),
+    // Bot yangi ariza yuborganda sahifa ochiq turib ham yangilanib tursin
+    // (kutubxonachi "ko'rinmayapti" deb o'ylamasligi uchun).
+    refetchInterval: 15_000,
   })
 
   const approveMut = useMutation({
@@ -128,7 +133,7 @@ export function Applications() {
     <div>
       <PageHeader
         title="A'zolik arizalari"
-        subtitle="Telegram bot orqali kelgan arizalarni ko'rib chiqing"
+        subtitle="Telegram bot orqali kelgan barcha arizalar — o‘quvchi va o‘qituvchilar"
       />
 
       <Card className="mb-4 p-3 sm:p-4">
@@ -190,7 +195,9 @@ export function Applications() {
           description={
             holati === 'kutmoqda'
               ? "Telegram bot orqali kelgan yangi a'zo arizalari shu yerda paydo bo'ladi."
-              : 'Filtrni o‘zgartirib ko‘ring yoki boshqa so‘z bilan qidiring.'
+              : search || rol
+                ? 'Filtrni o‘zgartirib ko‘ring yoki boshqa so‘z bilan qidiring.'
+                : "Telegram bot orqali kelgan o‘quvchi va o‘qituvchi arizalari shu yerda paydo bo'ladi."
           }
           action={
             search || holati || rol ? (

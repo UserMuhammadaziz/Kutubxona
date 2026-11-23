@@ -1,5 +1,6 @@
 from django.db import transaction
 from django.db.models import Q
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -12,6 +13,7 @@ from organization.tenancy import TenantViewSetMixin, joriy_kutubxonani_aniqla, s
 from user.permissions import IsLibrarian
 from . import services
 from .models import Ariza, Oquvchi
+from .search import ChidamliQidiruvFilter
 from .serializers import (
     ArizaSerializer,
     ArizaStatusSerializer,
@@ -38,6 +40,8 @@ class OquvchiViewSet(TenantViewSetMixin, viewsets.ModelViewSet):
     permission_classes = [IsLibrarian]
     queryset = Oquvchi.objects.all().order_by("-royxat_sanasi", "-id")
     search_fields = ["fish", "telefon", "karta_raqami"]
+    # Telefondan yozilgan `'` bilan bazadagi `‘`/`ʻ` ham mos tushishi kerak.
+    filter_backends = [DjangoFilterBackend, ChidamliQidiruvFilter]
     filterset_fields = ["rol", "faol", "sinf"]
     http_method_names = ["get", "post", "patch"]
 
@@ -160,6 +164,7 @@ class ArizaViewSet(viewsets.ModelViewSet):
     serializer_class = ArizaSerializer
     filterset_fields = ["holati", "sinf", "rol"]
     search_fields = ["fish", "telefon", "telegram_id", "kasb"]
+    filter_backends = [DjangoFilterBackend, ChidamliQidiruvFilter]
     http_method_names = ["get", "post"]
 
     def get_permissions(self):
