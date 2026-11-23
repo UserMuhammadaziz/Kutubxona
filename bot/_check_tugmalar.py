@@ -731,6 +731,42 @@ async def main() -> int:
         "«Band qilish» tugmasi `band:` callback'ini ishlatadi",
     )
     tekshir(
+        'text="Bekor qilish"' in klav and 'callback_data=f"kitob_bekor:{kitob_id}"' in klav,
+        "«Band qilish» yonida «Bekor qilish» tugmasi bor",
+    )
+    tekshir(
+        '@router.callback_query(F.data.startswith("kitob_bekor:"))' in manba,
+        "«Bekor qilish» tugmasi uchun handler bor",
+    )
+    tekshir(
+        "InlineKeyboardMarkup(inline_keyboard=[])" in manba,
+        "«Bekor qilish» inline tugmalarni haqiqatan olib tashlaydi",
+    )
+    # Foydalanuvchiga nusxa yo'qligi/berilganligi haqida xabar berilmaydi.
+    # Bu faqat batafsil sahifa emas — qidiruv natijalari, eski webhook bot va
+    # yangi kitob xabarlari ham shu qoidaga bo'ysunadi.
+    nusxa_yoq_matnlari = (
+        "❌ Hozircha mavjud nusxa yo'q",
+        "Bu kitobning kutubxonada nusxasi yo'q",
+        "Bu kitobning nusxalari hozir berilgan",
+        "Mavjud: {kitob.get('mavjud_nusxalar')",
+        "Nusxalar yo'q — berilishi mumkin",
+        "hozir barcha berilgan",
+        "Hozirda yo'q",
+        "Nusxa yo'q — kitob berilishi mumkin",
+        "Hozir barcha nusxalar berilgan",
+    )
+    for fayl in (
+        BOT_DIR / "handlers" / "qidiruv.py",
+        ROOT / "apps" / "telegrambot" / "handler.py",
+        ROOT / "apps" / "telegrambot" / "tasks.py",
+    ):
+        matn = fayl.read_text(encoding="utf-8")
+        tekshir(
+            not any(gap in matn for gap in nusxa_yoq_matnlari),
+            f"{fayl.relative_to(ROOT).as_posix()}: nusxa yo'qligi haqida xabar yo'q",
+        )
+    tekshir(
         "o'rindasiz" in manba,
         "faqat haqqiqiy navbatda 'o'rindasiz' deyiladi",
     )

@@ -13,13 +13,11 @@ from .services import botni_ol
 
 
 def _qisqa_avail_nomi(kitob):
-    jami = kitob.nusxalar.count()
+    """Foydalanuvchiga faqat ijobiy ma'lumot — nusxa yo'qligi aytilmaydi."""
     mavjud = kitob.nusxalar.filter(holati="mavjud").count()
-    if not jami:
-        return "Nusxalar yo'q — berilishi mumkin"
     if mavjud:
-        return f"Mavjud: {mavjud} / Jami: {jami} — hozir olish mumkin"
-    return f"Mavjud: 0 / Jami: {jami} — hozir barcha berilgan (navbatga yozilish mumkin)"
+        return f"Mavjud: {mavjud} — hozir olish mumkin"
+    return "Kutubxona katalogida mavjud"
 
 
 @shared_task
@@ -41,9 +39,6 @@ def yangi_kitob_xabari_yubor(kitob_id):
         return "no_bot"
 
     qisqa = _qisqa_avail_nomi(kitob)
-    qisqacha_holat = (
-        "Mavjud" if kitob.nusxalar.filter(holati="mavjud").count() else "Hozirda yo'q"
-    )
     batafsil = (
         f"📚 <b>YANGI KITOB QO'SHILDI</b>\n\n"
         f"Nom: <b>{telegram_escape(kitob.nomi)}</b>\n"
@@ -52,8 +47,7 @@ def yangi_kitob_xabari_yubor(kitob_id):
         f"Nashr yili: {kitob.nashr_yili}\n"
         f"Til: {telegram_escape(kitob.get_til_display()) if kitob.til else '-'}\n"
         f"ISBN: {telegram_escape(kitob.isbn) if kitob.isbn else '-'}\n\n"
-        f"<b>Holati (batafsil):</b> {telegram_escape(qisqa)}\n"
-        f"<b>Qisqacha:</b> {qisqacha_holat}\n"
+        f"<b>Holati:</b> {telegram_escape(qisqa)}\n"
     )
     if kitob.tavsif:
         batafsil += f"\nTavsif: {telegram_escape(kitob.tavsif[:200])}"

@@ -290,16 +290,21 @@ def janr_kitob_tugmalari(
 def kitob_band_qilish_tugmalari(
     kitob_id: int, qaytish: str | None = None, navbat_mavjud: bool = False
 ) -> InlineKeyboardMarkup:
-    """Batafsil sahifada: kitobni band qilish (tasdiqlanadi) + navbat.
+    """Batafsil sahifada: band qilish, bekor qilish va (kerak bo'lsa) navbat.
 
     * `🔒 Band qilish` — kitobni maxsus maqsadga saqlab qo'yish so'rovi.
       So'rov yaratilgach kitob **hech kimga berilmaydi**; faqat kutubxonachi
       yoki administrator tasdiqlagandan keyin so'rov qilgan o'quvchiga
       beriladi.
+    * `Bekor qilish` — hech qanday so'rov yubormasdan batafsil sahifadan chiqish.
+      Foydalanuvchi tasodifan band qilishni bosib qo'ymasligi uchun yonida turadi.
     * `⏳ Navbatga turish` — mavjud nusxa yo'q bo'lganda oddiy navbat.
     """
     inline_keyboard = [
-        [InlineKeyboardButton(text="🔒 Band qilish", callback_data=f"band:{kitob_id}")]
+        [
+            InlineKeyboardButton(text="🔒 Band qilish", callback_data=f"band:{kitob_id}"),
+            InlineKeyboardButton(text="Bekor qilish", callback_data=f"kitob_bekor:{kitob_id}"),
+        ]
     ]
     if navbat_mavjud:
         inline_keyboard.append(

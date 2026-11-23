@@ -464,7 +464,6 @@ def _kitob_karta(bot, chat_id, telegram_id, kitob_id):
     )
     kimdadimi = bool(faol_berishlar)
     mavjud = kitob.nusxalar.filter(holati="mavjud").count()
-    jami = kitob.nusxalar.count()
     matn = (
         f"📖 <b>{telegram_escape(kitob.nomi)}</b>\n"
         f"✍️ {telegram_escape(kitob.muallif)}\n"
@@ -475,17 +474,10 @@ def _kitob_karta(bot, chat_id, telegram_id, kitob_id):
     )
     if kitob.isbn:
         matn += f"🔢 ISBN: {telegram_escape(kitob.isbn)}\n"
-    matn += f"\n📦 Jami nusxa: <b>{jami}</b> · Mavjud: <b>{mavjud}</b>\n"
-    if not jami:
-        matn += "ℹ️ Nusxa yo'q — kitob berilishi mumkin.\n"
-    elif mavjud and not kimdadimi:
-        matn += "✅ Hozir mavjud, hech kimda emas.\n"
-    elif mavjud:
-        # Ba'zi nusxalar javonda, qolgani allaqachon o'quvchilarda —
-        # "hech kimda emas" deyish noto'g'ri edi.
-        matn += "✅ Javonda mavjud nusxa bor (ba'zi nusxalari o'quvchilarda).\n"
-    else:
-        matn += "⛔ Hozir barcha nusxalar berilgan.\n"
+    # Nusxa yo'qligi/berilganligi haqida foydalanuvchiga xabar berilmaydi.
+    # Faqat olish mumkin bo'lganda ijobiy ma'lumot ko'rsatiladi.
+    if mavjud:
+        matn += "✅ Hozir kutubxonada mavjud.\n"
     if kimdadimi:
         matn += "\n<b>Hozir kimda:</b>\n"
         for berish in faol_berishlar[:5]:

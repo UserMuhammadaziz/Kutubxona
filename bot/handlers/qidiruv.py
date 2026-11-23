@@ -2,7 +2,7 @@ import logging
 
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
 
 import branding as b
 from api_client import ApiXato, api
@@ -51,7 +51,9 @@ BAND_XATOLARI = {
 NAVBAT_XATOLARI = {
     **BAND_XATOLARI,
     "allaqachon_navbatda": "Siz bu kitobga allaqachon navbatdasiz.",
-    "barcha_nusxalar_berilgan": "Bu kitobning nusxalari hozir berilgan.",
+    # Nusxalar holati haqida foydalanuvchiga xabar berilmaydi — faqat
+    # amalni bajarib bo'lmagani xolis tarzda aytiladi.
+    "barcha_nusxalar_berilgan": "Hozir bu amalni bajarib bo'lmaydi. Iltimos, keyinroq urinib ko'ring.",
 }
 
 # Kategoriya tanlash xabari ikki handler'da takror yozilgan edi.
@@ -148,11 +150,12 @@ async def qidiruv_natija(message: Message, state: FSMContext):
         return
 
     for kitob in natijalar[:KO_RSATILADIGAN_SONI]:
+        # Nusxalar soni/yo'qligi haqida xabar berilmaydi — faqat kitob
+        # ma'lumotlari. Mavjudlik faqat olish mumkin bo'lganda batafsil
+        # sahifada aytiladi.
         matn = (
             f"📖 <b>{x(kitob.get('nomi'))}</b> — {x(kitob.get('muallif'))} "
-            f"({x(kitob.get('nashr_yili'))})\n"
-            f"Mavjud: {kitob.get('mavjud_nusxalar') or 0} / "
-            f"{kitob.get('jami_nusxalar') or 0}"
+            f"({x(kitob.get('nashr_yili'))})"
         )
         await message.answer(
             matn, reply_markup=kitob_batafsil_tugmasi(kitob["id"])
@@ -338,6 +341,29 @@ async def kitob_kartochka(callback: CallbackQuery):
     await callback.answer()
 
 
+@router.callback_query(F.data.startswith("kitob_bekor:"))
+async def kitob_bekor_qilish(callback: CallbackQuery):
+    """Batafsil sahifadagi «Bekor qilish» — hech qanday so'rov yubormaydi.
+
+    Foydalanuvchi «Band qilish» yonidagi «Bekor qilish»ni bossa, kitob
+    band qilinmaydi va hech qanday xabar yuborilmaydi — faqat tugmalar
+    olib tashlanadi. Shunda tasodifan band qilish bosib qo'yilmaydi.
+    """
+    if callback.message is None:
+        await callback.answer("Xabar eskirgan. Qayta qidiring.", show_alert=True)
+        return
+    await xabarni_tahrirlash(
+        callback,
+        "Bekor qilindi. Kitob band qilinmadi.\n\n"
+        "Boshqa kitob qidirish yoki bo'limlardan foydalanish uchun "
+        "pastdagi tugmalarni bosing.",
+        # `reply_markup=None` tugmalarni OLIB TASHLAMAYDI (aiogram None ni
+        # so'rovga qo'shmaydi). Bo'sh inline klaviatura yuborish shart.
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[]),
+    )
+    await callback.answer("Bekor qilindi")
+
+
 def _mavjud_nusxa_bormi(kitob: dict) -> bool:
     """Kitobning kamida bitta `mavjud` nusxasi bormi."""
     return any(n.get("holati") == "mavjud" for n in kitob.get("nusxalar") or [])
@@ -369,17 +395,11 @@ def _kitob_batafsil_matn(kitob: dict) -> str:
     if kitob.get("tavsif"):
         matn += f"\n\n{x(kitob['tavsif'])}"
 
-    jami = len(nusxalar)
+    # Foydalanuvchilarga nusxalar holati (yo'qligi/berilganligi) haqida
+    # xabar berilmaydi — faqat mavjud bo'lganda olish joyi ko'rsatiladi.
     if mavjud_nusxa:
         javon = x(mavjud_nusxa.get("javon")) or "kutubxonachidan so'rang"
         matn += f"\n\n✅ Kitob mavjud. Kutubxonaga kelib oling (javon: {javon})."
-    elif jami:
-        matn += "\n\n❌ Hozircha mavjud nusxa yo'q."
-    else:
-        matn += (
-            "\n\n⚠️ Bu kitobning kutubxonada nusxasi yo'q, "
-            "uni band qilishingiz mumkin."
-        )
 
     matn += (
         "\n\n<b>Band qilish</b> — kitobni maxsus maqsadga saqlab qo'yish"
