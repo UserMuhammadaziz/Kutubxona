@@ -11,7 +11,7 @@ Django REST Framework + PostgreSQL + Celery/Redis + aiogram 3 (Telegram bot).
    ```bash
    python -m venv venv
    source venv/bin/activate   # Windows: venv\Scripts\activate
-   pip install -r requeriments.txt
+   pip install -r requirements.txt
    ```
 
 2. PostgreSQL bazasini yarating:
@@ -118,6 +118,43 @@ Build natijalari (`web/static/web/dist/`, `web/templates/web/index.html`)
 `.gitignore`'da — reponi klon qilganidan keyin frontend'ni ishlatish uchun
 kamida bir marta `npm run build` bajarish kerak.
 
+**Mobil ko'rinish:** panel telefon ekraniga moslashgan — pastki tezkor
+tugmalar, ☰ menyusi, ro'yxat kartochkalari, pastdan ochiladigan modallar,
+sahifalash va 16px kiritish maydonlari (iOS zoom yo'q). Xabarnomalar
+yuqorida chiqadi, chat boti esa pastki tugmalarni yopib qo'ymaydi.
+`Profil` sahifasidagi `Sozlamalar` bo'limi olib tashlangan: mavzu yuqori
+qismdagi tugma, chiqish esa chap menyudagi `Chiqish` tugmasi orqali.
+
+**PWA ilovasi:** o'rnatilgan ilovada interfeys avtomatik ravishda kattalashtiriladi
+(telefon ekranida ildiz shrifti 17–18px), status bar va pastki xavfsiz zona
+hisobga olinadi, eski kesh `sw.js` v3 bilan tozalanadi. Agar Android ilovada
+sahifa kichrayib ko'rinsa, bu Chrome'ning «Kompyuter ko'rinishi» rejimi bo'ladi:
+uni o'chirib, ilovani qayta ochish kerak (ilova bu holatni o'zi aniqlab
+ogohlantiradi).
+
+## Sinov va tekshiruv
+
+Loyihani to'liq tekshirish uchun quyidagi buyruqlar bajariladi:
+
+```bash
+venv/bin/python manage.py check
+venv/bin/python manage.py makemigrations --check --dry-run
+venv/bin/python bot/_check_tugmalar.py        # Telegram tugmalari/state'lari
+venv/bin/python manage.py test --noinput      # barcha unit + E2E testlar
+cd frontend && npm run lint && npm run build
+```
+
+`web/tests_smoke.py` — **E2E smoke test**: oddiy unit testlardan farqli ravishda
+butun zanjirni bitta oqimda HTTP orqali bosib o'tadi — ro'yxatdan o'tish,
+profil, xodim yaratish, kitob va nusxa, o'quvchi/o'qituvchi, ariza tasdiqlash,
+berish/qaytarish, muddat o'tganidan jarima hisoblash, band qilish, navbat,
+statistika, xabar yuborish, kitobxonni o'chirish va PWA qobig'i (`/`, `/sw.js`).
+Alohida ishga tushirish:
+
+```bash
+venv/bin/python manage.py test web.tests_smoke --noinput
+```
+
 ## Muhim: jarima hisoblash idempotent
 
 `jarima.tasks.jarimalarni_hisobla` vazifasi bir necha marta ketma-ket ishga
@@ -155,18 +192,22 @@ va allaqachon to'langan jarimaga tegilmaydi.
 | GET | `/api/applications/status/?telegram_id=` | Bot: ariza holati |
 | POST | `/api/applications/{id}/approve/` | Arizani qabul qilish (karta ochiladi) |
 | POST | `/api/applications/{id}/reject/` | Arizani rad etish |
+| GET/POST | `/api/auth/xatolik-xabari/` | Profil: xatolik haqida xabar (saqlash + adminlarga Telegram) |
 | GET | `/api/stats/top-books/?limit=10` | Top kitoblar |
 | GET | `/api/stats/dashboard/` | Umumiy statistika |
 
 ## Bot buyruqlari
 
-- `/start` — ro'yxatga olingan bo'lsa asosiy menyu; aks holda a'riza yuborish
-  uchun inline tugmalar: «<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 14l9-5-9-5-9 5 9 5zM12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg> Oquvchi sifatida a'riza yuborish» va
-  «<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg> O'qituvchi sifatida a'riza yuborish».
-  Tanlangan rolga qarab so'raladigan ma'lumotlar:
-  - **Oquvchi** → ism-familiya → telefon → sinf
-  - **O'qituvchi** → ism-familiya → telefon → kasb (o'qitayotgan fan,
-    masalan Matematika, Ona tili)
+- `/start` — ro'yxatga olingan bo'lsa asosiy menyu; aks holda ariza yuborish
+  uchun inline tugmalar: «O'quvchi» va «O'qituvchi».
+  Tanlangan rolga qarab so'raladigan ma'lumotlar (qat'iy formatda):
+  - **Oquvchi** → ism-familiya (`Ali Valiyev`) → telefon (`+998901234567`) → sinf (`7-A`)
+  - **O'qituvchi** → ism-familiya → telefon → fan(lar) — ro'yxatdagi ✅ tugmalaridan
+    **ikkitagacha** tanlanadi (`Matematika`, `Algebra`, `Geometriya`, `Chizmachilik`,
+    `Logoped`, `Boshlang'ich` va boshqalar).
+  Format buzilsa ariza boshidan qayta to'ldiriladi; eski formatdagi (qabul qilinganlari
+  ham) arizalar `qayta_ariza_kerak` deb belgilanadi va `/start` da qayta yuborish
+  so'raladi. To'g'ri formatda qayta yuborilgan ariza qabul qilinadi.
 - «Kitob qidirish», «Mening kitoblarim», «Navbatlarim», «Jarimalarim» — asosiy menyu tugmalari
 
 ## Texnologiyalar

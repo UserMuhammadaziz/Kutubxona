@@ -12,6 +12,7 @@ import { BookDetail } from './pages/BookDetail'
 import { Copies } from './pages/Copies'
 import { Readers } from './pages/Readers'
 import { ReaderDetail } from './pages/ReaderDetail'
+import { Kitobxonlar } from './pages/Kitobxonlar'
 import { Applications } from './pages/Applications'
 import { Loans } from './pages/Loans'
 import { Bandlar } from './pages/Bandlar'
@@ -22,7 +23,10 @@ import { Staff } from './pages/Staff'
 import { Guide, PublicGuide } from './pages/Guide'
 import { Register } from './pages/Register'
 import { Home } from './pages/Home'
+import { Overview } from './pages/Overview'
 import { Platform } from './pages/Platform'
+import { PwaBanner } from './components/PwaBanner'
+import { TenantSwitcher } from './components/TenantSwitcher'
 
 function App() {
   const hydrate = useAuthStore((s) => s.hydrate)
@@ -32,40 +36,48 @@ function App() {
   }, [hydrate])
 
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/yordam" element={<PublicGuide />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/welcome" element={<Home />} />
+    <>
+      {/* Barcha sahifalarda (jumladan /login, /welcome, /yordam) ishlashi uchun
+          PWA eslatmalari va kutubxona tanlagich Route'lardan tashqarida. */}
+      <PwaBanner />
+      <TenantSwitcher />
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/yordam" element={<PublicGuide />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/welcome" element={<Home />} />
 
-      <Route element={<RequireAuth />}>
-        <Route element={<Layout />}>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/books" element={<Books />} />
-          <Route path="/books/:id" element={<BookDetail />} />
-          <Route path="/copies" element={<Copies />} />
-          <Route path="/readers" element={<Readers />} />
-          <Route path="/readers/:id" element={<ReaderDetail />} />
-          <Route path="/teachers" element={<Readers rol="oqituvchi" />} />
-          <Route path="/applications" element={<Applications />} />
-          <Route path="/loans" element={<Loans />} />
-          <Route path="/bandlar" element={<Bandlar />} />
-          <Route path="/reservations" element={<Reservations />} />
-          <Route path="/announcements" element={<Announcements />} />
-          <Route path="/fines" element={<Fines />} />
-          <Route path="/guide" element={<Guide />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/company" element={<Company />} />
+        <Route element={<RequireAuth />}>
+          <Route element={<Layout />}>
+            <Route path="/" element={<Overview />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/books" element={<Books />} />
+            <Route path="/books/:id" element={<BookDetail />} />
+            <Route path="/copies" element={<Copies />} />
+            <Route path="/readers" element={<Readers />} />
+            <Route path="/readers/:id" element={<ReaderDetail />} />
+            <Route path="/teachers" element={<Readers rol="oqituvchi" />} />
+            <Route path="/kitobxonlar" element={<Kitobxonlar />} />
+            <Route path="/applications" element={<Applications />} />
+            <Route path="/loans" element={<Loans />} />
+            <Route path="/bandlar" element={<Bandlar />} />
+            <Route path="/reservations" element={<Reservations />} />
+            <Route path="/announcements" element={<Announcements />} />
+            <Route path="/fines" element={<Fines />} />
+            <Route path="/guide" element={<Guide />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/company" element={<Company />} />
 
-          <Route path="/platform" element={<RequirePlatform><Platform /></RequirePlatform>} />
-          <Route element={<RequireAdmin />}>
-            <Route path="/staff" element={<Staff />} />
+            <Route path="/platform" element={<RequirePlatform><Platform /></RequirePlatform>} />
+            <Route element={<RequireAdmin />}>
+              <Route path="/staff" element={<Staff />} />
+            </Route>
           </Route>
         </Route>
-      </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   )
 }
 

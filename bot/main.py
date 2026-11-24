@@ -40,7 +40,7 @@ async def xatolik_handler(event: ErrorEvent):
 
     xabar = (
         "⚠️ Botda nosozlik yuz berdi.\n\n"
-        "Iltimos, bir ozdan keyin qayta urinib ko'ring. Muammo davom etsa "
+        "Iltimos, bir oz vaqtdan keyin qayta urinib ko'ring. Muammo davom etsa "
         "kutubxonachiga xabar bering.\n"
         "Xatoni bekor qilish uchun /bekor bosing."
     )

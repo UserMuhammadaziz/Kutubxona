@@ -35,6 +35,18 @@ class ThrottledTokenView(TokenObtainPairView):
         if not user.is_active:
             return "akkaunt_nofaol", "Akkaunt o'chirilgan yoki faol emas. Administratorga murojaat qiling"
         return "parol_notogri", "Parol noto'g'ri"
+
+
+class RefreshThrottle(AnonRateThrottle):
+    scope = "refresh"
+
+
+class ThrottledTokenRefreshView(TokenRefreshView):
+    """Refresh token'lar ko'p marta ishlatilishining oldini oladi."""
+
+    throttle_classes = [RefreshThrottle]
+
+
 from announcement.views import AnnouncementViewSet
 from berish.views import BerishViewSet
 from jarima.views import JarimaViewSet
@@ -59,11 +71,20 @@ from organization.views import (
 )
 from oquvchi.views import ArizaViewSet, FanViewSet, OquvchiViewSet
 from telegrambot.views import (
+    SinflarView,
     TelegramBotActionView,
     TelegramBotSettingsView,
     TelegramWebhookView,
+    XabarYuborishView,
 )
-from user.views import LogoutView, UserViewSet, me
+from user.views import (
+    LogoutView,
+    ParolniAlmashtirishView,
+    ProfilniYangilashView,
+    UserViewSet,
+    XatolikXabariView,
+    me,
+)
 
 router = DefaultRouter()
 router.register("books", KitobViewSet, basename="books")
@@ -80,6 +101,8 @@ router.register("staff", UserViewSet, basename="staff")
 router.register("organizations", OrganizationViewSet, basename="organizations")
 router.register("saas/organizations", SaaSOrganizationViewSet, basename="saas-organizations")
 router.register("saas/plans", SubscriptionPlanViewSet, basename="saas-plans")
+router.register("saas/audit-log", AuditLogViewSet, basename="saas-audit-log")
+# Older path, still called by the platform page of cached frontends.
 router.register("saas/audit", AuditLogViewSet, basename="saas-audit")
 
 urlpatterns = [
@@ -89,10 +112,13 @@ urlpatterns = [
     path("api/health/", health),
     path("api/saas/health/", platform_health),
     path("api/auth/token/", ThrottledTokenView.as_view()),
-    path("api/auth/token/refresh/", TokenRefreshView.as_view()),
+    path("api/auth/token/refresh/", ThrottledTokenRefreshView.as_view()),
     path("api/auth/me/", me),
     path("api/auth/register/", RegisterView.as_view()),
     path("api/auth/logout/", LogoutView.as_view()),
+    path("api/auth/change-password/", ParolniAlmashtirishView.as_view()),
+    path("api/auth/profile/", ProfilniYangilashView.as_view()),
+    path("api/auth/xatolik-xabari/", XatolikXabariView.as_view()),
     path("api/auth/password-reset/", password_reset_request),
     path("api/auth/password-reset/confirm/", password_reset_confirm),
     path("api/auth/organization/", current_organization),
@@ -100,6 +126,8 @@ urlpatterns = [
     path("api/issue-reports/", issue_report_create),
     path("api/push/public-key/", push_public_key),
     path("api/push/subscribe/", push_subscribe),
+    path("api/messages/classes/", SinflarView.as_view()),
+    path("api/messages/send/", XabarYuborishView.as_view()),
     path("api/telegram/settings/", TelegramBotSettingsView.as_view()),
     path("api/telegram/actions/<str:action>/", TelegramBotActionView.as_view()),
     path("api/telegram/webhook/<str:path>/", TelegramWebhookView.as_view()),

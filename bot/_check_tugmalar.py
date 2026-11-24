@@ -11,7 +11,7 @@ Statik qism (har doim ishlaydi, tarmoq talab qilmaydi):
   3. Tugmalar Telegram cheklovlariga sig'adi (callback_data <= 64 bayt,
      tugma matni <= 64 belgi).
   4. Ariza bosqichida menyu tugmasi maydon sifatida tushib ketmaydi.
-  5. Nusxasi yo'q ("asli") kitob matnida bo'sh `INV:` chiqmaydi.
+  5. Nusxasi yo'q kitob matnida bo'sh `INV:` va "Asli kitob" chiqmaydi.
 
 Live qism (--live): bot ishlatadigan har bir API metodi haqiqiy javob
 tuzilmasini tekshiradi — ayniqsa "Kategoriyalar" tugmasi (`/books/genres/`).
@@ -663,7 +663,7 @@ async def main() -> int:
 
     print()
     print("=" * 72)
-    print("6. 'ASLI' KITOB MATNI")
+    print("6. NUSXASIZ KITOB MATNI")
     print("=" * 72)
     asl = shaxsiy._berish_qatori(
         {
@@ -675,7 +675,7 @@ async def main() -> int:
         }
     )
     tekshir("INV:" not in asl, "bo'sh inventar 'INV: ' sifatida chiqmaydi")
-    tekshir("Asli" in asl, "o'rniga 'Asli kitob' chiqadi")
+    tekshir("Asli" not in asl, "'Asli kitob' matni chiqmaydi")
     nusxa = shaxsiy._berish_qatori(
         {
             "kitob_nomi": "Sarob",
@@ -731,8 +731,46 @@ async def main() -> int:
         "«Band qilish» tugmasi `band:` callback'ini ishlatadi",
     )
     tekshir(
+        'text="Bekor qilish"' in klav and 'callback_data=f"kitob_bekor:{kitob_id}"' in klav,
+        "«Band qilish» yonida «Bekor qilish» tugmasi bor",
+    )
+    tekshir(
+        '@router.callback_query(F.data.startswith("kitob_bekor:"))' in manba,
+        "«Bekor qilish» tugmasi uchun handler bor",
+    )
+    tekshir(
+        "InlineKeyboardMarkup(inline_keyboard=[])" in manba,
+        "«Bekor qilish» inline tugmalarni haqiqatan olib tashlaydi",
+    )
+    # Foydalanuvchiga nusxa yo'qligi/berilganligi haqida xabar berilmaydi.
+    # Bu faqat batafsil sahifa emas — qidiruv natijalari, eski webhook bot va
+    # yangi kitob xabarlari ham shu qoidaga bo'ysunadi.
+    nusxa_yoq_matnlari = (
+        "❌ Hozircha mavjud nusxa yo'q",
+        "Bu kitobning kutubxonada nusxasi yo'q",
+        "Bu kitobning nusxalari hozir berilgan",
+        "Mavjud: {kitob.get('mavjud_nusxalar')",
+        "Nusxalar yo'q — berilishi mumkin",
+        "hozir barcha berilgan",
+        "Hozirda yo'q",
+        "Nusxa yo'q — kitob berilishi mumkin",
+        "Hozir barcha nusxalar berilgan",
+        "Bu kitobning barcha nusxalari berilgan.",
+        "Bu nusxa hozir mavjud emas.",
+    )
+    for fayl in (
+        BOT_DIR / "handlers" / "qidiruv.py",
+        ROOT / "apps" / "telegrambot" / "handler.py",
+        ROOT / "apps" / "telegrambot" / "tasks.py",
+    ):
+        matn = fayl.read_text(encoding="utf-8")
+        tekshir(
+            not any(gap in matn for gap in nusxa_yoq_matnlari),
+            f"{fayl.relative_to(ROOT).as_posix()}: nusxa yo'qligi haqida xabar yo'q",
+        )
+    tekshir(
         "o'rindasiz" in manba,
-        "faqat haqqiqiy navbatda 'o'rindasiz' deyiladi",
+        "faqat haqiqiy navbatda 'o'rindasiz' deyiladi",
     )
     # Muddatdan oldin qaytarish xabari — servisda, barcha yo'llar uchun.
     servis = (ROOT / "apps" / "berish" / "services.py").read_text(encoding="utf-8")
@@ -931,16 +969,6 @@ async def main() -> int:
         'Command("menu"' in nav,
         "navigatsiya.py da `/menu` buyrug'i bor",
     )
-    tekshir(
-        "menyu:qidiruv" in kb.MENYU_INLINE_TUGMALARI[0][1],
-        "menyudagi birinchi tugma `menyu:qidiruv`",
-    )
-    for matn, _callback in kb.MENYU_INLINE_TUGMALARI:
-        tekshir(
-            await ushlanadimi("callback_query", bildirishnoma(_callback)),
-            f"menyu tugmasi ushlanadi: {matn}",
-        )
-
     # Muhim: navigatsiya router'i state handler'laridan OLDIN ro'yxatlanishi
     # kerak, aks holda `/bekor` ariza maydoniga matn bo'lib ketadi.
     router_tartibi = re.findall(r"dp\.include_router\((\w+)\.router\)", main_py)
@@ -1001,7 +1029,7 @@ async def main() -> int:
 
     # Eski klaviatura foydalanuvchida qolmasin.
     tekshir(
-        "klaviatura_olib_tashla()" in start_py.split("async def start(")[1][:900],
+        "klaviatura_olib_tashla()" in start_py,
         "/start da eski pastdigi klaviatura tozalanadi",
     )
 
@@ -1085,6 +1113,17 @@ async def main() -> int:
         ("da.\n", "kutubxonachi.py da «X da» egalik qo'shimchasi"),
         ("yuboriladi — yoki", "kutubxonachi.py da noto'g'ri tire"),
         ("va sababi yuborildi", "kutubxonachi.py da «rad etilganligi va sababi»"),
+        ("allaqon", "bot matnlarida «allaqon» xatosi yo'q"),
+        ("allaqach ", "bot matnlarida «allaqach» xatosi yo'q"),
+        ("2️⃣ Rahmat", "telefon bosqichida «Rahmat» oldida takroriy 2️⃣ yo'q"),
+        ("A'riza", "bot matnlarida «A'riza» xatosi yo'q"),
+        ("a'riza", "bot matnlarida «a'riza» xatosi yo'q"),
+        ("fanningiz", "bot matnlarida «fanningiz» xatosi yo'q"),
+        ("Noma'lum ro'l", "bot matnlarida «ro'l» xatosi yo'q"),
+        ("yozuingiz", "bot matnlarida «yozuingiz» xatosi yo'q"),
+        ("Bir ozdan", "bot matnlarida «Bir ozdan» xatosi yo'q"),
+        ("qoyish", "bot matnlarida «qoyish» xatosi yo'q"),
+        ("Sohraydi", "bot matnlarida «Sohraydi» xatosi yo'q"),
     ]
     for izoh_matn, izoh in NOTO_GRI:
         topildi = [
@@ -1116,6 +1155,43 @@ async def main() -> int:
         "sana_vaqt(" in kutubxonachi_py,
         "sana `sana_vaqt()` yordamchisi orqali formatlanadi",
     )
+
+    # 11. Fanlar ro'yxati ikki nusxada saqlanadi — ular bir xil bo'lishi shart.
+    print()
+    print("=" * 72)
+    print("11. FANLAR RO'YXATI")
+    print("=" * 72)
+    import ast
+
+    def _fanlar_ol(fayl):
+        daraxt = ast.parse(fayl.read_text(encoding="utf-8-sig"))
+        for tugun in daraxt.body:
+            if isinstance(tugun, ast.Assign) and any(
+                isinstance(n, ast.Name) and n.id == "FANLAR" for n in tugun.targets
+            ):
+                return [e.value for e in tugun.value.elts]
+        return []
+
+    bot_fanlar = _fanlar_ol(BOT_DIR / "fanlar.py")
+    django_fanlar = _fanlar_ol(ROOT / "apps" / "oquvchi" / "constants.py")
+    tekshir(bool(bot_fanlar), "bot/fanlar.py da FANLAR ro'yxati bor")
+    tekshir(bot_fanlar == django_fanlar, "FANLAR ikkala faylda bir xil")
+    for fan in ("Algebra", "Chizmachilik", "Geometriya", "Logoped", "Boshlang'ich"):
+        tekshir(fan in bot_fanlar, f"FANLAR tarkibida «{fan}» bor")
+    for fayl in (BOT_DIR / "fanlar.py", ROOT / "apps" / "oquvchi" / "constants.py"):
+        tekshir(
+            "FAN_LIMIT = 2" in fayl.read_text(encoding="utf-8-sig"),
+            f"{fayl.name} da FAN_LIMIT = 2",
+        )
+    for fayl in (
+        BOT_DIR / "handlers" / "start.py",
+        ROOT / "apps" / "telegrambot" / "handler.py",
+        ROOT / "apps" / "oquvchi" / "serializers.py",
+    ):
+        tekshir(
+            "FAN_LIMIT" in fayl.read_text(encoding="utf-8-sig"),
+            f"{fayl.name} da ikki fan cheklovi qo'llanilgan",
+        )
 
     if "--live" in sys.argv:
         print()

@@ -1,5 +1,6 @@
 import re
 
+from fanlar import FANLAR
 from aiogram.types import (
     BotCommand,
     InlineKeyboardButton,
@@ -105,7 +106,7 @@ def bot_buyruglar() -> list[BotCommand]:
 
     Boshqa buyruqlar (`/bekor`, `/qaytar`, `/bandlar`, ...) ataka MENYU
     ro'yxatiga qo'yilmaydi, lekin `handlers/navigatsiya.py` da ishlayveradi:
-    ular arrizа to'ldirilayotganda matn sifatida qabul qilinmasligi uchun
+    ular ariza to'ldirilayotganda matn sifatida qabul qilinmasligi uchun
     handler'lari shu router'da BIRINCHI turadi.
     """
     return [
@@ -123,23 +124,6 @@ ARIZA_ROL_TUGMA_MATNLARI = {
     ARIZA_ROL_OQUVCHI: "🎓 O'quvchi sifatida ariza yuborish",
     ARIZA_ROL_OQITUVCHI: "👨‍🏫 O'qituvchi sifatida ariza yuborish",
 }
-
-
-def fanlar_tugmalari(fanlar: list[dict], tanlangan: list[int]) -> InlineKeyboardMarkup:
-    """O'qituvchi arizasi: fanlarni tanlash (✅ — tanlangan) va «Tayyor» tugmasi."""
-    tanlangan_set = set(tanlangan)
-    tugmalar = [
-        InlineKeyboardButton(
-            text=("✅ " if f["id"] in tanlangan_set else "") + f["nomi"],
-            callback_data=f"fan:{f['id']}",
-        )
-        for f in fanlar
-    ]
-    qatorlar = [tugmalar[i : i + 2] for i in range(0, len(tugmalar), 2)]
-    qatorlar.append(
-        [InlineKeyboardButton(text=f"✔️ Tayyor ({len(tanlangan_set)})", callback_data="fan_ok")]
-    )
-    return InlineKeyboardMarkup(inline_keyboard=qatorlar)
 
 
 def ariza_rol_tugmalari() -> InlineKeyboardMarkup:
@@ -160,6 +144,35 @@ def ariza_rol_tugmalari() -> InlineKeyboardMarkup:
             ],
         ]
     )
+
+
+def fan_tugmalari(tanlanganlar: list[str] | None = None) -> InlineKeyboardMarkup:
+    """O'qituvchi fan(lar)ni bosib tanlaydigan inline klaviatura.
+
+    Tanlangan fanlar tugmada ✅ bilan belgilanadi, yana bosilsa belgi
+    o'chiriladi. Ikkitagacha fan tanlash mumkin. «Tayyor» bosilgandan
+    keyingina ariza yuboriladi.
+    """
+    tanlanganlar = tanlanganlar or []
+    qatorlar = []
+    for boshlanish in range(0, len(FANLAR), 2):
+        qator = []
+        for fan in FANLAR[boshlanish : boshlanish + 2]:
+            belgi = "✅ " if fan in tanlanganlar else ""
+            qator.append(
+                InlineKeyboardButton(
+                    text=f"{belgi}{fan}",
+                    callback_data=f"fan:{FANLAR.index(fan)}",
+                )
+            )
+        qatorlar.append(qator)
+    qatorlar.append(
+        [
+            InlineKeyboardButton(text="✅ Tayyor", callback_data="fan:tayyor"),
+            InlineKeyboardButton(text="♻️ Tozalash", callback_data="fan:tozalash"),
+        ]
+    )
+    return InlineKeyboardMarkup(inline_keyboard=qatorlar)
 
 
 def telefon_keltirish(raw: str) -> str | None:
@@ -277,16 +290,21 @@ def janr_kitob_tugmalari(
 def kitob_band_qilish_tugmalari(
     kitob_id: int, qaytish: str | None = None, navbat_mavjud: bool = False
 ) -> InlineKeyboardMarkup:
-    """Batafsil sahifada: kitobni band qilish (tasdiqlanadi) + navbat.
+    """Batafsil sahifada: band qilish, bekor qilish va (kerak bo'lsa) navbat.
 
     * `🔒 Band qilish` — kitobni maxsus maqsadga saqlab qo'yish so'rovi.
       So'rov yaratilgach kitob **hech kimga berilmaydi**; faqat kutubxonachi
       yoki administrator tasdiqlagandan keyin so'rov qilgan o'quvchiga
       beriladi.
+    * `Bekor qilish` — hech qanday so'rov yubormasdan batafsil sahifadan chiqish.
+      Foydalanuvchi tasodifan band qilishni bosib qo'ymasligi uchun yonida turadi.
     * `⏳ Navbatga turish` — mavjud nusxa yo'q bo'lganda oddiy navbat.
     """
     inline_keyboard = [
-        [InlineKeyboardButton(text="🔒 Band qilish", callback_data=f"band:{kitob_id}")]
+        [
+            InlineKeyboardButton(text="🔒 Band qilish", callback_data=f"band:{kitob_id}"),
+            InlineKeyboardButton(text="Bekor qilish", callback_data=f"kitob_bekor:{kitob_id}"),
+        ]
     ]
     if navbat_mavjud:
         inline_keyboard.append(

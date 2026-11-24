@@ -20,8 +20,9 @@ Bu qo'llanma saytdan **kundalik ishda** foydalanish uchun yozilgan. Texnik tafsi
 12. [Jarimani qabul qilish](#12-jarimani-qabul-qilish)
 13. [O'quvchini kuzatish](#13-o'quvchini-kuzatish)
 14. [Xodim qo'shish (faqat administrator)](#14-xodim-qo'shish-faqat-administrator)
-15. [Kunlik ish tartibi](#15-kunlik-ish-tartibi)
-16. [Tez-tez so'raladigan savollar](#16-tez-tez-so'raladigan-savollar)
+15. [Profil](#15-profil)
+16. [Kunlik ish tartibi](#16-kunlik-ish-tartibi)
+17. [Tez-tez so'raladigan savollar](#17-tez-tez-so'raladigan-savollar)
 
 ---
 
@@ -32,11 +33,11 @@ Bu qo'llanma saytdan **kundalik ishda** foydalanish uchun yozilgan. Texnik tafsi
 2. **Foydalanuvchi nomi** va **parol** ni kiriting
 3. **Kirish** tugmasini bosing
 
-> **Parolni unutdingizmi?** Administratordan yoki kutubxona boshlig'idan yangi parol olishingiz kerak — sayt o'z-o'zidan parol tiklamaydi.
+> **Parolni unutdingizmi?** Eski parolni bilsangiz, **Profil → Parol almashtirish** orqali o'zingiz yangilashingiz mumkin. Butunlay unutgan bo'lsangiz, administrator yangi parol beradi.
 
 **Muhim:**
 - Saytga kirish faqat **kutubxonachi** va **administrator** uchun. O'quvchi/o'qituvchilar saytga kirmaydi — ular Telegram botdan foydalanadi.
-- Ish tugagach, chap pastdagi **Chiqish** tugmasini bosing — boshqa birov sizning hisobingizga kirmasin.
+- Ish tugagach, chap paneldagi **Chiqish** tugmasini bosing (telefonda menyuni ochib, pastdagi **Chiqish**).
 
 ---
 
@@ -58,6 +59,7 @@ Bu qo'llanma saytdan **kundalik ishda** foydalanish uchun yozilgan. Texnik tafsi
 | **Jarimalar** (<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>) | Kechiktirish uchun jarimalar |
 | **Xodimlar** (<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>) | Faqat **administrator** ko'radi |
 | **Qo'llanma** (<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253M12 6.253C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253"/></svg>) | Shu qo'llanma |
+| **Profil** | O'z ma'lumotlaringiz, parol, xabar yuborish va kitobxonlarni o'chirish |
 
 > **Eslatma:** Saytdagi ikonlar (<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg> <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg> <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4M4 7v10l8 4"/></svg> <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 14l9-5-9-5-9 5 9 5zM12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg> <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg> <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg> <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg> <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253M12 6.253C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253"/></svg>) sizga bo'limlarni tez topishga yordam beradi.
 
@@ -66,12 +68,23 @@ Bu qo'llanma saytdan **kundalik ishda** foydalanish uchun yozilgan. Texnik tafsi
 - **<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg> / <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>** — qorong'i (tungi) va yorug' (kunduzgi) rejimni almashtiradi
 - **<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M4 6h16M4 12h16M4 18h16"/></svg>** — telefonda chap menyuni ochadi/yopadi
 
+### Telefonda ishlash (mobil ko'rinish)
+
+- Pastdagi **Bosh / Berish / Kitoblar / O'quvchilar / Yana** tugmalari asosiy bo'limlarga tez o'tish uchun. **Yana** orqali qolgan bo'limlar, **Profil** va **Chiqish** ochiladi.
+- Yuqoridagi ☰ tugmasi chap menyuni ochadi; bo'lim tanlangach menyu o'z-o'zidan yopiladi.
+- Keng jadvallar o'rniga qulay ro'yxat kartochkalari chiqadi; sahifa raqamlari ro'yxat ostida joylashgan. Chat bot tugmasi ularni yopib qo'ymaydi.
+- Oynalar (masalan, kitob berish) telefonda pastdan ko'tarilib chiqadi; xabarnomalar esa yuqorida ko'rsatiladi.
+- Matn kiritish maydonlari telefonda 16px — iOS qurilmalarda fokusda sahifa avtomatik kattalashmaydi.
+- **Profil**da **Sozlamalar** bo'limi yo'q: mavzu yuqoridagi tugma bilan, **Chiqish** esa chap menyudagi tugma bilan amalga oshiriladi.
+
+**Ilova (PWA) sifatida ishlatsangiz:** matn va tugmalar brauzerga qaraganda biroz kattaroq chiqadi, yuqori va pastki xavfsiz zonalar hisobga olinadi. «Yangi versiya tayyor» degan xabar chiqsa, **Yangilash** tugmasini bosing. Agar Android ilovada hamma narsa kichrayib, atrofida oq joy paydo bo'lsa, Chrome menyusidagi **«Kompyuter ko'rinishi»**ni o'chirib, ilovani qayta oching — ekranda ham shu ko'rsatma chiqadi.
+
 ### Umumiy qoidalar (barcha sahifalarda bir xil)
 
 - **Qidiruv maydoni** — kerakli ma'lumotni tez topish uchun. Yozishni boshlaganingizda avtomatik qidiradi.
 - **Filtr** (ro'yxat tepasidagi tanlash) — masalan, faqat "Kutmoqda" holatidagi arizalarni ko'rish.
 - **Sahifalar** — ro'yxat uzun bo'lsa, pastda sahifa raqamlari chiqadi.
-- **O'ng yuqorida xabar** — biror ish muvaffaqiyatli bajarilsa, yashil xabar paydo bo'ladi.
+- **Xabar** — biror ish muvaffaqiyatli bajarilsa yoki xato yuz bersa, xabar yuqorida paydo bo'ladi (telefonda pastki tugmalarga to'sqinlik qilmaydi).
 - **Tasdiqlash oynasi** — o'chirish yoki muhim amal bajarishdan oldin "ishonchingiz komilmi?" so'raladi. Xato qilsangiz, **Bekor qilish** tugmasini bosing.
 
 ---
@@ -174,7 +187,7 @@ O'quvchi botda ariza yuboradi → siz faqat **tasdiqlaysiz**. Batafsil — 9-bo'
 |---|---|---|
 | To'liq ismi | **Ha** | Aliyev Vali |
 | Telefon | **Ha** | +998901234567 |
-| Sinf (fan) | **Ha** (o'qituvchi uchun) | 7-A / Matematika |
+| Sinf (fan) | **Ha** (o'qituvchi uchun, ikkitagacha fan) | `7-A` / `Matematika`, `Algebra`, `Geometriya`, `Chizmachilik`, `Logoped`, `Boshlang'ich` |
 | Tug'ilgan sana | **Yo'q** | 15.03.2012 |
 | Manzil | **Yo'q** | Toshkent sh. |
 
@@ -252,6 +265,8 @@ O'quvchi/o'qituvchi botda ariza yuborganda, saytda **Arizalar** bo'limida "Kutmo
 3. **Rad etish** — sabab o'quvchiga Telegram'dan yuboriladi
 
 > **Qo'shimcha:** Qidiruv, Rol (O'quvchi/O'qituvchi) va Holat filtrlaridan foydalaning. Barcha arizalarni ko'rish uchun Holatni "Barcha holatlar" qiling.
+
+> **Noto'g'ri formatdagi arizalar.** Ism, telefon, sinf yoki fan formati buzilgan arizalar (qabul qilinganlari ham) **«Qayta ariza kerak»** deb belgilanadi. Bunday foydalanuvchi botdan `/start` yuborganda arizani qat'iy formatda boshidan qayta topshirishga yo'naltiriladi. U to'g'ri formatda qayta yuborgach, ariza yana **«Kutmoqda»** holatida chiqadi va uni tasdiqlashingiz mumkin. «Qabul qilingan arizalar» ro'yxatidagi noto'g'ri formatli kitobxonlar ham qayta ariza yuborishi shart.
 
 ---
 
@@ -343,7 +358,52 @@ Bitta o'quvchining hamma narsasini bir joyda ko'rish:
 
 ---
 
-## 15. Kunlik ish tartibi
+## 15. Profil
+
+**Profil** sahifasi chap menyuda **Chiqish** tugmasi ustida joylashgan.
+
+### Shaxsiy ma'lumotlarni o'zgartirish
+
+1. **Profil → Shaxsiy ma'lumotlar → Tahrirlash**
+2. To'liq ism, foydalanuvchi nomi (login) va telefon raqamini o'zgartiring
+3. **Saqlash** — ma'lumotlar darhol yangilanadi, parol o'zgarib qolmaydi
+
+> Login allaqachon boshqa xodimda bor bo'lsa, saqlanmaydi — boshqa login tanlang.
+
+### Parol almashtirish
+
+**Profil → Parol almashtirish**: eski parol, yangi parol va uning takrori. Eski parol noto'g'ri bo'lsa, hech narsa o'zgarmaydi.
+
+### Kitobxonlarga xabar yuborish
+
+**Profil → Kitobxonlarga xabar yuborish** orqali rollarga qarab Telegram xabar yuborasiz:
+
+- **Bitta o'quvchi/o'qituvchi** — ism bo'yicha qidirib tanlang
+- **Sinf bo'yicha** — masalan, 7-A
+- **Barcha sinflarga** — tanlangan roldagi hamma faol kitobxonlarga
+
+Telegram ID si bo'lmaganlar hisobga olinadi, lekin ularga xabar bormaydi — natijada "Telegram yo'q" deb ko'rsatiladi.
+
+### Xatolik haqida xabar berish
+
+**Profil → Xatolik haqida xabar berish** bo'limida saytdagi nosozlikni tavsiflab yuboring:
+
+- Xabar bazada saqlanadi va **oxirgi xatolik xabarlari** ro'yxatida ko'rinadi
+- Kutubxona egasi/administratorlarining Telegram ID si bo'lsa, ularga xabar yetkaziladi (aks holda `.env` dagi `BOT_ADMIN_CHAT_IDS` ishlatiladi)
+- **«Xatolik yuz berganda avtomatik yuborish»** standart yoqilgan; ushlanmagan JS xatolari, rad etilgan so'rovlar va server (5xx) xatolari yuboriladi (bir xil xato 1 daqiqada faqat bir marta). Kerak bo'lsa shu katakchani o'chirib qo'yishingiz mumkin
+
+### Kitobxon va o'qituvchilarni o'chirish
+
+**Profil → Kitobxonlarni o'chirish**: rol tanlang, qidirib belgilang va **O'chirish** bosing.
+
+- Faqat **qo'lidagi kitobi qaytarilmagan** yoki **kutilayotgan band so'rovi** borlar o'chirilmaydi — ular Berishlar/Bandlar bo'limida ko'rinadi
+- **Qaytarilgan kitoblar** va yakunlangan band so'rovlari (tasdiqlangan/rad etilgan/bekor qilingan) tarixi endi to'siq bo'lmaydi
+- O'chirib bo'lmaganlar sababi bilan pastda ro'yxatlanadi — avval kitobni qaytarib oling yoki band so'rovini hal qiling
+- O'chirilgan kitobxonga (Telegram ID si bo'lsa) xabar ketadi: **/start** buyrug'i bilan qaytadan ariza topshirishi so'raladi. Eski arizasi o'chiriladi, shuning uchun yangi arizani bemalol yuborish mumkin
+
+---
+
+## 16. Kunlik ish tartibi
 
 **Kun boshida:**
 1. **Boshqaruv paneli** — qizil/sariq kartochkalarni tekshiring (muddati o'tganlar, qarzdorlar)
@@ -361,7 +421,7 @@ Bitta o'quvchining hamma narsasini bir joyda ko'rish:
 
 ---
 
-## 16. Tez-tez so'raladigan savollar
+## 17. Tez-tez so'raladigan savollar
 
 **Savol: Kitob topilmadi (nusxasi yo'q)?**
 Javob: Uni **Kitoblar** bo'limida qo'shing, keyin **Nusxalar** bo'limida kamida bitta nusxa qo'shing. Nusxasiz ham berish mumkin — lekin u "asli" sifatida beriladi.
@@ -376,7 +436,10 @@ Javob: Derabsiz — **Berish/Qaytarish** bo'limidan kitobni qaytarib oling (o'sh
 Javob: Hech narsa qilmang — 24 soatdan keyin tizim o'zi bekor qilib, keyingi odamga taklif yuboradi.
 
 **Savol: Parolni unutdim?**
-Javob: Administrator parolni o'zgartirib beradi (**Xodimlar** → Tahrirlash).
+Javob: Eski parolni bilsangiz, **Profil → Parol almashtirish** orqali o'zingiz o'zgartiring. Unutgan bo'lsangiz — administrator yangi parol beradi.
+
+**Savol: Band qilgan o'quvchini o'chira olmayapman, lekin Bandlar bo'limida yo'q?**
+Javob: Bu tarixiy band so'rovi — endi to'siq bo'lmaydi, sahifani yangilab qayta o'chirib ko'ring. Faqat **Kutmoqda** holatidagi so'rov Bandlar bo'limida ko'rinadi va uni hal qilish kerak.
 
 **Savol: Sayt ochilmayapti?**
 Javob: Avval internetni tekshiring. Ishlasa ham ochilmasa — administratorga xabar bering.

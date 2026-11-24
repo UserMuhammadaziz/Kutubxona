@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import ChatXabar, User
+from .models import ChatXabar, User, XatolikXabari
 
 
 @admin.register(User)
@@ -32,3 +32,12 @@ class ChatXabarAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         return False
+
+
+@admin.register(XatolikXabari)
+class XatolikXabariAdmin(admin.ModelAdmin):
+    list_display = ("id", "yaratilgan", "tur", "yuborgan", "organization", "sahifa")
+    list_filter = ("tur", "organization")
+    search_fields = ("matn", "sahifa")
+    readonly_fields = ("yaratilgan",)
+

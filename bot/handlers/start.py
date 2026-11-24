@@ -1,7 +1,8 @@
 import logging
+import re
 
 from aiogram import F, Router
-from aiogram.filters import Command, CommandStart
+from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
@@ -11,13 +12,14 @@ from keyboards import (
     ARIZA_ROL_OQUVCHI,
     ASOSIY_TUGMALAR,
     ariza_rol_tugmalari,
-    fanlar_tugmalari,
     asosiy_tugmalar_klaviaturasi,
+    fan_tugmalari,
     klaviatura_olib_tashla,
     matndan_telefon_keltirish,
     telefon_keltirish,
     telefon_sorash,
 )
+from fanlar import FAN_LIMIT, FANLAR
 from states import Ariza
 from utils import x, xabarni_tahrirlash
 
@@ -30,12 +32,32 @@ KUTILMOQDA_XABAR = (
     "foydalanishingiz mumkin."
 )
 
-SINF_MASALALARI = "7-A, 9-B, 10-V"
+SINF_MASALALARI = "7-A, 9-B, 10-"
+
+# Qat'iy format talablari. Birortasi buzilsa ariza boshidan qayta boshlanadi.
+SINF_RE = re.compile(r"^(?:[1-9]|1[01])-[A-Za-z]?$")
+FISH_RE = re.compile(r"^[^\W\d_]+(?:[ '\-][^\W\d_]+)+$", re.UNICODE)
+
+FORMAT_XATO_XABAR = (
+    "❌ Ma'lumot belgilangan formatda yozilmadi.\n\n"
+    "Ariza faqat quyidagi tartibda to'ldiriladi:\n"
+    "1️⃣ Ism-familiya — «Ali Valiyev» ko'rinishida (kamida ikki so'z);\n"
+    "2️⃣ Telefon — «+998901234567» ko'rinishida;\n"
+    "3️⃣ Sinf — «7-A» ko'rinishida yoki fan — tugmalardan tanlanadi.\n\n"
+    "Arizani boshidan qayta to'ldirishingiz kerak. Rolnizni tanlang:"
+)
+
+QAYTA_ARIZA_XABAR = (
+    "⚠️ Sizning oldingi arizangiz belgilangan formatda to'ldirilmagan.\n\n"
+    "Kutubxonaga qabul qilingan bo'lsangiz ham, yangi qoidalarga muvofiq "
+    "arizani boshidan, aynan ko'rsatilgan formatda qaytadan yuborishingiz "
+    "kerak. Rolnizni tanlang:"
+)
 
 # Rolga qarab so'raladigan uchinchi maydon nomi.
 ROL_UCHUNCHI_MAYDON = {
     ARIZA_ROL_OQUVCHI: "Sinfingiz",
-    ARIZA_ROL_OQITUVCHI: "Kasbingiz (o'qitayotgan fanningiz)",
+    ARIZA_ROL_OQITUVCHI: "Kasbingiz (o'qitayotgan faningiz)",
 }
 # Tasdiqlangan xabar matni (kalit — rol).
 ROL_TASDIQLANDI_XABARI = {
@@ -48,14 +70,23 @@ ROL_TASDIQLANDI_XABARI = {
 # savolni qaytarish) — har birida alohida yozilsa, matnlar ajralib qoladi.
 SAVOL_FISH = "1️⃣ Ism-familiyangizni yozing:"
 SAVOL_TELEFON = "2️⃣ Endi telefon raqamingizni yuboring:"
-SAVOL_SINF = f"3️⃣ Endi sinfingizni yozing (masalan: {SINF_MASALALARI}):"
-SAVOL_KASB = "3️⃣ Qaysi fan(lar)dan dars berasiz? Tugmalardan tanlang, so'ng «Tayyor» ni bosing:"
+SAVOL_SINF = (
+    f"3️⃣ Endi sinfingizni yozing (masalan: {SINF_MASALALARI}):\n"
+    "⚠️ Faqat «7-A» ko'rinishida yozing. Xato yozilsa ariza boshidan "
+    "qayta to'ldiriladi."
+)
+SAVOL_KASB = (
+    "3️⃣ Qaysi fan(lar)ni dars berasiz? Ikkitagacha fan tanlang.\n"
+    "Tanlangan fanlar ✅ bilan belgilanadi. Oxirida «✅ Tayyor» bosing.\n"
+    "⚠️ Fanlarni o'zingiz yozmang — xato yozilsa ariza boshidan qayta "
+    "to'ldiriladi."
+)
 
 
 def _menyu_tugmasi_bosilganmi(text: str | None) -> bool:
-    """Ariza bosqichida pastdagi menyu tugmasi bosildimi?
+    """Ariza bosqichida pastdigi menyu tugmasi bosildimi?
 
-    Tugmalar endi pastdagi klaviaturada ko'rinadi va ular matn yuboradi.
+    Tugmalar endi pastdigi klaviaturada ko'rinadi va ular matn yuboradi.
     Agar himoya qo'yilmasa, "Mening kitoblarim" bosilganda u "sinf" yoki
     "kasb" sifatida qabul qilinib, ariza behuda bo'lib ketardi."""
     return (text or "").strip() in ASOSIY_TUGMALAR
@@ -83,19 +114,45 @@ def joriy_savol(state: str | None, ma_lumot: dict | None = None) -> str:
     return SAVOL_SINF
 
 
-async def _menyu_tugmasi_javobi(message: Message, savol: str) -> None:
-    """Ariza maydoniga menyu tugmasi matni keldi — maydonga qaytaradi.
+async def _ariza_menyu_tugmasi(message: Message, state: FSMContext) -> bool:
+    """Pastdagi menyu tugmasi arizaga maydon bo'lib tushmasligining oldini oladi.
 
-    Pastdagi tugmalar bosqichga qarab ko'rinmasligi kerak, lekin eski
-    xabarda yoki eski klientda ular ko'rinib turishi mumkin. Bunday matn
-    maydonga tushsa, ariza behuda bo'lib ketardi — shuning uchun qaytarib
-    beramiz.
+    Ilgari bular `_format_xato()` ga borib, foydalanuvchi kiritgan barcha
+    ma'lumotlarni o'chirardi. Endi holat saqlanadi, shu bosqich savoli qayta
+    yuboriladi (fanlar tanlangan bo'lsa ular belgilangan holda) va arizani
+    tugatish yoki `/bekor` qilish eslatiladi.
     """
+    if not _menyu_tugmasi_bosilganmi(message.text):
+        return False
+
+    joriy = await state.get_state()
+    ma_lumot = await state.get_data()
+    klaviatura = None
+    if joriy == Ariza.telefon.state:
+        klaviatura = telefon_sorash()
+    elif joriy == Ariza.kasb.state:
+        # Tanlangan fanlar saqlanib qolishi uchun ularni ham ko'rsatamiz.
+        klaviatura = fan_tugmalari(ma_lumot.get("fanlar") or [])
+
     await message.answer(
-        f"{savol}\n\n"
-        "Iltimos, shu savolga javobni matn ko'rinishida yozing.\n"
-        "Ariza to'ldirishni to'xtatmoqchimisiz? /bekor yuboring."
+        f"{joriy_savol(joriy, ma_lumot)}\n\n"
+        "Avval arizani tugating yoki /bekor bosing.",
+        reply_markup=klaviatura,
     )
+    return True
+
+
+async def _format_xato(message: Message, state: FSMContext, sabab: str = "") -> None:
+    """Format buzildi — arizani butunlay qaytadan boshlashga majbur qiladi.
+
+    FSM tozalanadi va foydalanuvchiga format qoidalari bilan birga rolli
+    tanlash tugmalari yuboriladi. Shu tariqa u 1-bosqichdan qaytadan boshlaydi.
+    """
+    await state.clear()
+    matn = FORMAT_XATO_XABAR
+    if sabab:
+        matn = f"❌ {sabab}\n\n" + FORMAT_XATO_XABAR
+    await _rol_tanlash(message, matn)
 
 
 @router.message(CommandStart())
@@ -103,25 +160,16 @@ async def start(message: Message, state: FSMContext):
     await state.clear()
     telegram_id = message.from_user.id
 
-    # Bog'langanmi? Oquvchi topilmasa 404 "topilmadi" qaytaradi.
-    try:
-        await api.kitoblarim(telegram_id)
-    except ApiXato as e:
-        if e.kod != "topilmadi":
-            await message.answer(f"Xatolik yuz berdi: {x(e.detail)}")
-            return
-    else:
-        await message.answer(
-            "Yana xush kelibsiz! Kerakli bo'limni tanlang:",
-            reply_markup=asosiy_tugmalar_klaviaturasi(),
-        )
-        return
-
-    # Bog'lanmagan — ariza holatini tekshiramiz.
+    # Avval ariza holatini tekshiramiz: eski formatdagi arizalar (qabul
+    # qilinganlar ham) yangi formatda qaytadan topshirilishi shart.
     try:
         holat = await api.ariza_holati(telegram_id)
     except ApiXato as e:
         await message.answer(f"Xatolik yuz berdi: {x(e.detail)}")
+        return
+
+    if holat.get("qayta_ariza_kerak"):
+        await _rol_tanlash(message, QAYTA_ARIZA_XABAR)
         return
 
     holati = holat.get("holati")
@@ -137,14 +185,33 @@ async def start(message: Message, state: FSMContext):
             "Qayta urinib ko'rishni xohlaysizmi?"
         )
 
+    # Bog'langanmi? Oquvchi topilmasa 404 "topilmadi" qaytaradi.
+    try:
+        await api.kitoblarim(telegram_id)
+    except ApiXato as e:
+        if e.kod != "topilmadi":
+            await message.answer(f"Xatolik yuz berdi: {x(e.detail)}")
+            return
+    else:
+        await message.answer(
+            "Yana xush kelibsiz! Kerakli bo'limni tanlang:",
+            reply_markup=asosiy_tugmalar_klaviaturasi(),
+        )
+        return
+
     await _rol_tanlash(message)
 
 
-async def _rol_tanlash(message: Message):
+async def _rol_tanlash(message: Message, matn: str | None = None):
     """Ariza yuboruvchi rolini tanlash uchun inline tugmalarni ko'rsatadi."""
+    # Eski sessiyadan qolgan pastdigi tugmalar ariza maydoniga tushib ketmasin.
+    await message.answer("…", reply_markup=klaviatura_olib_tashla())
     await message.answer(
-        "Kutubxona botidan foydalanish uchun avval a'zo bo'lishingiz kerak.\n\n"
-        "A'riza yuborish uchun o'zingizning rolingizni tanlang:",
+        matn
+        or (
+            "Kutubxona botidan foydalanish uchun avval a'zo bo'lishingiz kerak.\n\n"
+            "Ariza yuborish uchun o'zingizning rolingizni tanlang:"
+        ),
         reply_markup=ariza_rol_tugmalari(),
     )
 
@@ -154,14 +221,21 @@ def rol_tanlash_xabari(rol):
 
     Alohida funksiya qilib ajratilgan, chunki ichidagi nomlar (masalan
     `ROL_UCHUNCHI_MAYDON`) ish vaqtida `NameError` bersa, matnni shu yerda
-    tekshirib bo'ladi (bot/_check.py) — serverda esa butun oqim buzilardi.
+    tekshirib bo'ladi (bot/_check_tugmalar.py) — serverda esa butun oqim buzilardi.
     """
+    uchinchi_format = (
+        "tugmalardan tanlanadi"
+        if rol == ARIZA_ROL_OQITUVCHI
+        else "«7-A» ko'rinishida"
+    )
     return (
         f"{ROL_TASDIQLANDI_XABARI[rol]}\n\n"
         "Ro'yxatga olish uchun 3 ta ma'lumot kerak:\n"
-        "1️⃣ Ism-familiyangiz\n"
-        "2️⃣ Telefon raqamingiz\n"
-        f"3️⃣ {ROL_UCHUNCHI_MAYDON[rol]}"
+        "1️⃣ Ism-familiyangiz — «Ali Valiyev»\n"
+        "2️⃣ Telefon raqamingiz — «+998901234567»\n"
+        f"3️⃣ {ROL_UCHUNCHI_MAYDON[rol]} — {uchinchi_format}\n\n"
+        "⚠️ Har bir ma'lumot aynan shu formatda bo'lishi kerak. Aks holda "
+        "ariza boshidan qayta to'ldiriladi."
     )
 
 
@@ -173,20 +247,19 @@ async def ariza_rol_tanlandi(callback: CallbackQuery, state: FSMContext):
         await callback.answer("Noma'lum rol.", show_alert=True)
         return
 
-    # Tugma eski xabarda qolib qolgan bo'lishi mumkin — ariza allaqon
+    # Tugma eski xabarda qolib qolgan bo'lishi mumkin — ariza allaqachon
     # ko'rib chiqilayotgan bo'lsa, boshidan o'tkazmaymiz.
     try:
         holat = await api.ariza_holati(callback.from_user.id)
     except ApiXato as e:
         await callback.answer(f"Xatolik yuz berdi: {e.detail}", show_alert=True)
         return
-    if holat.get("holati") == "kutmoqda":
+    # Eski formatdagi (qayta yuborish belgilangan) ariza to'siq bo'lmaydi.
+    if holat.get("holati") == "kutmoqda" and not holat.get("qayta_ariza_kerak"):
         await callback.answer(KUTILMOQDA_XABAR, show_alert=True)
         return
 
-    # Agar foydalanuvchi allaqachon ariza to'ldirmoqda bo'lsa (FSM holati bor),
-    # takroriy bosishni e'tiborsiz qoldiramiz — aks holda state tozalansa,
-    # ma'lumotlar yo'qoladi va foydalanuvchi hayratda qoladi.
+    # Arizani to'ldirish jarayonida takroriy bosish ma'lumotlarni yo'q qilmasin.
     joriy_state = await state.get_state()
     if joriy_state and joriy_state.startswith("Ariza:"):
         await callback.answer("Siz allaqachon arizani to'ldirmoqdasiz.", show_alert=True)
@@ -199,39 +272,36 @@ async def ariza_rol_tanlandi(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     if callback.message is None:
         return
-    # Inline xabarni tahrirlaymiz (rol tanlash xabari), so'ng ism so'rovi uchun
-    # YANGI xabar yuboramiz. Bu holda:
-    # - Eskirgan inline tugmalarni yangilab, xabar toza qoladi
-    # - Foydalanuvchi savolni yangi xabarda ko'radi (reply qilish oson)
-    # - Takroriy callback (ikkinchi bosish) oldini oldik (yuqoridagi get_state tekshiruv)
     await xabarni_tahrirlash(callback, rol_tanlash_xabari(rol))
-    await callback.message.answer(SAVOL_FISH)
-    # Pastdagi klaviatura endi faqat telefon bosqichida (kontakt yuborish) kerak.
+    # Rol xabari inline tugmalar bilan berilgan — o'sha xabar
+    # tahrirlanadi, maydon uchun yangi xabar yuboriladi. Pastdagi klaviatura
+    # endi faqat telefon bosqichida (kontakt yuborish) kerak bo'ladi.
+    await callback.message.answer(
+        SAVOL_FISH,
+    )
 
 
 @router.message(Ariza.fish)
 async def ariza_fish(message: Message, state: FSMContext):
     fish = (message.text or "").strip()
     if not fish:
-        await message.answer("Iltimos, ism-familiyangizni matn ko'rinishida yozing.")
+        await _format_xato(message, state, "Ism-familiya kiritilmadi.")
         return
-    if _menyu_tugmasi_bosilganmi(fish):
-        await _menyu_tugmasi_javobi(message, SAVOL_FISH)
+    if await _ariza_menyu_tugmasi(message, state):
         return
-    if matndan_telefon_keltirish(fish) or sum(c.isdigit() for c in fish) >= 5:
-        await message.answer(
-            "❌ Bu telefon raqamga o'xshaydi. Avval ism-familiyangizni harflar bilan yozing "
-            "(masalan: Ali Valiyev):"
+    if len(fish) > 130 or not FISH_RE.fullmatch(fish):
+        await _format_xato(
+            message,
+            state,
+            "Ism-familiya «Ali Valiyev» formatida bo'lishi kerak "
+            "(kamida ikki so'z, faqat harflar, maksimum 130 belgi).",
         )
-        return
-    if len(fish) > 130:
-        await message.answer("Ism-familiya juda uzun (maksimum 130 belgi). Qayta yozing:")
         return
 
     await state.update_data(fish=fish)
     await state.set_state(Ariza.telefon)
     await message.answer(
-        SAVOL_TELEFON,
+        f"Rahmat. {SAVOL_TELEFON}",
         reply_markup=telefon_sorash(),
     )
 
@@ -244,20 +314,15 @@ async def ariza_telefon(message: Message, state: FSMContext):
     # sifatida tanlangan). O'z raqamini tasdiqlashi uchun user_id mos bo'lishi
     # kerak.
     if contact.user_id and contact.user_id != message.from_user.id:
-        await message.answer(
-            "⚠️ Bu kontakt sizning akkauntingizga tegishli emas. "
-            "O'z telefon raqamingizni Telegram kontaktlaridan yuboring "
-            "(yoki raqamni qo'lda yozib bo'lishingiz mumkin):"
+        await _format_xato(
+            message, state, "Bu kontakt sizning akkauntingizga tegishli emas."
         )
         return
 
     telefon = telefon_keltirish(contact.phone_number)
     if not telefon:
-        await message.answer(
-            "❌ Telefon raqamingiz O'zbekiston formati (+998 XX XXX XX XX) bo'lishi kerak.\n\n"
-            "Yuborilgan kontakt raqami boshqa mamlakatga tegishli. "
-            "Iltimos, o'z O'zbekiston raqamingizni yuboring:\n"
-            "📱 Pastdagi tugma orqali qayta yuboring yoki qo'lda yozing (+998901234567):"
+        await _format_xato(
+            message, state, "Telefon raqam «+998901234567» formatida bo'lishi kerak."
         )
         return
 
@@ -271,16 +336,13 @@ async def ariza_telefon_matn(message: Message, state: FSMContext):
 
     # Telefon bosqichida ham menyu tugmasi bosilishi mumkin (eski xabar yoki
     # navbatdagi klaviatura). U raqam emas — savolga qaytarib beramiz.
-    if _menyu_tugmasi_bosilganmi(matn):
-        await _menyu_tugmasi_javobi(message, SAVOL_TELEFON)
+    if await _ariza_menyu_tugmasi(message, state):
         return
 
     telefon = matndan_telefon_keltirish(matn)
     if not telefon:
-        await message.answer(
-            "❌ Telefon raqam +998901234567 formatida bo'lishi kerak.\n\n"
-            "Quyidagi formatlar to'g'ri keladi: +998901234567, +998 90 123 45 67.\n"
-            "📱 Pastdagi tugma orqali qayta yuboring:"
+        await _format_xato(
+            message, state, "Telefon raqam «+998901234567» formatida bo'lishi kerak."
         )
         return
 
@@ -291,8 +353,8 @@ async def _telefon_qabul(message: Message, state: FSMContext, telefon: str):
     """Raqamni saqlaydi va keyingi bosqichga o'tadi.
 
     Telefon qabul qilingach, kontakt tugmasi klaviaturasi butunlay
-    olib tashlanadi: qolgan maydonlar (sinf/kasb) — oddiy matn, ya'ni
-    maydon yonida tugma kerak emas. Menyu esa standart «Menu» tugmasi
+    olib tashlanadi: sinf oddiy matn bilan kiritiladi, o'qituvchilar esa
+    fan(lar)ni inline tugmalardan tanlaydi. Menyu standart «Menu» tugmasi
     orqali mavjudligini saqlaydi.
     """
     data = await state.get_data()
@@ -300,13 +362,15 @@ async def _telefon_qabul(message: Message, state: FSMContext, telefon: str):
 
     await state.update_data(telefon=telefon)
     if rol == ARIZA_ROL_OQITUVCHI:
-        await state.set_state(Ariza.kasb)
         await state.update_data(fanlar=[])
+        await state.set_state(Ariza.kasb)
+        # Avval telefon bosqichidagi kontakt tugmasini olib tashlaymiz,
+        # keyin fanlarni tanlash uchun inline klaviaturani beramiz.
         await message.answer(
             f"✅ Telefon raqamingiz muvaffaqiyatli tasdiqlandi: {telefon}",
             reply_markup=klaviatura_olib_tashla(),
         )
-        await _fanlar_royxatini_yuborish(message, [])
+        await message.answer(SAVOL_KASB, reply_markup=fan_tugmalari())
         return
 
     await state.set_state(Ariza.sinf)
@@ -321,104 +385,114 @@ async def _telefon_qabul(message: Message, state: FSMContext, telefon: str):
 async def ariza_sinf(message: Message, state: FSMContext):
     sinf = (message.text or "").strip()
     if not sinf:
-        await message.answer(f"Iltimos:\n\n{SAVOL_SINF}")
+        await _format_xato(message, state, "Sinf kiritilmadi.")
         return
-    if _menyu_tugmasi_bosilganmi(sinf):
-        await _menyu_tugmasi_javobi(message, SAVOL_SINF)
+    if await _ariza_menyu_tugmasi(message, state):
         return
-    if len(sinf) > 30:
-        await message.answer("Sinf nomi juda uzun (maksimum 30 belgi). Qayta yozing:")
+    if len(sinf) > 30 or not SINF_RE.fullmatch(sinf):
+        await _format_xato(
+            message,
+            state,
+            f"Sinf «7-A», «9-B» yoki «10-» formatida yozilishi kerak "
+            f"(masalan: {SINF_MASALALARI}).",
+        )
         return
 
     data = await state.get_data()
-    await _arizani_yuborish(
-        message,
-        state,
-        data,
-        sinf=sinf,
-        kasb="",
-        savol=SAVOL_SINF,
-    )
-
-
-async def _fanlar_royxatini_yuborish(message: Message, tanlangan: list[int]):
-    try:
-        fanlar = await api.fanlar()
-    except ApiXato as e:
-        await message.answer(f"⚠️ Fanlar ro'yxatini olib bo'lmadi: {x(e.detail)}\n/start bilan qayta urinib ko'ring.")
-        return
-    if isinstance(fanlar, dict):
-        fanlar = fanlar.get("results", [])
-    await message.answer(SAVOL_KASB, reply_markup=fanlar_tugmalari(fanlar, tanlangan))
+    await _arizani_yuborish(message, state, data, sinf=sinf, kasb="")
 
 
 @router.message(Ariza.kasb)
 async def ariza_kasb(message: Message, state: FSMContext):
-    """O'qituvchi fanlarni matn bilan emas, tugmalar orqali tanlaydi."""
-    data = await state.get_data()
-    await message.answer("Iltimos, fanlarni pastdagi tugmalar orqali tanlang.")
-    await _fanlar_royxatini_yuborish(message, data.get("fanlar", []))
+    """O'qituvchi fanlarni faqat tugmalardan tanlashi kerak.
 
-
-@router.callback_query(Ariza.kasb, F.data.startswith("fan:"))
-async def fan_tanlandi(callback: CallbackQuery, state: FSMContext):
-    try:
-        fan_id = int((callback.data or "").partition(":")[2])
-    except ValueError:
-        await callback.answer()
+    Matn yuborilsa (hatto to'g'ri fan nomi bo'lsa ham) format buzilgan hisoblanadi
+    va ariza boshidan qayta boshlanadi. Pastdigi menyu tugmasi maydon emas —
+    u bosilsa tanlangan fanlar saqlanadi va savol qayta ko'rsatiladi.
+    """
+    if await _ariza_menyu_tugmasi(message, state):
         return
-    data = await state.get_data()
-    tanlangan = list(data.get("fanlar", []))
-    if fan_id in tanlangan:
-        tanlangan.remove(fan_id)
-    else:
-        tanlangan.append(fan_id)
-    await state.update_data(fanlar=tanlangan)
-    await callback.answer()
-    if callback.message is None:
-        return
-    try:
-        fanlar = await api.fanlar()
-        if isinstance(fanlar, dict):
-            fanlar = fanlar.get("results", [])
-        await callback.message.edit_reply_markup(reply_markup=fanlar_tugmalari(fanlar, tanlangan))
-    except Exception:
-        logger.exception("fan tugmalarini yangilab bo'lmadi")
-
-
-@router.callback_query(Ariza.kasb, F.data == "fan_ok")
-async def fanlar_tayyor(callback: CallbackQuery, state: FSMContext):
-    data = await state.get_data()
-    tanlangan = list(data.get("fanlar", []))
-    if not tanlangan:
-        await callback.answer("Kamida bitta fanni tanlang.", show_alert=True)
-        return
-    await callback.answer()
-    if callback.message is None:
-        return
-    nomlar = []
-    try:
-        fanlar = await api.fanlar()
-        if isinstance(fanlar, dict):
-            fanlar = fanlar.get("results", [])
-        nomlar = [f["nomi"] for f in fanlar if f["id"] in tanlangan]
-    except Exception:
-        logger.exception("fan nomlarini olib bo'lmadi")
-    await _arizani_yuborish(
-        callback.message,
-        state,
-        data,
-        sinf="",
-        kasb=", ".join(nomlar),
-        fanlar=tanlangan,
-        savol=SAVOL_KASB,
-        telegram_id=callback.from_user.id,
+    await _format_xato(
+        message, state, "Fanlarni o'zingiz yozmang — pastdagi ro'yxatdan tanlang."
     )
 
 
-@router.message(Command("bekor", "start_over", "cancel"))
+@router.callback_query(Ariza.kasb, F.data.startswith("fan:"))
+async def ariza_fan_tanlandi(callback: CallbackQuery, state: FSMContext):
+    """Fan tugmasi: tanlash/belgini olish, tozalash yoki arizani yuborish."""
+    amal = (callback.data or "").partition(":")[2]
+    ma_lumot = await state.get_data()
+    tanlanganlar = list(ma_lumot.get("fanlar") or [])
+
+    if amal == "tozalash":
+        tanlanganlar = []
+    elif amal == "tayyor":
+        if not tanlanganlar:
+            await callback.answer("Avval kamida bitta fan tanlang.", show_alert=True)
+            return
+        if len(tanlanganlar) > FAN_LIMIT:
+            await callback.answer(
+                f"Faqat {FAN_LIMIT} tagacha fan tanlash mumkin.", show_alert=True
+            )
+            return
+        kasb = ", ".join(tanlanganlar)
+        if len(kasb) > 60:
+            await callback.answer(
+                "Juda ko'p fan tanlandi — kamroq fan tanlang.", show_alert=True
+            )
+            return
+        if callback.message is None:
+            await callback.answer()
+            return
+        await state.update_data(fanlar=tanlanganlar)
+        await callback.answer()
+        await _arizani_yuborish(
+            callback.message, state, await state.get_data(), sinf="", kasb=kasb
+        )
+        return
+    else:
+        try:
+            index = int(amal)
+        except ValueError:
+            await callback.answer("Noma'lum fan.", show_alert=True)
+            return
+        if not 0 <= index < len(FANLAR):
+            await callback.answer("Noma'lum fan.", show_alert=True)
+            return
+        fan = FANLAR[index]
+        if fan in tanlanganlar:
+            tanlanganlar.remove(fan)
+        else:
+            if len(tanlanganlar) >= FAN_LIMIT:
+                await callback.answer(
+                    f"Faqat {FAN_LIMIT} tagacha fan tanlash mumkin. "
+                    "Avval birini o'chirib, keyin yangisini tanlang.",
+                    show_alert=True,
+                )
+                return
+            tanlanganlar.append(fan)
+
+    await state.update_data(fanlar=tanlanganlar)
+    await callback.answer()
+    if callback.message is None:
+        return
+    tanlangan_matn = ", ".join(tanlanganlar) or "—"
+    await xabarni_tahrirlash(
+        callback,
+        f"{SAVOL_KASB}\n\n"
+        f"<b>Tanlanganlar ({len(tanlanganlar)}/{FAN_LIMIT}):</b> {x(tanlangan_matn)}",
+        reply_markup=fan_tugmalari(tanlanganlar),
+    )
+
+
 async def ariza_bekor_qilish(message: Message, state: FSMContext):
-    """Ariza to'ldirishdan voz kechish — holat tozalanadi, bot yana ishlaydi."""
+    """Ariza to'ldirishdan voz kechish — holat tozalanadi, bot yana ishlaydi.
+
+    Buyruqning o'zi `navigatsiya.py` da (birinchi router) qayta ishlanadi;
+    bu yerda faqat o'sha handler chaqiradigan umumiy amal qoladi. Ikkinchi
+    `@router.message(Command("bekor", ...))` qo'shilsa, xabar ikki marta
+    yuborilar va holat ikki marta tozalanardi.
+    """
     await state.clear()
     await message.answer(
         "Bekor qilindi. Qayta urinish uchun /start buyrug'ini "
@@ -433,14 +507,9 @@ async def _arizani_yuborish(
     data: dict,
     sinf: str = "",
     kasb: str = "",
-    savol: str = "",
-    fanlar: list[int] | None = None,
-    telegram_id: int | None = None,
 ):
-    telegram_id = telegram_id or message.from_user.id
+    telegram_id = message.from_user.id
     rol = data.get("rol", ARIZA_ROL_OQUVCHI)
-    
-    # Ma'lumotlar to'liqmi tekshirish
     fish = data.get("fish")
     telefon = data.get("telefon")
     if not fish or not telefon:
@@ -450,7 +519,6 @@ async def _arizani_yuborish(
             "⚠️ Ma'lumotlar to'liq emas. Iltimos, /start bosib qayta urinib ko'ring."
         )
         return
-
     try:
         await api.ariza_yubor(
             telegram_id=telegram_id,
@@ -459,10 +527,9 @@ async def _arizani_yuborish(
             rol=rol,
             sinf=sinf,
             kasb=kasb,
-            fanlar=fanlar,
         )
     except ApiXato as e:
-        # Terminal xatolar — holat tozalanadi (yoki ariza allaqon yuborilgan).
+        # Terminal xatolar — holat tozalanadi (yoki ariza allaqachon yuborilgan).
         if e.kod in ("allaqachon_azo", "ariza_kutmoqda"):
             await state.clear()
             xabarlar = {
@@ -472,14 +539,10 @@ async def _arizani_yuborish(
             await message.answer(xabarlar[e.kod])
             return
 
-        # Validatsiya xatosi: holatni TOZALAMAYMIZ — aks holda foydalanuvchi
-        # qayta yozganda bot jim qolib ketardi. Savolni takrorlab, bir xil
-        # maydonni qayta kiritishga ruxsat beramiz.
+        # Format buzilgani uchun server rad qilsa, ariza boshidan qayta
+        # boshlanadi — foydalanuvchi faqat ko'rsatilgan formatda yuborishi kerak.
         logger.warning("ariza rad etildi (%s): %s", e.kod, e.detail)
-        await message.answer(
-            f"⚠️ {x(e.detail)}\n\n{savol}\n"
-            "(Bekor qilish uchun /bekor)"
-        )
+        await _format_xato(message, state, f"Server arizani qabul qilmadi: {x(e.detail)}")
         return
 
     await state.clear()

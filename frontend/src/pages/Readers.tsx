@@ -34,8 +34,6 @@ const emptyForm: OquvchiCreatePayload = {
   telefon: '+998',
   sinf: '',
   kasb: '',
-  tugilgan_sana: '',
-  manzil: '',
 }
 
 interface ReadersProps {

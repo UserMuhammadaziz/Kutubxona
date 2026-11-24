@@ -122,7 +122,10 @@ class KitobViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"], url_path="search")
     def search(self, request):
         q = request.query_params.get("q", "")
-        qs = Kitob.objects.filter(
+        # `Kitob.objects` bo'yicha to'g'ridan-to'g'ri so'rov boshqa
+        # kutubxonalarning kitoblarini oshkor qiladi. `get_queryset()` esa
+        # allaqachon joriy kutubxonaga cheklangan.
+        qs = self.get_queryset().filter(
             Q(nomi__icontains=q) | Q(muallif__icontains=q) | Q(isbn__icontains=q)
         ).annotate(
             mavjud_nusxalar=Count("nusxalar", filter=Q(nusxalar__holati="mavjud")),
@@ -137,7 +140,8 @@ class KitobViewSet(viewsets.ModelViewSet):
         """Bot uchun: mavjud kitoblari bor janrlar ro'yxati."""
         labels = dict(Kitob.JANR_CHOICES)
         qs = (
-            Kitob.objects.values("janr")
+            self.get_queryset()
+            .values("janr")
             .annotate(soni=Count("id"))
             .order_by("janr")
         )
@@ -157,7 +161,17 @@ class KitobViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["get"], permission_classes=[IsLibrarian])
     def hold(self, request, pk=None):
         """GET /api/books/{id}/hold/ — shu kitobning kutilayotgan band so'rovi."""
-        band = services.faol_bandni_top(pk)
+        # Kitob allaqachon `get_object()` orqali tenant doirasida tekshiriladi;
+        # band so'rovi ham faqat shu kutubxonadan olinishi shart.
+        self.get_object()
+        band = (
+            scope(
+                BandQilish.objects, joriy_kutubxonani_aniqla(self.request, required=True)
+            )
+            .filter(kitob_id=pk, holati="kutmoqda")
+            .select_related("oquvchi", "kitob")
+            .first()
+        )
         return Response(BandQilishSerializer(band).data if band else None)
 
 
@@ -248,6 +262,10 @@ class BandQilishViewSet(viewsets.GenericViewSet):
         from oquvchi.models import Oquvchi
 
         telegram_id = request.query_params.get("telegram_id")
+        if not telegram_id:
+            raise ValidationError(
+                {"error": "telegram_id_kerak", "detail": "telegram_id parametri kiritilishi shart"}
+            )
         oquvchi = scope(Oquvchi.objects, self._org()).filter(
             telegram_id=telegram_id
         ).first()
@@ -278,12 +296,18 @@ class BandQilishViewSet(viewsets.GenericViewSet):
     @action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):
         """O'quvchi o'z kutilayotgan so'rovini bekor qiladi."""
+        # `_band()` band so'rovini joriy kutubxonaning scoped queryset'idan
+        # oladi — boshqa tenant'ning so'rovini bekor qilib bo'lmaydi.
         band = self._band(pk)
         telegram_id = request.data.get("telegram_id")
+        if not telegram_id:
+            raise ValidationError(
+                {"error": "telegram_id_kerak", "detail": "telegram_id kiritilishi shart"}
+            )
         oquvchi = scope(Oquvchi.objects, self._org()).filter(
             telegram_id=telegram_id
         ).first()
-        if not oquvchi:
+        if not oquvchi or oquvchi.organization_id != band.organization_id:
             return Response(
                 {"error": "topilmadi", "detail": "O'quvchi bog'lanmagan"},
                 status=status.HTTP_404_NOT_FOUND,

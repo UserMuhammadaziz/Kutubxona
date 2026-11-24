@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
-import { authApi, type RegisterPayload } from '../api/resources'
-import { errorMessage, tokenStore } from '../api/client'
+import type { RegisterPayload } from '../api/resources'
+import { errorMessage } from '../api/client'
 import { useAuthStore } from '../store/auth'
 import { isCompletePhone } from '../lib/phone'
 import { askPushPermission, subscribeToPush } from '../lib/push'
@@ -19,7 +19,7 @@ const TURLAR: { value: RegisterPayload['turi']; label: string }[] = [
 
 export function Register() {
   const status = useAuthStore((s) => s.status)
-  const hydrate = useAuthStore((s) => s.hydrate)
+  const register = useAuthStore((s) => s.register)
   const navigate = useNavigate()
   const [form, setForm] = useState<RegisterPayload>({
     kutubxona_nomi: '',
@@ -53,11 +53,9 @@ export function Register() {
     try {
       // Must run first, inside the submit gesture: the browser only shows the prompt then.
       await askPushPermission()
-      const { access, refresh } = await authApi.register(form)
-      tokenStore.set(access, refresh)
+      await register(form)
       // Fire and forget: the owner gets a push as soon as the application is approved.
       void subscribeToPush()
-      await hydrate()
       navigate('/', { replace: true })
     } catch (err) {
       setError(errorMessage(err))

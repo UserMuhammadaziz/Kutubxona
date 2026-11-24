@@ -6,6 +6,7 @@ from rest_framework.response import Response
 
 from config.telegram import telegram_escape, telegram_xabar_yubor
 from oquvchi.models import Oquvchi
+from organization.tenancy import joriy_kutubxonani_aniqla, scope
 from user.permissions import IsLibrarian
 from .models import Jarima
 from .serializers import JarimaSerializer, JarimaTolashSerializer, JarimaMeniSerializer
@@ -32,16 +33,23 @@ class JarimaViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated()]
         return [IsLibrarian()]
 
+    def get_queryset(self):
+        # Barcha ro'yxat/obyekt so'rovlari (shu jumladan `pay`) faqat joriy
+        # kutubxonaning jarimalari bilan ishlaydi.
+        org = joriy_kutubxonani_aniqla(self.request, required=False)
+        return scope(self.queryset, org)
+
     @action(detail=False, methods=["get"], url_path="my")
     def meni(self, request):
         telegram_id = request.query_params.get("telegram_id")
-        oquvchi = Oquvchi.objects.filter(telegram_id=telegram_id).first()
+        org = joriy_kutubxonani_aniqla(request, required=False)
+        oquvchi = scope(Oquvchi.objects, org).filter(telegram_id=telegram_id).first()
         if not oquvchi:
             return Response(
                 {"error": "topilmadi", "detail": "O'quvchi bog'lanmagan"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        qs = self.queryset.filter(berish__oquvchi=oquvchi, tolandimi=False)
+        qs = self.get_queryset().filter(berish__oquvchi=oquvchi, tolandimi=False)
         umumiy = sum(jarima.summa for jarima in qs)
         return Response(
             {

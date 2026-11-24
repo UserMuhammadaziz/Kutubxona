@@ -12,6 +12,9 @@ from django.test import TestCase
 from django.utils.timezone import now
 from rest_framework.test import APIClient
 
+from config.test_helpers import TenantTestMixin
+
+from .constants import format_xatolari
 from .models import Ariza, Oquvchi
 
 User = get_user_model()
@@ -19,12 +22,12 @@ User = get_user_model()
 YUBORILGAN_XABARLAR = []
 
 
-def _xabar_yuborilgan(chat_id, matn, parse_mode="HTML", **kwargs):
+def _xabar_yuborilgan(chat_id, matn, parse_mode="HTML", organization=None):
     YUBORILGAN_XABARLAR.append({"chat_id": chat_id, "matn": matn})
     return True
 
 
-class ArizaTestMixin:
+class ArizaTestMixin(TenantTestMixin):
     def setUp(self):
         super().setUp()
         YUBORILGAN_XABARLAR.clear()
@@ -44,6 +47,7 @@ class ArizaTestMixin:
             full_name="Kutubxonachi",
             rol="kutubxonachi",
         )
+        self.azolik(self.xodim)
         self.client = APIClient()
         self.client.force_authenticate(self.xodim)
 
@@ -282,6 +286,28 @@ class ArizaTasdiqlashTest(ArizaTestMixin, TestCase):
         self.assertIn("tasdiqlandi", xabar["matn"])
         self.assertIn(oquvchi.karta_raqami, xabar["matn"])
 
+    def test_bot_arizasiga_tasdiqlovchi_kutubxonasi_bog_lanadi(self):
+        """Bot arizasida organization bo'sh — tasdiqlangan o'quvchi xodimning
+        kutubxonasiga tegishli bo'lishi kerak, aks holda tenant doirasida
+        ko'rinmay, botning «Mening kitoblarim» oqimi ishlamaydi."""
+        Ariza.objects.filter(pk=self.ariza.pk).update(organization=None)
+
+        with self.xabarni_tekshir():
+            javob = self.client.post(f"/api/applications/{self.ariza.pk}/approve/")
+
+        self.assertEqual(javob.status_code, 200, javob.data)
+        oquvchi = Oquvchi.objects.get(telefon="+998901234567")
+        self.assertEqual(oquvchi.organization_id, self.org.pk)
+
+        # Arizaorganizatsiyasi o'zgarmaydi — xabar global tokendan ketadi.
+        self.ariza.refresh_from_db()
+        self.assertIsNone(self.ariza.organization_id)
+
+        # O'quvchi kutubxonachining ro'yxatida ko'rinadi.
+        royxat = self.client.get("/api/readers/")
+        self.assertEqual(royxat.status_code, 200)
+        self.assertIn(oquvchi.pk, [r["id"] for r in royxat.data["results"]])
+
     def test_tasdiqlashda_yuborilgan_sana_bosh_qolmaydi(self):
         self.client.post(f"/api/applications/{self.ariza.pk}/approve/")
         self.ariza.refresh_from_db()
@@ -445,46 +471,49 @@ class OqituvchiArizaTest(ArizaTestMixin, TestCase):
 
         return Fan.objects.get_or_create(nomi=nomi)[0]
 
-    def test_fanlar_bilan_ariza_qabul_qilinadi(self):
-        mat, ona = self._fan("Matematika"), self._fan("Ona tili")
-        javob = self.yubor(fanlar=[mat.pk, ona.pk])
+    def test_kasb_bilan_ariza_qabul_qilinadi(self):
+        javob = self.yubor(kasb="Matematika")
         self.assertEqual(javob.status_code, 201, javob.data)
 
         ariza = Ariza.objects.get()
         self.assertEqual(ariza.rol, "oqituvchi")
-        self.assertEqual(set(ariza.fanlar.values_list("nomi", flat=True)), {"Matematika", "Ona tili"})
-        self.assertEqual(ariza.kasb, "Matematika, Ona tili")
+        self.assertEqual(ariza.kasb, "Matematika")
         self.assertIsNone(ariza.sinf)
         self.assertEqual(ariza.holati, "kutmoqda")
 
-    def test_fanlar_majburiy(self):
+    def test_kasb_fanlar_boglanishiga_kochiriladi(self):
+        self._fan("Matematika"), self._fan("Ona tili")
+        javob = self.yubor(kasb="Matematika, Ona tili")
+        self.assertEqual(javob.status_code, 201, javob.data)
+
+        ariza = Ariza.objects.get()
+        self.assertEqual(set(ariza.fanlar.values_list("nomi", flat=True)), {"Matematika", "Ona tili"})
+
+    def test_kasb_majburiy(self):
         javob = self.yubor()
         self.assertEqual(javob.status_code, 400)
-        self.assertIn("fanlar", javob.data["detail"])
+        self.assertIn("kasb", javob.data["detail"])
         self.assertEqual(Ariza.objects.count(), 0)
 
     def test_bot_yuboradigan_bo_sh_sinf_buzilmaydi(self):
         """Bot o'qituvchi uchun `sinf: ""` yuboradi (u so'ramaydi) — bunday
         ariza "maydan bo'sh" xatosi bilan rad etilmasligi kerak."""
-        javob = self.yubor(sinf="", fanlar=[self._fan("Matematika").pk])
+        javob = self.yubor(sinf="", kasb="Matematika")
 
         self.assertEqual(javob.status_code, 201, javob.data)
         self.assertIsNone(Ariza.objects.get().sinf)
 
-    def test_nofaol_yoki_yoq_fan_rad_etiladi(self):
-        fan = self._fan("Eski fan")
-        fan.faol = False
-        fan.save()
-        self.assertEqual(self.yubor(fanlar=[fan.pk]).status_code, 400)
-        self.assertEqual(self.yubor(fanlar=[999999]).status_code, 400)
+    def test_uzun_kasb_rad_etiladi(self):
+        javob = self.yubor(kasb="x" * 61)
+        self.assertEqual(javob.status_code, 400)
+        self.assertIn("kasb", javob.data["detail"])
 
     def test_tasdiqlashda_fanlar_oqituvchiga_koshadi(self):
         from oquvchi import services
 
-        mat = self._fan("Matematika")
-        self.assertEqual(self.yubor(fanlar=[mat.pk]).status_code, 201)
-        ariza = Ariza.objects.get()
-        _, oquvchi, _ = services.arizani_tasdiqla(ariza)
+        self._fan("Matematika")
+        self.assertEqual(self.yubor(kasb="Matematika").status_code, 201)
+        _, oquvchi, _ = services.arizani_tasdiqla(Ariza.objects.get())
         self.assertEqual(list(oquvchi.fanlar.values_list("nomi", flat=True)), ["Matematika"])
         self.assertEqual(oquvchi.kasb, "Matematika")
 
@@ -621,7 +650,7 @@ class ArizaAdminActionTest(ArizaTestMixin, TestCase):
         return so_rov
 
 
-class KartaRaqamiTest(TestCase):
+class KartaRaqamiTest(TenantTestMixin, TestCase):
     def test_karta_raqamlari_ketma_ket_bo_ladi(self):
         from .services import keyingi_karta_raqami
 
@@ -634,6 +663,7 @@ class KartaRaqamiTest(TestCase):
         xodim = User.objects.create_user(
             username="kutubxonachi", password="parol12345", full_name="K", rol="kutubxonachi"
         )
+        self.azolik(xodim)
         client = APIClient()
         client.force_authenticate(xodim)
 
@@ -749,8 +779,8 @@ class ReaderProfileTests(ArizaTestMixin, TestCase):
 
 class ReaderFilterTests(ArizaTestMixin, TestCase):
     def test_has_telegram_filter(self):
-        Oquvchi.objects.create(fish="A", telefon="+998900000001", telegram_id=7)
-        Oquvchi.objects.create(fish="B", telefon="+998900000002")
+        Oquvchi.objects.create(fish="A", telefon="+998900000001", telegram_id=7, karta_raqami="K1")
+        Oquvchi.objects.create(fish="B", telefon="+998900000002", karta_raqami="K2")
         res = self.client.get("/api/readers/?has_telegram=true")
         self.assertEqual([r["fish"] for r in res.data["results"]], ["A"])
         res = self.client.get("/api/readers/?has_telegram=false&has_debt=false")
@@ -808,3 +838,288 @@ class ReaderTenantIsolationTests(TestCase):
             format="json",
         )
         self.assertEqual(res.status_code, 201, res.data)
+
+
+class ArizaFormatTest(ArizaTestMixin, TestCase):
+    """Bot yuborgan ma'lumotlar qat'iy formatga mos bo'lishi shart.
+
+    Format buzilsa serializer arizani yaratmaydi — bot bu holatda FSM ni
+    tozalab, foydalanuvchidan boshidan qayta to'ldirishni so'raydi.
+    """
+
+    def yubor(self, **qoshimcha):
+        ma_lumot = {
+            "telegram_id": 111111,
+            "fish": "Alisher Karimov",
+            "telefon": "+998901234567",
+            "sinf": "7-A",
+        }
+        ma_lumot.update(qoshimcha)
+        return APIClient().post("/api/applications/", ma_lumot, format="json")
+
+    def test_bir_so_zlik_fish_rad_etiladi(self):
+        javob = self.yubor(fish="Nodirbek")
+        self.assertEqual(javob.status_code, 400)
+        self.assertIn("fish", javob.data["detail"])
+        self.assertEqual(Ariza.objects.count(), 0)
+
+    def test_fishda_raqam_rad_etiladi(self):
+        javob = self.yubor(fish="Ali123 Valiyev")
+        self.assertEqual(javob.status_code, 400)
+        self.assertIn("fish", javob.data["detail"])
+
+    def test_to_gri_fish_qabul_qilinadi(self):
+        javob = self.yubor(fish="Ali Valiyev")
+        self.assertEqual(javob.status_code, 201, javob.data)
+        self.assertEqual(Ariza.objects.get().fish, "Ali Valiyev")
+
+    def test_notogri_sinf_formati_rad_etiladi(self):
+        for sinf in ("7-sinf", "Sinf 7-A", "12-A", "7", "yettinchi-A"):
+            with self.subTest(sinf=sinf):
+                javob = self.yubor(sinf=sinf)
+                self.assertEqual(javob.status_code, 400)
+                self.assertIn("sinf", javob.data["detail"])
+        self.assertEqual(Ariza.objects.count(), 0)
+
+    def test_togr_i_sinf_formatlari_qabul_qilinadi(self):
+        for sinf in ("7-A", "9-B", "10-", "11-V"):
+            with self.subTest(sinf=sinf):
+                Ariza.objects.all().delete()
+                javob = self.yubor(sinf=sinf)
+                self.assertEqual(javob.status_code, 201, javob.data)
+
+    def test_ocituvchi_faqat_royxatdagi_fanlardan_tanlaydi(self):
+        javob = self.yubor(rol="oqituvchi", sinf="", kasb="Astrologiya")
+        self.assertEqual(javob.status_code, 400)
+        self.assertIn("kasb", javob.data["detail"])
+
+    def test_ocituvchi_bir_necha_fan_tanlay_oladi(self):
+        javob = self.yubor(rol="oqituvchi", sinf="", kasb="Matematika, Fizika")
+        self.assertEqual(javob.status_code, 201, javob.data)
+        ariza = Ariza.objects.get()
+        self.assertEqual(ariza.kasb, "Matematika, Fizika")
+        self.assertIsNone(ariza.sinf)
+
+    def test_ikkitagacha_fan_qabul_qilinadi(self):
+        javob = self.yubor(
+            rol="oqituvchi", sinf="", kasb="Boshlang'ich, Matematika"
+        )
+        self.assertEqual(javob.status_code, 201, javob.data)
+        self.assertEqual(Ariza.objects.get().kasb, "Boshlang'ich, Matematika")
+
+    def test_uchta_fan_rad_etiladi(self):
+        javob = self.yubor(
+            rol="oqituvchi", sinf="", kasb="Matematika, Fizika, Boshlang'ich"
+        )
+        self.assertEqual(javob.status_code, 400)
+        self.assertIn("kasb", str(javob.data))
+        self.assertEqual(Ariza.objects.count(), 0)
+
+
+class QaytaArizaTest(ArizaTestMixin, TestCase):
+    """Eski (noto'g'ri formatdagi) arizalar qaytadan topshirilishi kerak.
+
+    Bayroq `Oquvchi` yoki `Ariza` ustida turishi mumkin: dastlabki migratsiya
+    ham qabul qilingan a'zolarni, ham kutmoqdagi arizalarni belgilaydi.
+    """
+
+    def yangi_ariza(self, **qoshimcha):
+        ma_lumot = {
+            "telegram_id": 111111,
+            "fish": "Yangi Ism Familiya",
+            "telefon": "+998901234567",
+            "sinf": "8-A",
+        }
+        ma_lumot.update(qoshimcha)
+        return APIClient().post("/api/applications/", ma_lumot, format="json")
+
+    def test_belgilangan_azo_qayta_ariza_yuboradi(self):
+        Oquvchi.objects.create(
+            fish="Eski Ism",
+            telefon="+998901234567",
+            telegram_id=111111,
+            karta_raqami="LIB-2026-0001",
+            qayta_ariza_kerak=True,
+        )
+        javob = self.yangi_ariza()
+        self.assertEqual(javob.status_code, 201, javob.data)
+        self.assertEqual(Ariza.objects.count(), 1)
+
+    def test_belgilangan_kutmoqdagi_ariza_almashtiriladi(self):
+        eski = Ariza.objects.create(
+            telegram_id=111111,
+            fish="Eski Ism",
+            telefon="+998901234567",
+            sinf="7-A",
+            qayta_ariza_kerak=True,
+        )
+        javob = self.yangi_ariza()
+        self.assertEqual(javob.status_code, 201, javob.data)
+        self.assertEqual(Ariza.objects.count(), 1)
+        self.assertNotEqual(Ariza.objects.get().pk, eski.pk)
+
+    def test_belgilanmagan_azo_qayta_ariza_yubora_olmaydi(self):
+        Oquvchi.objects.create(
+            fish="Alisher Karimov",
+            telefon="+998901234567",
+            telegram_id=111111,
+            karta_raqami="LIB-2026-0001",
+        )
+        javob = self.yangi_ariza()
+        self.assertEqual(javob.status_code, 400)
+        self.assertEqual(javob.data["error"], "allaqachon_azo")
+
+    def test_holat_endpoint_qayta_ariza_bayrogini_qaytaradi(self):
+        Oquvchi.objects.create(
+            fish="Eski Ism",
+            telefon="+998901234567",
+            telegram_id=111111,
+            karta_raqami="LIB-2026-0001",
+            qayta_ariza_kerak=True,
+        )
+        javob = APIClient().get(
+            "/api/applications/status/", {"telegram_id": 111111}
+        )
+        self.assertEqual(javob.status_code, 200)
+        self.assertTrue(javob.data["qayta_ariza_kerak"])
+
+    def test_tasdiqlash_bayrogni_tozalaydi(self):
+        oquvchi = Oquvchi.objects.create(
+            fish="Eski Ism",
+            telefon="+998901234567",
+            telegram_id=111111,
+            karta_raqami="LIB-2026-0001",
+            qayta_ariza_kerak=True,
+        )
+        ariza = Ariza.objects.create(
+            telegram_id=111111,
+            fish="Yangi Ism Familiya",
+            telefon="+998901234567",
+            sinf="8-A",
+        )
+        with self.xabarni_tekshir():
+            javob = self.client.post(f"/api/applications/{ariza.pk}/approve/")
+        self.assertEqual(javob.status_code, 200, javob.data)
+        oquvchi.refresh_from_db()
+        self.assertFalse(oquvchi.qayta_ariza_kerak)
+        self.assertEqual(oquvchi.fish, "Yangi Ism Familiya")
+        self.assertEqual(oquvchi.sinf, "8-A")
+
+    def test_yangi_ariza_qayta_ariza_talabini_toxtatadi(self):
+        """Qayta yuborilgan ariza kutmoqda holatida ko'rinadi, yana
+        «qaytadan yubor» deyilmaydi."""
+        Oquvchi.objects.create(
+            fish="Eski Ism",
+            telefon="+998901234567",
+            telegram_id=111111,
+            karta_raqami="LIB-2026-0001",
+            qayta_ariza_kerak=True,
+        )
+        javob = self.yangi_ariza()
+        self.assertEqual(javob.status_code, 201, javob.data)
+        holat = APIClient().get(
+            "/api/applications/status/", {"telegram_id": 111111}
+        )
+        self.assertEqual(holat.status_code, 200)
+        self.assertEqual(holat.data["holati"], "kutmoqda")
+        self.assertFalse(holat.data["qayta_ariza_kerak"])
+
+    def test_telefon_ozgarganda_telegram_id_boyicha_tasdiqlanadi(self):
+        oquvchi = Oquvchi.objects.create(
+            fish="Eski Ism",
+            telefon="+998901234567",
+            telegram_id=111111,
+            karta_raqami="LIB-2026-0001",
+            qayta_ariza_kerak=True,
+        )
+        ariza = Ariza.objects.create(
+            telegram_id=111111,
+            fish="Yangi Ism Familiya",
+            telefon="+998901234568",
+            sinf="8-A",
+        )
+        with self.xabarni_tekshir():
+            javob = self.client.post(f"/api/applications/{ariza.pk}/approve/")
+        self.assertEqual(javob.status_code, 200, javob.data)
+        oquvchi.refresh_from_db()
+        self.assertEqual(oquvchi.telefon, "+998901234568")
+        self.assertFalse(oquvchi.qayta_ariza_kerak)
+
+
+class ArizaFormatAuditTest(TestCase):
+    """Noto'g'ri formatdagi arizalar hamma joyda belgilanishi kerak."""
+
+    def test_format_xatolari(self):
+        self.assertEqual(
+            format_xatolari(
+                fish="Ali Valiyev",
+                telefon="+998901234567",
+                rol="oquvchi",
+                sinf="7-A",
+                kasb="",
+            ),
+            [],
+        )
+        self.assertEqual(
+            format_xatolari(
+                fish="Ali Valiyev",
+                telefon="+998901234567",
+                rol="oqituvchi",
+                sinf="",
+                kasb="Algebra, Geometriya",
+            ),
+            [],
+        )
+        self.assertIn(
+            "fish",
+            format_xatolari(
+                fish="Ali123", telefon="+998901234567", rol="oquvchi", sinf="7-A", kasb=""
+            ),
+        )
+        self.assertIn(
+            "sinf",
+            format_xatolari(
+                fish="Ali Valiyev", telefon="+998901234567", rol="oquvchi", sinf="7-sinf", kasb=""
+            ),
+        )
+        self.assertIn(
+            "kasb",
+            format_xatolari(
+                fish="Ali Valiyev", telefon="+998901234567", rol="oqituvchi", sinf="", kasb="Astrologiya"
+            ),
+        )
+        self.assertIn(
+            "telefon",
+            format_xatolari(
+                fish="Ali Valiyev", telefon="998901234567", rol="oquvchi", sinf="7-A", kasb=""
+            ),
+        )
+
+    def test_audit_faqat_notogri_formatlilarni_belgilaydi(self):
+        from importlib import import_module
+
+        from django.apps import apps as django_apps
+
+        yaxshi_ariza = Ariza.objects.create(
+            telegram_id=1, fish="Ali Valiyev", telefon="+998901234567", sinf="7-A"
+        )
+        yomon_ariza = Ariza.objects.create(
+            telegram_id=2, fish="Ali123", telefon="998901234567", sinf="7-sinf"
+        )
+        yaxshi_azo = Oquvchi.objects.create(
+            fish="Vali Valiyev", telefon="+998901234568", karta_raqami="K1", sinf="8-B"
+        )
+        yomon_azo = Oquvchi.objects.create(
+            fish="Vali123", telefon="998901234569", karta_raqami="K2", sinf="8-sinf"
+        )
+        migratsiya = import_module(
+            "oquvchi.migrations.0013_notogri_formatni_qayta_belgilash"
+        )
+        migratsiya.qayta_belgilash(django_apps, None)
+
+        for obj in (yaxshi_ariza, yomon_ariza, yaxshi_azo, yomon_azo):
+            obj.refresh_from_db()
+        self.assertFalse(yaxshi_ariza.qayta_ariza_kerak)
+        self.assertTrue(yomon_ariza.qayta_ariza_kerak)
+        self.assertFalse(yaxshi_azo.qayta_ariza_kerak)
+        self.assertTrue(yomon_azo.qayta_ariza_kerak)

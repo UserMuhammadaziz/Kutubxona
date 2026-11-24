@@ -1,4 +1,4 @@
-from datetime import date
+from django.utils.timezone import now
 from rest_framework import serializers
 from kitob.models import Kitob
 from nusxa.models import Nusxa
@@ -16,6 +16,11 @@ class BerishSerializer(serializers.ModelSerializer):
     # "Asli kitob" deb ko'rsatadi.
     asli = serializers.SerializerMethodField()
     oquvchi_fish = serializers.CharField(source="oquvchi.fish", read_only=True)
+    oquvchi_sinf = serializers.CharField(source="oquvchi.sinf", read_only=True)
+    # O'qituvchiga berilgan kitoblarni ro'yxatda sinf emas, fan bilan ko'rsatish
+    # uchun (bitta `Oquvchi` jadvalida ikkala rol ham saqlanadi).
+    oquvchi_rol = serializers.CharField(source="oquvchi.rol", read_only=True)
+    oquvchi_kasb = serializers.CharField(source="oquvchi.kasb", read_only=True)
 
     class Meta:
         model = Berish
@@ -28,6 +33,9 @@ class BerishSerializer(serializers.ModelSerializer):
             "asli",
             "oquvchi",
             "oquvchi_fish",
+            "oquvchi_sinf",
+            "oquvchi_rol",
+            "oquvchi_kasb",
             "bergan_xodim",
             "olgan_xodim",
             "berilgan_sana",
@@ -131,4 +139,6 @@ class BerishMeniSerializer(serializers.ModelSerializer):
         return obj.nusxa_id is None
 
     def get_qolgan_kun(self, obj):
-        return (obj.qaytarish_muddati - date.today()).days
+        # Berish muddati `now().date()` bilan yaratiladi — hisoblash ham
+        # shu vaqt zonasida bo'lishi kerak (aks holda 1 kunlik siljish chiqadi).
+        return (obj.qaytarish_muddati - now().date()).days

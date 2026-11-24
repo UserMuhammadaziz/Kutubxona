@@ -145,3 +145,34 @@ class KitobXabari(TenantModel):
 
     def __str__(self):
         return f"{self.kitob.nomi} — {self.get_tur_display()}"
+
+
+class OylikStatistika(TenantModel):
+    """Har oyning 1ida o'quvchi/o'qituvchiga yuborilgan shaxsiy statistika.
+
+    `oy` — hisobot oyi (oyning birinchi kuni). Unique constraint tufayli
+    Celery bir necha marta ishga tushsa ham bir oy uchun ikki marta xabar
+    ketmaydi.
+    """
+
+    oquvchi = models.ForeignKey(
+        "oquvchi.Oquvchi", on_delete=models.CASCADE, related_name="oylik_statistikalar"
+    )
+    oy = models.DateField()
+    yuborildi = models.BooleanField(default=False)
+    yuborilgan_sana = models.DateTimeField(null=True, blank=True)
+    xato = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["oquvchi", "oy"],
+                name="bitta_oquvchi_bitta_oy_statistika",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["organization", "oy"], name="oylik_stat_org_oy_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.oquvchi.fish} — {self.oy}"

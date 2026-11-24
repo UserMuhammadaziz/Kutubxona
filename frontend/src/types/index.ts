@@ -16,6 +16,39 @@ export type Rol = 'kutubxonachi' | 'administrator'
 
 // ---- Auth / User ----
 
+export interface UserKutubxona {
+  id: number
+  nomi: string
+  slug: string
+  rol: string
+}
+
+/** GET /api/auth/organization/ — to'liq OrganizationSerializer yoki null. */
+export interface JoriyKutubxona {
+  id: number
+  nomi: string
+  slug?: string
+  status?: string
+  rol?: string | null
+}
+
+/** GET /api/auth/memberships/ — MembershipSerializer + organization_status. */
+export interface Azolik {
+  id: number
+  organization: number
+  organization_nomi: string
+  user_id: number
+  username: string
+  full_name: string
+  telefon: string
+  rol: string
+  faol: boolean
+  telegram_id: string | null
+  qoshilgan: string
+  organization_status?: string
+  organization_status_display?: string
+}
+
 export interface User {
   id: number
   username: string
@@ -24,7 +57,8 @@ export interface User {
   telefon: string
   is_active: boolean
   is_platform?: boolean
-  kutubxonalar?: { id: number; nomi: string; slug: string; rol: string }[]
+  kutubxonalar?: UserKutubxona[]
+  joriy_rol?: string | null
 }
 
 export interface UserCreatePayload {
@@ -219,8 +253,6 @@ export interface OquvchiCreatePayload {
   telefon: string
   sinf?: string
   kasb?: string
-  tugilgan_sana?: string
-  manzil?: string
 }
 
 // ---- Ariza (Application) ----
@@ -254,6 +286,7 @@ export interface Ariza {
   ariza_sanasi: string
   tasdiqlangan_sana: string | null
   izoh: string
+  qayta_ariza_kerak: boolean
 }
 
 // ---- Berish (Loan) ----
@@ -279,6 +312,9 @@ export interface Berish {
   asli: boolean
   oquvchi: number
   oquvchi_fish: string
+  oquvchi_sinf: string
+  oquvchi_rol: OquvchiRol
+  oquvchi_kasb: string
   bergan_xodim: number | null
   olgan_xodim: number | null
   berilgan_sana: string
@@ -451,6 +487,16 @@ export interface TopBook {
   berishlar_soni: number
 }
 
+/** Kutubxonadagi so'nggi harakat (kim qilganligi bilan). */
+export interface RecentActivity {
+  id: string
+  turi: 'berish' | 'qaytarish'
+  sarlavha: string
+  tavsif: string
+  xodim: string
+  vaqt: string
+}
+
 export interface DashboardStats {
   jami_kitoblar: number
   jami_nusxalar: number
@@ -491,4 +537,71 @@ export interface AnnouncementPreview {
   recipients: number
   sent_today: number
   daily_limit: number
+}
+
+/** Sinflar va o'qituvchilar bo'yicha kitobxonlar reytingi. */
+export interface SinfReytingi {
+  sinf: string
+  oquvchilar: number
+  berishlar: number
+  faol_berishlar: number
+  faol_oquvchilar_soni: number
+  qaytarilganlar: number
+  ball: number
+  o_rin: number
+}
+
+export interface OqituvchiReytingi {
+  id: number
+  fish: string
+  kasb: string
+  berishlar: number
+  qaytarilganlar: number
+  ball: number
+  o_rin: number
+}
+
+/** Hozirda kitob o'qiyotgan (qaytarilmagan berishlari bor) a'zo. */
+export interface FaolKitobxon {
+  id: number
+  fish: string
+  sinf: string
+  kasb: string
+  faol_berishlar: number
+  jami_berishlar: number
+  ball: number
+  o_rin: number
+}
+
+export interface FaollikReytingi {
+  organization: { id: number; nomi: string }
+  umumiy_bali: number
+  oquvchi_bali: number
+  sinf_bali: number
+  oqituvchi_bali: number
+  faol_oquvchi_soni: number
+  oquvchi_soni: number
+  berishlar_soni: number
+  qaytarilgan_soni: number
+  sinflar: SinfReytingi[]
+  oqituvchilar: OqituvchiReytingi[]
+  faol_oquvchilar: FaolKitobxon[]
+  faol_oqituvchilar: FaolKitobxon[]
+}
+
+// ---- Profil: xatolik haqida xabar ----
+
+export interface XatolikXabari {
+  id: number
+  matn: string
+  sahifa: string
+  tur: 'qolda' | 'avtomatik'
+  yaratilgan: string
+  yuborgan: string
+}
+
+export interface XatolikXabariNatijasi {
+  id: number
+  saqlandi: boolean
+  telegramga_yuborildi: number
 }

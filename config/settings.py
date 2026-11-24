@@ -227,6 +227,8 @@ REST_FRAMEWORK = {
         "register": "10/hour",
         "bot_webhook": "600/min",
         "login": "10/min",
+        "refresh": "30/min",
+        "password_reset": "10/hour",
         "chatbot": "30/min",
     },
 }
@@ -240,6 +242,8 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=8),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
+    # Aylanishdan keyin eski refresh token ishlamay qoladi (replay himoyasi).
+    "BLACKLIST_AFTER_ROTATION": True,
 }
 
 # --- Celery / Redis ---
@@ -248,7 +252,9 @@ CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
-CELERY_TIMEZONE = TIME_ZONE
+# Beat jadvali O'zbekiston vaqti bo'yicha ishlaydi: 08:00 dagi oylik
+# statistika foydalanuvchilar kutgan vaqtda (UTC+5) yetib boradi.
+CELERY_TIMEZONE = "Asia/Tashkent"
 
 # --- Kesh (Redis, alohida db) ---
 # Testlarda tashqi Redis kerak emas — lokal xotira keshi ishlatiladi.
@@ -273,6 +279,10 @@ CELERY_TASK_IGNORE_RESULT = True
 # Eski bitta-kutubxonali bot uchun fallback. Yangi SaaS rejimida har bir
 # kutubxona o'z bot tokenini panel orqali ulaydi (organization.TelegramBot).
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+if "test" in sys.argv:
+    # Tests must never message real chats with the token from a local .env.
+    TELEGRAM_BOT_TOKEN = ""
+    os.environ["BOT_ADMIN_CHAT_IDS"] = ""
 BOT_API_BASE_URL = os.environ.get("BOT_API_BASE_URL", "http://127.0.0.1:8000/api")
 # Bot tokenlarini bazada shifrlash uchun kalit. Productionda majburiy.
 BOT_TOKEN_ENCRYPTION_KEY = os.environ.get("BOT_TOKEN_ENCRYPTION_KEY", "")

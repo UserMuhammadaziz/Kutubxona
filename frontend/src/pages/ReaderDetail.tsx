@@ -243,7 +243,7 @@ export function ReaderDetail() {
                       </Badge>
                     </div>
                     <div className="text-xs text-slate-500 dark:text-slate-400">
-                      {l.asli ? 'Asli kitob' : `№ ${l.inventar_raqami}`} · Muddat:{' '}
+                      {!l.asli && l.inventar_raqami && `№ ${l.inventar_raqami} · `}Muddat:{' '}
                       {formatDate(l.qaytarish_muddati)}
                     </div>
                     <Button size="sm" className="w-full" onClick={() => setQaytariladigan(l)}>
@@ -447,8 +447,10 @@ export function ReaderDetail() {
           qaytariladigan && (
             <>
               <b>{qaytariladigan.kitob_nomi}</b>{' '}
-              {qaytariladigan.asli ? '(asli kitob)' : `(${qaytariladigan.inventar_raqami})`} kitobini{' '}
-              <b>{reader.fish}</b>dan qaytarasizmi?
+              {!qaytariladigan.asli &&
+                qaytariladigan.inventar_raqami &&
+                `(${qaytariladigan.inventar_raqami})`}{' '}
+              kitobini <b>{reader.fish}</b>dan qaytarasizmi?
               <br />
               <br />
               Muddat o‘tganda jarima avtomatik hisoblanadi.

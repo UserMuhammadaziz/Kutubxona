@@ -47,7 +47,18 @@ Get-Process | Where-Object { $_.ProcessName -like "celery*" -or ($_.ProcessName 
 Start-Sleep -Seconds 2
 
 # -------------------------------------------------------------
-# 3) Celery worker (jarima, navbat, eslatma vazifalari)
+# 3) Ma'lumotlar bazasi migratsiyalari
+#    Yangi migratsiyalar qo'llanilmasa API so'rovlari 500 xato
+#    qaytaradi (masalan: "column oquvchi.qayta_ariza_kerak does not exist").
+# -------------------------------------------------------------
+Write-Host "==> Ma'lumotlar bazasi migratsiyalari qo'llanilmoqda..." -ForegroundColor Cyan
+& $PythonExe "manage.py" "migrate" "--noinput"
+if ($LASTEXITCODE -ne 0) {
+    throw "Migratsiyalar qo'llanilmadi: server ishga tushirilmadi."
+}
+
+# -------------------------------------------------------------
+# 4) Celery worker (jarima, navbat, eslatma vazifalari)
 # -------------------------------------------------------------
 Write-Host "==> Celery worker ishga tushirilmoqda..." -ForegroundColor Cyan
 Start-Process -FilePath $CeleryExe `
@@ -58,7 +69,7 @@ Start-Process -FilePath $CeleryExe `
     -RedirectStandardError (Join-Path $Logs "celery_worker.err.log") | Out-Null
 
 # -------------------------------------------------------------
-# 4) Celery beat (jadval bo'yicha ishlash)
+# 5) Celery beat (jadval bo'yicha ishlash)
 # -------------------------------------------------------------
 Write-Host "==> Celery beat ishga tushirilmoqda..." -ForegroundColor Cyan
 Start-Process -FilePath $CeleryExe `
@@ -69,7 +80,7 @@ Start-Process -FilePath $CeleryExe `
     -RedirectStandardError (Join-Path $Logs "celery_beat.err.log") | Out-Null
 
 # -------------------------------------------------------------
-# 5) Telegram bot
+# 6) Telegram bot
 # -------------------------------------------------------------
 if (-not $SkipBot) {
     Write-Host "==> Telegram bot ishga tushirilmoqda..." -ForegroundColor Cyan
@@ -84,7 +95,7 @@ if (-not $SkipBot) {
 }
 
 # -------------------------------------------------------------
-# 6) Django server
+# 7) Django server
 # -------------------------------------------------------------
 if (-not $SkipDjango) {
     Write-Host "==> Django server ishga tushirilmoqda..." -ForegroundColor Cyan

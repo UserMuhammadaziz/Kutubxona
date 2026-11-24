@@ -74,6 +74,10 @@ class Oquvchi(TenantModel):
     manzil = models.CharField(max_length=255, blank=True)
     royxat_sanasi = models.DateField(auto_now_add=True)
     faol = models.BooleanField(default=True)
+    # Eski (belgilanmagan) formatda ariza yuborganlar shu bayroq bilan
+    # belgilanadi. Bot ularni /start da yangi formatda qayta ariza
+    # topshirishga majbur qiladi. Tasdiqlanganda bayroq o'chiriladi.
+    qayta_ariza_kerak = models.BooleanField(default=False)
 
     class Meta:
         constraints = [
@@ -137,6 +141,8 @@ class Ariza(TenantModel):
     ariza_sanasi = models.DateTimeField(auto_now_add=True)
     tasdiqlangan_sana = models.DateTimeField(null=True, blank=True)
     izoh = models.CharField(max_length=255, blank=True)
+    # Eski formatda yuborilgan arizalar bot tomonidan qayta yuborilishi shart.
+    qayta_ariza_kerak = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["-ariza_sanasi"]

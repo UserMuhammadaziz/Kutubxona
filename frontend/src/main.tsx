@@ -8,6 +8,11 @@ import { ToastProvider } from './components/Toast.tsx'
 import { installDiagnostics } from './lib/diagnostics'
 
 installDiagnostics()
+import { avtomatikXatoUshlagichlarniOrnat } from './lib/xatolikXabari'
+
+// Profildagi avtomatik xatolik xabari tugmasi yoqilgan bo'lsa, ushlanmagan
+// xatolar va rad etilgan promise'lar xabar sifatida yuboriladi.
+avtomatikXatoUshlagichlarniOrnat()
 
 const queryClient = new QueryClient({
   defaultOptions: {

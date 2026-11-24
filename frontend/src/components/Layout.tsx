@@ -9,7 +9,6 @@ import { Logo, LogoMark } from './Logo'
 import { Chatbot } from './Chatbot'
 import { ReportIssueButton } from './ReportIssue'
 import { CommandBar } from './CommandBar'
-import { PwaBanner } from './PwaBanner'
 import { Icons } from './icons'
 import { canManageCompany as canManageCompanyRole, useOrganization } from '../hooks/useOrganization'
 
@@ -33,6 +32,7 @@ const navGroups: { title: string; items: NavItem[] }[] = [
     items: [
       { to: '/readers', label: "O'quvchilar", icon: Icons.graduationCap },
       { to: '/teachers', label: "O'qituvchilar", icon: Icons.user },
+      { to: '/kitobxonlar', label: 'Kitobxonlar', icon: Icons.users },
       { to: '/applications', label: 'Arizalar', icon: Icons.clipboardList, badge: 'applications' },
     ],
   },
@@ -54,9 +54,9 @@ const tabItems = [
 ]
 
 function BottomTabs({ onMenu }: { onMenu: () => void }) {
-  const tab = 'flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500'
+  const tab = 'pwa-tab flex min-h-[3.25rem] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 whitespace-nowrap px-0.5 text-[0.6875rem] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500'
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-paper pb-[env(safe-area-inset-bottom)] lg:hidden dark:border-slate-700 dark:bg-slate-800">
+    <nav className="pwa-tabs fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-paper lg:hidden dark:border-slate-700 dark:bg-slate-800">
       {tabItems.map((item) => (
         <NavLink
           key={item.to}
@@ -324,7 +324,7 @@ export function Layout() {
   return (
     <div className="min-h-dvh bg-canvas dark:bg-slate-900">
       {/* Mobil yuqori panel */}
-      <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-slate-200 bg-paper px-4 py-3 lg:hidden dark:border-slate-700 dark:bg-slate-800">
+      <header className="pwa-safe-top sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-slate-200 bg-paper px-4 py-3 lg:hidden dark:border-slate-700 dark:bg-slate-800">
         <button
           onClick={() => setDrawerOpen(true)}
           aria-label="Menyuni ochish"
@@ -386,12 +386,12 @@ export function Layout() {
           </div>
         )}
 
+        {/* Bottom padding keeps page-end controls clear of the floating chatbot button. */}
         <main className="min-w-0 flex-1 p-4 pb-36 sm:p-6 sm:pb-36 lg:p-8 lg:pb-24">
           <Outlet />
         </main>
       </div>
       <BottomTabs onMenu={() => setDrawerOpen(true)} />
-      <PwaBanner />
       <Chatbot />
       <CommandBar />
     </div>

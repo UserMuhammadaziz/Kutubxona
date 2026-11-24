@@ -1,6 +1,8 @@
 from django.contrib import admin, messages
 from django.db import transaction
 
+from organization.tenancy import joriy_kutubxonani_aniqla
+
 from .models import Ariza, Fan, Oquvchi
 from . import services
 
@@ -41,7 +43,11 @@ class ArizaAdmin(admin.ModelAdmin):
     def arizani_tasdiqlash(self, request, queryset):
         tasdiqlangan = 0
         for ariza in queryset.filter(holati="kutmoqda"):
-            if Oquvchi.objects.filter(telegram_id=ariza.telegram_id).exists():
+            # REST API bilan bir xil qoida: eski formatdagi (qayta ariza
+            # yuborishi kerak bo'lgan) a'zo ustiga tasdiqlashga ruxsat beriladi.
+            if Oquvchi.objects.filter(telegram_id=ariza.telegram_id).exclude(
+                qayta_ariza_kerak=True
+            ).exists():
                 self.message_user(
                     request,
                     f"{ariza.fish}: bu Telegram akkaunt allaqachon o'quvchiga bog'langan.",
@@ -50,7 +56,10 @@ class ArizaAdmin(admin.ModelAdmin):
                 continue
             try:
                 with transaction.atomic():
-                    ariza, oquvchi, yangi_karta = services.arizani_tasdiqla(ariza)
+                    org = joriy_kutubxonani_aniqla(request, required=False)
+                    ariza, oquvchi, yangi_karta = services.arizani_tasdiqla(
+                        ariza, organization=org
+                    )
                     services.ariza_holatini_yubor(
                         ariza, services.tasdiqlash_xabari(ariza, oquvchi, yangi_karta)
                     )

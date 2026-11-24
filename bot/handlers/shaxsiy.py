@@ -28,16 +28,14 @@ def _berish_qatori(b: dict) -> str:
     """`/loans/my/` bitta yozuvi uchun xabar qatori.
 
     Barcha maydonlar `.get()` bilan olinadi: server bitta maydonni
-    qaytarmasa (`KeyError`) butun bo'lim ishlamay qolardi."""
-    # Nusxasi yo'q kitob "asli" holda berilgan bo'ladi — inventar raqami
-    # bo'sh shuning uchun "INV: " emas, "Asli kitob" ko'rsatiladi.
-    if b.get("asli") or not b.get("inventar_raqami"):
-        manzil = "📕 Asli kitob (nusxasi yo'q)"
-    else:
-        manzil = f"🔖 {x(b['inventar_raqami'])}"
+    qaytarmasa (`KeyError`) butun bo'lim ishlamay qolardi. Nusxasi yo'q
+    kitobda inventar raqami bo'lmaydi — u holda qo'shimcha matn yozilmaydi."""
+    qator = f"📖 {x(b.get('kitob_nomi'))}"
+    if b.get("inventar_raqami"):
+        qator += f" (🔖 {x(b['inventar_raqami'])})"
 
     muddat = b.get("qaytarish_muddati") or "—"
-    qator = f"📖 {x(b.get('kitob_nomi'))} ({manzil})\n   Qaytarish muddati: {muddat}"
+    qator += f"\n   Qaytarish muddati: {muddat}"
 
     qolgan = b.get("qolgan_kun")
     if qolgan is None:

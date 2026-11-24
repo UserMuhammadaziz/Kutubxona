@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { loansApi, statsApi, telegramApi } from '../api/resources'
+import { loansApi, statsApi } from '../api/resources'
 import { errorMessage } from '../api/client'
 import { Icons } from '../components/icons'
-import { Button, Card, EmptyState, ErrorState, PageHeader, ListSkeleton, PageSkeleton } from '../components/ui'
+import { Card, EmptyState, ErrorState, PageHeader, ListSkeleton, PageSkeleton } from '../components/ui'
 import { formatDate, formatMoney } from '../lib/format'
-import { SetupChecklist } from '../components/SetupChecklist'
+import { StartActions } from '../components/StartActions'
 import { isAdmin, useAuthStore } from '../store/auth'
 
 function StatCard({ label, value, hint, tone }: { label: string; value: string | number; hint?: string; tone?: 'red' | 'amber' }) {
@@ -47,7 +47,6 @@ export function Dashboard() {
     queryFn: statsApi.dashboard,
   })
   const top = useQuery({ queryKey: ['stats', 'top-books'], queryFn: () => statsApi.topBooks(5) })
-  const bot = useQuery({ queryKey: ['telegram', 'settings'], queryFn: telegramApi.get, enabled: admin })
   const recent = useQuery({ queryKey: ['loans', 'recent'], queryFn: () => loansApi.list({ page: 1 }) })
 
   if (isLoading) return <PageSkeleton />
@@ -73,28 +72,7 @@ export function Dashboard() {
     <div>
       <PageHeader title="Boshqaruv paneli" subtitle="Bugungi holat" />
 
-      {admin && !recent.isLoading && !bot.isLoading && (
-        <SetupChecklist
-          steps={[
-            { key: 'book', title: "Kitob qo'shing", hint: 'Kitoblar ro‘yxatiga birinchi kitobni kiriting.', to: '/books', action: "Kitob qo'shish", done: data.jami_kitoblar > 0 },
-            { key: 'copy', title: "Nusxalarni qo'shing", hint: 'Berish uchun kitobning jismoniy nusxalari kerak.', to: '/copies', action: "Nusxa qo'shish", done: data.jami_nusxalar > 0 },
-            { key: 'reader', title: "O'quvchi qo'shing", hint: 'Yoki o‘quvchilar Telegram bot orqali o‘zlari ariza yuboradi.', to: '/readers', action: "O'quvchi qo'shish", done: (data.oquvchi_soni || 0) > 0 },
-            { key: 'bot', title: 'Telegram botni ulang', hint: 'Bot tokenini Kompaniya sahifasida kiriting.', to: '/company', action: 'Ulash', done: !!bot.data?.ulangan },
-            { key: 'loan', title: 'Birinchi kitobni bering', hint: 'O‘quvchiga nusxa bering, muddat va jarima avtomatik hisoblanadi.', to: '/loans?berish=1', action: 'Kitob berish', done: (recent.data?.results?.length ?? 0) > 0 },
-          ]}
-        />
-      )}
-
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:max-w-md">
-        <Link to="/loans?berish=1">
-          <Button className="w-full py-3">Kitob berish</Button>
-        </Link>
-        <Link to="/loans?holat=faol">
-          <Button variant="secondary" className="w-full py-3">
-            Qaytarib olish
-          </Button>
-        </Link>
-      </div>
+      <StartActions data={data} />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Link to="/loans?kechikkan=1" className="block">

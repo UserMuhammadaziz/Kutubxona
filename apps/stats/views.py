@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from django.core.cache import cache
 from django.db.models import Avg, Count, Q
 from django.utils.timezone import now
@@ -14,6 +16,7 @@ from nusxa.models import Nusxa
 from organization.models import Organization
 from organization.tenancy import joriy_kutubxonani_aniqla, scope
 from oquvchi.models import Oquvchi
+from oquvchi.utils import sinf_kaliti, sinf_normal
 from config.cache import stats_versiyasi
 from user.permissions import IsLibrarian
 
@@ -36,11 +39,16 @@ def _faollik_hisobla(organization):
 
     oquvchi_bali = min(100, oquvchi_soni * 2 + faol_berishlar * 3)
     sinf_bali = 0
-    # sinf bo'yicha faollik
-    for sinf in oquvchilar.filter(rol="oquvchi").values_list("sinf", flat=True).distinct():
-        if sinf:
-            s_b = berishlar.filter(oquvchi__sinf=sinf).count()
-            sinf_bali += min(20, s_b * 2)
+    # Sinf bo'yicha faollik. Bir sinf turli yozilishlarda ("5-B", "5-B sinf",
+    # "5b") kelsa ham bitta sinf hisoblanishi — ikki barobar hisoblanishning
+    # oldini oladi.
+    sinf_variantlari = defaultdict(list)
+    for xom_sinf in oquvchilar.filter(rol="oquvchi").values_list("sinf", flat=True):
+        if xom_sinf:
+            sinf_variantlari[sinf_normal(xom_sinf)].append(xom_sinf)
+    for variantlar in sinf_variantlari.values():
+        s_b = berishlar.filter(oquvchi__sinf__in=variantlar).count()
+        sinf_bali += min(20, s_b * 2)
     oqituvchi_bali = min(100, oqituvchi_soni * 5 + berishlar.filter(oquvchi__rol="oqituvchi").count() * 3)
     umumiy_bali = round((oquvchi_bali + min(100, sinf_bali) + oqituvchi_bali - jarimalar * 2 + (10 if bot_ulangan else 0)) / 3, 2)
     if umumiy_bali < 0:
@@ -90,6 +98,56 @@ def top_books(request):
     ]
     cache.set(kalit, data, STATS_TTL)
     return Response(data)
+
+
+@api_view(["GET"])
+@permission_classes([IsLibrarian])
+def recent_activity(request):
+    """Kutubxona so'nggi harakatlari (kim qilganligi bilan).
+
+    Berish va qaytarish voqealari `bergan_xodim` / `olgan_xodim` orqali
+    amalga oshirgan xodimni ko'rsatadi.
+    """
+    org = joriy_kutubxonani_aniqla(request, required=False)
+    raw_limit = request.query_params.get("limit", 8)
+    try:
+        limit = int(raw_limit)
+    except (TypeError, ValueError):
+        raise ValidationError({"limit": "Butun son kiritishingiz kerak."})
+    limit = max(1, min(limit, 50))
+
+    berishlar = scope(Berish.objects, org).select_related(
+        "kitob", "oquvchi", "bergan_xodim", "olgan_xodim"
+    )
+
+    harakatlar = []
+    for b in berishlar:
+        beruvchi = b.bergan_xodim.full_name if b.bergan_xodim else "Kutubxonachi"
+        harakatlar.append(
+            {
+                "id": f"b{b.pk}",
+                "turi": "berish",
+                "sarlavha": "Kitob berildi",
+                "tavsif": f"«{b.kitob.nomi}» · {b.oquvchi.fish}",
+                "xodim": beruvchi,
+                "vaqt": b.berilgan_sana,
+            }
+        )
+        if b.qaytarilgan_sana:
+            oluvchi = b.olgan_xodim.full_name if b.olgan_xodim else "Kutubxonachi"
+            harakatlar.append(
+                {
+                    "id": f"q{b.pk}",
+                    "turi": "qaytarish",
+                    "sarlavha": "Kitob qaytarildi",
+                    "tavsif": f"«{b.kitob.nomi}» · {b.oquvchi.fish}",
+                    "xodim": oluvchi,
+                    "vaqt": b.qaytarilgan_sana,
+                }
+            )
+
+    harakatlar.sort(key=lambda x: (x["vaqt"], x["id"]), reverse=True)
+    return Response(harakatlar[:limit])
 
 
 @api_view(["GET"])
@@ -193,30 +251,174 @@ def library_overall(request):
     return Response(natija)
 
 
+def _faol_kitobxonlar(organization, rol):
+    """Hozirda kitob o'qiyotgan a'zolar reytingi (ko'p kitob olgan birinchi).
+
+    `faol_berishlar` — qaytarilmagan berishlar soni, `jami_berishlar` —
+    umumiy berishlar soni. Ball kutubxonaning `limit_kitob`iga nisbatan
+    0..100 orasida hisoblanadi.
+    """
+    qator = (
+        Oquvchi.objects.filter(
+            organization=organization, faol=True, rol=rol
+        )
+        .annotate(
+            faol_berishlar=Count(
+                "berish",
+                filter=Q(
+                    berish__organization=organization,
+                    berish__qaytarilgan_sana__isnull=True,
+                ),
+            ),
+            jami_berishlar=Count(
+                "berish", filter=Q(berish__organization=organization)
+            ),
+        )
+        .filter(faol_berishlar__gt=0)
+    )
+
+    cheklov = max(organization.limit_kitob, 1)
+    natija = []
+    for azo in qator:
+        natija.append(
+            {
+                "id": azo.pk,
+                "fish": azo.fish,
+                "sinf": sinf_normal(azo.sinf) if rol == "oquvchi" else "",
+                "kasb": azo.kasb if rol == "oqituvchi" else "",
+                "faol_berishlar": azo.faol_berishlar,
+                "jami_berishlar": azo.jami_berishlar,
+                "ball": round(min(100, azo.faol_berishlar / cheklov * 100), 1),
+            }
+        )
+    natija.sort(
+        key=lambda x: (x["faol_berishlar"], x["jami_berishlar"]), reverse=True
+    )
+    for orin, row in enumerate(natija, 1):
+        row["o_rin"] = orin
+    return natija
+
+
+def _faol_sinflar(organization):
+    """Sinflar reytingi: turli yozilishlar bitta sinfga birlashtiriladi.
+
+    O'rin sinfdagi o'quvchilarning kitob o'qish faolligiga bog'liq:
+    hozirda qaytarilmagan kitoblari bor o'quvchilar ulushi asosiy ball hisoblanadi.
+    Qaytarilgan berishlar ham kichik ulush bilan hisobga olinadi (faollik izi).
+    """
+    guruh = defaultdict(list)
+    qator = (
+        Oquvchi.objects.filter(organization=organization, rol="oquvchi", faol=True)
+        .exclude(sinf="")
+        .values_list("id", "sinf")
+    )
+    for oquvchi_id, xom_sinf in qator:
+        kalit = sinf_normal(xom_sinf)
+        if kalit:
+            guruh[kalit].append(oquvchi_id)
+
+    id_to_sinf = {pk: kalit for kalit, ids in guruh.items() for pk in ids}
+    if not id_to_sinf:
+        return []
+
+    stat = {
+        kalit: {"jami": 0, "faol": 0, "qaytarilgan": 0, "faol_oc": set()}
+        for kalit in guruh
+    }
+    berishlar = Berish.objects.filter(
+        organization=organization, oquvchi_id__in=list(id_to_sinf)
+    ).values_list("oquvchi_id", "qaytarilgan_sana")
+    for oquvchi_id, qaytarilgan_sana in berishlar:
+        s = stat[id_to_sinf[oquvchi_id]]
+        s["jami"] += 1
+        if qaytarilgan_sana is None:
+            s["faol"] += 1
+            s["faol_oc"].add(oquvchi_id)
+        else:
+            s["qaytarilgan"] += 1
+
+    natija = []
+    for kalit, ids in guruh.items():
+        s = stat[kalit]
+        n = max(len(ids), 1)
+        ulush_oquvchi = len(s["faol_oc"]) / n
+        ulush_kitob = min(1.0, s["faol"] / n)
+        ulush_qaytarilgan = min(1.0, s["qaytarilgan"] / n)
+        natija.append(
+            {
+                "sinf": kalit,
+                "oquvchilar": len(ids),
+                "berishlar": s["jami"],
+                "faol_berishlar": s["faol"],
+                "faol_oquvchilar_soni": len(s["faol_oc"]),
+                "qaytarilganlar": s["qaytarilgan"],
+                # O'qish faolligi ustun turadi: 0.6 o'quvchilar ulushi,
+                # 0.3 kitoblar ulushi, 0.1 qaytarilganlar ulushi.
+                "ball": round(
+                    min(
+                        100,
+                        100
+                        * (
+                            0.6 * ulush_oquvchi
+                            + 0.3 * ulush_kitob
+                            + 0.1 * ulush_qaytarilgan
+                        ),
+                    ),
+                    1,
+                ),
+            }
+        )
+    natija.sort(
+        key=lambda x: (
+            -x["ball"],
+            -x["faol_berishlar"],
+            -x["faol_oquvchilar_soni"],
+            -x["berishlar"],
+            sinf_kaliti(x["sinf"]),
+        )
+    )
+    for orin, row in enumerate(natija, 1):
+        row["o_rin"] = orin
+    return natija
+
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def faollik_reytingi(request):
     org = joriy_kutubxonani_aniqla(request, required=True)
     reyting = _faollik_hisobla(org)
-    # sinf va o'qituvchilar bo'yicha qisqacha
-    sinflar = []
-    for sinf in (
-        Oquvchi.objects.filter(organization=org, rol="oquvchi", faol=True)
-        .values("sinf")
-        .annotate(soni=Count("id"))
-        .order_by("sinf")
-    ):
-        if sinf["sinf"]:
-            b = Berish.objects.filter(organization=org, oquvchi__sinf=sinf["sinf"]).count()
-            sinflar.append({"sinf": sinf["sinf"], "oquvchilar": sinf["soni"], "berishlar": b})
+    sinflar = _faol_sinflar(org)
+
+    # O'qituvchilar reytingi: berishlar va ularning qaytarilishlari bo'yicha.
     oqituvchilar = []
-    for t in (
-        Oquvchi.objects.filter(organization=org, rol="oqituvchi", faol=True)
-        .values("fish", "kasb")
-        .annotate(berishlar=Count("berish"))
-    ):
-        oqituvchilar.append({"fish": t["fish"], "kasb": t["kasb"], "berishlar": t["berishlar"]})
-    oqituvchilar.sort(key=lambda x: x["berishlar"], reverse=True)
+    oqituvchi_qator = Oquvchi.objects.filter(
+        organization=org, rol="oqituvchi", faol=True
+    ).annotate(
+        berishlar=Count("berish"),
+        qaytarilganlar=Count("berish", filter=Q(berish__qaytarilgan_sana__isnull=False)),
+    )
+    for t in oqituvchi_qator:
+        ball = round(min(100, t.berishlar * 10 + t.qaytarilganlar * 2), 1)
+        oqituvchilar.append(
+            {
+                "id": t.pk,
+                "fish": t.fish,
+                "kasb": t.kasb,
+                "berishlar": t.berishlar,
+                "qaytarilganlar": t.qaytarilganlar,
+                "ball": ball,
+            }
+        )
+    oqituvchilar.sort(key=lambda x: (x["ball"], x["berishlar"]), reverse=True)
+    for orin, row in enumerate(oqituvchilar, 1):
+        row["o_rin"] = orin
+
+    # Hozirda kitob o'qiyotgan (qaytarilmagan berishlari bor) faol a'zolar.
+    # Ball kutubxonaning bir o'quvchiga bergan kitoblar limitiga nisbatan
+    # hisoblanadi: limitga to'la olgan = 100 ball.
+    faol_oquvchilar = _faol_kitobxonlar(org, "oquvchi")
+    faol_oqituvchilar = _faol_kitobxonlar(org, "oqituvchi")
+
     return Response(
         {
             "organization": {"id": org.id, "nomi": org.nomi},
@@ -229,7 +431,9 @@ def faollik_reytingi(request):
             "berishlar_soni": reyting.berishlar_soni,
             "qaytarilgan_soni": reyting.qaytarilgan_soni,
             "sinflar": sinflar,
-            "oqituvchilar": oqituvchilar[:20],
+            "oqituvchilar": oqituvchilar,
+            "faol_oquvchilar": faol_oquvchilar,
+            "faol_oqituvchilar": faol_oqituvchilar,
         }
     )
 
@@ -291,10 +495,12 @@ def rate_library(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def my_ratings(request):
-    org = joriy_kutubxonani_aniqla(request, required=False)
-    qs = LibraryRating.objects.filter(oquvchi__telegram_id__isnull=False)
-    if org:
-        qs = qs.filter(organization=org)
+    # Fail-closed: tenant aniqlanmasa boshqa kutubxonalarning reytinglarini
+    # qaytarmaymiz.
+    org = joriy_kutubxonani_aniqla(request, required=True)
+    qs = LibraryRating.objects.filter(
+        organization=org, oquvchi__telegram_id__isnull=False
+    ).select_related("organization")
     return Response(
         [
             {

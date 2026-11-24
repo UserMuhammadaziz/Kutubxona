@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from rest_framework import status, viewsets
-from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.decorators import action, api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
@@ -42,6 +42,11 @@ User = get_user_model()
 
 class RegisterThrottle(AnonRateThrottle):
     scope = "register"
+    rate = "10/hour"
+
+
+class PasswordResetThrottle(AnonRateThrottle):
+    scope = "password_reset"
     rate = "10/hour"
 
 
@@ -321,6 +326,7 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([PasswordResetThrottle])
 def password_reset_request(request):
     serializer = PasswordResetRequestSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -349,6 +355,7 @@ def password_reset_request(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([PasswordResetThrottle])
 def password_reset_confirm(request):
     serializer = PasswordResetConfirmSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)

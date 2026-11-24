@@ -54,7 +54,7 @@ async def xabarni_tahrirlash(
         if xabar.message is None:
             # Inline xabarning o'zi yo'q (masalan, juda eski xabar) —
             # yangisini yuborish ham imkonsiz, shuning uchun javob beramiz.
-            await xabar.answer("Bu xabar allaqon eskirgan. /start bosing.")
+            await xabar.answer("Bu xabar allaqachon eskirgan. /start bosing.")
             return False
         xabar = xabar.message
 
@@ -101,6 +101,7 @@ def yordam_matni() -> str:
         f"   {MENYU_YORDAM} — shu yordam matni.\n\n"
         "<b>Buyruqlar</b>\n"
         "   /start — menyuni ochish yoki arizani qayta boshlash.\n"
+        "   /menu — pastdagi bo'lim tugmalarini qayta ko'rsatish.\n"
         "   /bekor — joriy amalni bekor qilish (ariza, qidiruv).\n\n"
         "Ariza to'ldirilayotganda yordam so'rasangiz, ariza bekor "
         "qilinmaydi — yordam ko'rsatilib, javob yoziladigan joy o'z "

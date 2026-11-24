@@ -112,6 +112,28 @@ def rad_etilgan_xabari(ariza: Ariza, izoh: str) -> str:
     )
 
 
+OCHIRILISH_XABARI = (
+    "⚠️ <b>Siz kutubxona a'zolari ro'yxatidan o'chirildingiz.</b>\n\n"
+    "Qaytadan a'zo bo'lish uchun botga <b>/start</b> buyrug'ini yuborib, "
+    "yangi a'riza topshiring. Arizangiz ko'rib chiqilgandan keyin yana "
+    "kitob olishingiz mumkin bo'ladi."
+)
+
+
+def _xabarni_rejalashtir(telegram_id, matn: str, organization) -> bool:
+    """Xabarni faqat tranzaksiya muvaffaqiyatli tugagach yuboradi.
+
+    Har chaqiruvning o'z lokal doirasi bo'lgani uchun lambda parametrlar
+    keyingi kitobxonni eski qiymatlari bilan yuborib yubormaydi.
+    """
+    if not telegram_id:
+        return False
+    transaction.on_commit(
+        lambda: telegram_xabar_yubor(telegram_id, matn, organization=organization)
+    )
+    return True
+
+
 def ariza_holatini_yubor(ariza: Ariza, matn: str) -> bool:
     """Ariza bo'yicha xabarni Telegram orqali yuboradi.
 
@@ -119,42 +141,70 @@ def ariza_holatini_yubor(ariza: Ariza, matn: str) -> bool:
     ma'lumot bazasi muvaffaqiyatli yozilgandan keyingina yuboriladi va
     bekor qilingan tranzaksiyadan keyin xabar ketmaydi.
     """
-    telegram_id = ariza.telegram_id
-    if not telegram_id:
-        return False
-    transaction.on_commit(
-        lambda: telegram_xabar_yubor(
-            telegram_id, matn, organization=ariza.organization
-        )
-    )
-    return True
+    return _xabarni_rejalashtir(ariza.telegram_id, matn, ariza.organization)
 
 
-def arizani_tasdiqla(ariza: Ariza):
+def ochirilish_xabarini_yubor(telegram_id, organization=None) -> bool:
+    """O'chirilgan kitobxonga qaytadan a'riza topshirishni eslatadi.
+
+    O'chirish tranzaksiyasi ichida chaqiriladi: xabar faqat kitobxon
+    haqiqatan o'chirilgandan keyin (commit bo'lgach) yuboriladi.
+    """
+    return _xabarni_rejalashtir(telegram_id, OCHIRILISH_XABARI, organization)
+
+
+def arizani_tasdiqla(ariza: Ariza, organization=None):
     """Arizani tasdiqlaydi: o'quvchi mavjud bo'lsa yangilanadi, yo'qsa
     yangi o'quvchi karta raqami bilan yaratiladi. (ariza, oquvchi, yangi_karta)
 
+    `organization` — arizani tasdiqlayotgan kutubxonachining kutubxonasi.
+    Bot orqali kelgan arizalarda `ariza.organization` bo'sh bo'ladi (xabarlar
+    global tokendan yuborilishi uchun). Bunday holda tasdiqlovchi xodimning
+    kutubxonasi ishlatiladi — aks holda yaratilgan o'quvchi tenant doirasida
+    ko'rinmay, botning «Mening kitoblarim/jarimalarim» oqimlari ishlamaydi.
+    Arizada kutubxona allaqachon ko'rsatilgan bo'lsa, u o'zgarishsiz qoladi.
+
     Eslatma: mavjud o'quvchining `telegram_id` si boshqa akkauntga tegishli
-    bo'lsa, bu ariza rad etiladi (`ArikaTelegramBandi` xatosi) — aks holda
+    bo'lsa, bu ariza rad etiladi (`ArizaTelegramBandi` xatosi) — aks holda
     birinchi o'quvchining akkaunti ikkinchisining arizasi orqali
     almashtirilib qolardi.
     """
     if ariza.holati != "kutmoqda":
         raise ValueError("Faqat 'kutmoqda' holatidagi ariza tasdiqlanadi")
 
+    org = ariza.organization or organization
+    # Avval telegram ID bo'yicha izlaymiz: eski formatdagi a'zo qayta ariza
+    # topshirganda telefon raqamini o'zgartirgan bo'lishi mumkin. Faqat keyin
+    # telefon bo'yicha qidiradi (bu eski, ID bog'lanmagan kartalar uchun).
     oquvchi = Oquvchi.objects.filter(
-        organization=ariza.organization, telefon=ariza.telefon
+        organization=org, telegram_id=ariza.telegram_id
     ).first()
+    if oquvchi is None:
+        oquvchi = Oquvchi.objects.filter(
+            organization=org, telefon=ariza.telefon
+        ).first()
     yangi_karta = oquvchi is None
 
     if oquvchi:
         if oquvchi.telegram_id and oquvchi.telegram_id != ariza.telegram_id:
             raise ArizaTelegramBandi(ariza)
+        if oquvchi.telefon != ariza.telefon:
+            if (
+                Oquvchi.objects.filter(organization=org, telefon=ariza.telefon)
+                .exclude(pk=oquvchi.pk)
+                .exists()
+            ):
+                raise ArizaTelegramBandi(ariza)
+            oquvchi.telefon = ariza.telefon
         oquvchi.telegram_id = ariza.telegram_id
         oquvchi.fish = ariza.fish
         # Rol va fan arizadan olinadi: "O'quvchilar"/"O'qituvchilar"
         # bo'limlari shu maydonlar orqali ajratiladi.
-        yangilangan = ["telegram_id", "fish"]
+        yangilangan = ["telefon", "telegram_id", "fish"]
+        # Yangi formatda qayta ariza topshirganlar endi botga to'siqsiz kira oladi.
+        if oquvchi.qayta_ariza_kerak:
+            oquvchi.qayta_ariza_kerak = False
+            yangilangan.append("qayta_ariza_kerak")
         if oquvchi.rol != ariza.rol:
             oquvchi.rol = ariza.rol
             yangilangan.append("rol")
@@ -186,7 +236,7 @@ def arizani_tasdiqla(ariza: Ariza):
         oquvchi.save(update_fields=yangilangan)
     else:
         oquvchi = oquvchi_yarat(
-            organization=ariza.organization,
+            organization=org,
             rol=ariza.rol,
             fish=ariza.fish,
             telefon=ariza.telefon,

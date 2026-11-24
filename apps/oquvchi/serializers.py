@@ -3,10 +3,18 @@ from datetime import date
 
 from rest_framework import serializers
 
-from organization.tenancy import scope
+from organization.models import Organization
+from organization.tenancy import (
+    joriy_kutubxonani_aniqla,
+    legacy_rejimmi,
+    organization_from_value,
+    scope,
+)
 
-from .models import Fan, Ariza, Oquvchi, kasb_from_fans
+from .constants import FAN_LIMIT, FANLAR, FISH_RE, SINF_RE
+from .models import Ariza, Fan, Oquvchi
 from .services import oquvchi_yarat
+from .utils import sinf_normal
 
 # Ariza.rol va Oquvchi.rol uchun bir xil qiymatlar (models.RUL_CHOICES ga
 # qarab qo'lda yoziladi, chunki serializer import paytida model sinflariga
@@ -18,6 +26,53 @@ class FanSerializer(serializers.ModelSerializer):
     class Meta:
         model = Fan
         fields = ["id", "nomi"]
+
+
+def ariza_kutubxonasi(request):
+    """Bot uchun ochiq ariza endpointlarida kutubxonani aniqlaydi.
+
+    Avval oddiy tenancy qoidasi qo'llanadi (JWT + `X-Organization-Id`,
+    foydalanuvchining yagona a'zoligi). Ariza yaratish/holat so'rovi
+    autentifikatsiyasiz ham kelishi mumkin — bunday holatda kutubxona
+    sarlavha yoki `organization_id` query parametridan olinadi. Hech qayerdan
+    aniqlanmasa, faqat yagona faol kutubxona (eski bitta-kutubxona rejimi)
+    yoki butunlay bo'sh baza (`legacy_rejimmi`) uchun javob beriladi; bir
+    nechta kutubxona bor bo'lsa `None` — keyingi `scope()` chaqiruvi
+    ma'lumotlarni ko'rsatmaydi (fail-closed).
+    """
+    if request is None:
+        return None
+    try:
+        org = joriy_kutubxonani_aniqla(request, required=False)
+    except Exception:
+        # Masalan, bir nechta a'zolik bor va sarlavha yuborilmagan.
+        org = None
+    if org is not None:
+        return org
+
+    # Autentifikatsiyalangan so'rovda tenant allaqachon hal qilingan (yoki
+    # a'zoliklar noaniq). Bunday holatda mijoz bergan `organization_id` ga
+    # ishonib, boshqa kutubxonaga yozishga yo'l qo'ymaymiz.
+    foydalanuvchi = getattr(request, "user", None)
+    if getattr(foydalanuvchi, "is_authenticated", False):
+        return None
+
+    sozlamalar = getattr(request, "query_params", None)
+    if sozlamalar is None:
+        sozlamalar = getattr(request, "GET", {})
+    qiymat = request.headers.get("X-Organization-Id") or sozlamalar.get(
+        "organization_id"
+    )
+    org = organization_from_value(qiymat)
+    if org is not None:
+        return org
+
+    if legacy_rejimmi():
+        return None
+    faollar = Organization.objects.filter(status=Organization.HOLAT_ACTIVE)
+    if faollar.count() == 1:
+        return faollar.first()
+    return None
 
 
 class OquvchiSerializer(serializers.ModelSerializer):
@@ -41,8 +96,20 @@ class OquvchiSerializer(serializers.ModelSerializer):
             "manzil",
             "royxat_sanasi",
             "faol",
+            "qayta_ariza_kerak",
         ]
-        read_only_fields = ["id", "karta_raqami", "telegram_id", "royxat_sanasi"]
+        read_only_fields = [
+            "id",
+            "karta_raqami",
+            "telegram_id",
+            "royxat_sanasi",
+            "qayta_ariza_kerak",
+        ]
+
+    def validate_sinf(self, value):
+        # "5-B sinf", "5b", "5 - B" kabi yozilishlar bitta sinfga keltiriladi —
+        # "Faol sinflar" reytingida takror paydo bo'lmasligi uchun.
+        return sinf_normal(value)
 
 
 class OquvchiYaratishSerializer(serializers.ModelSerializer):
@@ -54,7 +121,8 @@ class OquvchiYaratishSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Oquvchi
-        fields = ["id", "rol", "fish", "telefon", "sinf", "kasb", "tugilgan_sana", "manzil", "karta_raqami"]
+        # Faqat ism-familiya, telefon va rolga qarab sinf/fan so'raladi.
+        fields = ["id", "rol", "fish", "telefon", "sinf", "kasb", "karta_raqami"]
         read_only_fields = ["id", "karta_raqami"]
 
     def validate(self, attrs):
@@ -76,6 +144,9 @@ class OquvchiYaratishSerializer(serializers.ModelSerializer):
             )
         return value
 
+    def validate_sinf(self, value):
+        return sinf_normal(value)
+
     def create(self, validated_data):
         return oquvchi_yarat(**validated_data)
 
@@ -89,8 +160,10 @@ class OquvchiBindSerializer(serializers.Serializer):
     telegram_id = serializers.IntegerField()
 
     def validate(self, attrs):
+        org = ariza_kutubxonasi(self.context.get("request"))
+        qs = scope(Oquvchi.objects, org)
         try:
-            oquvchi = Oquvchi.objects.get(
+            oquvchi = qs.get(
                 telefon=attrs["telefon"], karta_raqami=attrs["karta_raqami"]
             )
         except Oquvchi.DoesNotExist:
@@ -98,7 +171,7 @@ class OquvchiBindSerializer(serializers.Serializer):
                 {"error": "topilmadi", "detail": "Ma'lumot topilmadi, kutubxonachiga murojaat qiling"}
             )
         if (
-            Oquvchi.objects.filter(telegram_id=attrs["telegram_id"])
+            qs.filter(telegram_id=attrs["telegram_id"])
             .exclude(pk=oquvchi.pk)
             .exists()
         ):
@@ -137,8 +210,17 @@ class ArizaSerializer(serializers.ModelSerializer):
             "ariza_sanasi",
             "tasdiqlangan_sana",
             "izoh",
+            "qayta_ariza_kerak",
         ]
-        read_only_fields = ["id", "ariza_sanasi", "tasdiqlangan_sana", "holati", "izoh", "rol"]
+        read_only_fields = [
+            "id",
+            "ariza_sanasi",
+            "tasdiqlangan_sana",
+            "holati",
+            "izoh",
+            "rol",
+            "qayta_ariza_kerak",
+        ]
 
 
 class ArizaYaratishSerializer(serializers.ModelSerializer):
@@ -160,13 +242,7 @@ class ArizaYaratishSerializer(serializers.ModelSerializer):
         max_length=30, required=False, allow_blank=True, allow_null=True
     )
     kasb = serializers.CharField(
-        max_length=200, required=False, allow_blank=True, allow_null=True
-    )
-    # O'qituvchi dars beradigan fanlari: oldindan ro'yxatga olingan Fan'lar ID si.
-    fanlar = serializers.PrimaryKeyRelatedField(
-        many=True,
-        queryset=Fan.objects.filter(faol=True),
-        required=False,
+        max_length=60, required=False, allow_blank=True, allow_null=True
     )
 
     class Meta:
@@ -178,7 +254,6 @@ class ArizaYaratishSerializer(serializers.ModelSerializer):
             "rol",
             "sinf",
             "kasb",
-            "fanlar",
             "tugilgan_sana",
             "manzil",
         ]
@@ -190,11 +265,52 @@ class ArizaYaratishSerializer(serializers.ModelSerializer):
             )
         return value
 
+    def validate_fish(self, value):
+        """Ism-familiya — kamida ikki so'z, faqat harflar."""
+        fish = (value or "").strip()
+        if not FISH_RE.fullmatch(fish):
+            raise serializers.ValidationError(
+                "Ism-familiya «Ism Familiya» formatida yozilishi kerak "
+                "(kamida ikki so'z, raqamsiz)."
+            )
+        return fish
+
+    def validate_sinf(self, value):
+        """Sinf — 7-A / 9-B / 10- ko'rinishida bo'lishi shart."""
+        if value is None:
+            return value
+        sinf = value.strip()
+        if not sinf:
+            return sinf
+        if not SINF_RE.fullmatch(sinf):
+            raise serializers.ValidationError(
+                "Sinf «7-A», «9-B» yoki «10-» formatida yozilishi kerak."
+            )
+        return sinf_normal(sinf)
+
+    def validate_kasb(self, value):
+        """O'qituvchi fanni bot taklif qilgan ro'yxatdan tanlaydi."""
+        if not value:
+            return value
+        fanlar = [fan.strip() for fan in value.split(",") if fan.strip()]
+        if len(fanlar) > FAN_LIMIT:
+            raise serializers.ValidationError(
+                f"Ikkitagacha fan tanlash mumkin ({len(fanlar)} ta yuborildi)."
+            )
+        notogri = [fan for fan in fanlar if fan not in FANLAR]
+        if notogri:
+            raise serializers.ValidationError(
+                "Fanlardan faqat bot ko'rsatgan ro'yxatdan tanlash mumkin: "
+                + ", ".join(notogri)
+            )
+        return ", ".join(fanlar)
+
     def create(self, validated_data):
-        fanlar = validated_data.pop("fanlar", [])
         ariza = super().create(validated_data)
-        if fanlar:
-            ariza.fanlar.set(fanlar)
+        # `kasb` is the source of truth; mirror it to the `fanlar` relation for known subjects.
+        names = [name for name in (ariza.kasb or "").split(", ") if name]
+        if names:
+            ariza.fanlar.set(Fan.objects.filter(nomi__in=names))
         return ariza
 
     def validate(self, attrs):
@@ -204,14 +320,15 @@ class ArizaYaratishSerializer(serializers.ModelSerializer):
         if rol == "oqituvchi":
             # O'qituvchi uchun sinf kerak emas, faqat kasb majburiy.
             attrs["sinf"] = None
-            fanlar = list(dict.fromkeys(attrs.get("fanlar") or []))
-            if not fanlar:
+            kasb = (attrs.get("kasb") or "").strip()
+            if not kasb:
                 raise serializers.ValidationError(
-                    {"fanlar": "Kamida bitta fanni tanlang."}
+                    {"kasb": "Kasbingizni ko'rsating (masalan: Matematika)."}
                 )
-            attrs["fanlar"] = fanlar
-            # `kasb` — tanlangan fanlar nomi (ro'yxatlarda ko'rsatish uchun).
-            kasb = kasb_from_fans(fanlar)
+            if len(kasb) > 60:
+                raise serializers.ValidationError(
+                    {"kasb": "Kasb nomi juda uzun (maksimum 60 belgi)."}
+                )
             attrs["kasb"] = kasb
         else:
             # Oquvchi uchun sinf majburiy, kasb kerak emas.
@@ -224,19 +341,36 @@ class ArizaYaratishSerializer(serializers.ModelSerializer):
                 )
             attrs["sinf"] = sinf
             attrs["kasb"] = ""
-            attrs["fanlar"] = []
 
         telegram_id = attrs["telegram_id"]
-        if Oquvchi.objects.filter(telegram_id=telegram_id).exists():
+        # Barcha tekshiruvlar va tozalash faqat joriy kutubxona doirasida:
+        # aks holda boshqa tenant'ning o'quvchisi/arizasi sabab noto'g'ri
+        # xato beriladi yoki uning arizasi o'chirib yuboriladi.
+        org = ariza_kutubxonasi(self.context.get("request"))
+        oquvchilar = scope(Oquvchi.objects, org)
+        arizalar = scope(Ariza.objects, org)
+        # Eski formatda ariza yuborgan (qabul qilingan ham) foydalanuvchilarga
+        # yangi formatda qaytadan ariza topshirishga ruxsat beramiz.
+        bandlangan = oquvchilar.filter(telegram_id=telegram_id).exclude(
+            qayta_ariza_kerak=True
+        ).exists()
+        if bandlangan:
             raise serializers.ValidationError(
                 {"error": "allaqachon_azo", "detail": "Bu telegram akkaunt allaqachon ro'yxatdan o'tgan"}
             )
-        if Ariza.objects.filter(telegram_id=telegram_id, holati="kutmoqda").exists():
+
+        # Faqat yangi formatda yuborilgan (belgilanmagan) kutmoqdagi ariza
+        # to'siq bo'ladi. Eski formatdagilar qaytadan yuborishga ruxsat beradi.
+        kutmoqdagi = arizalar.filter(
+            telegram_id=telegram_id, holati="kutmoqda"
+        ).exclude(qayta_ariza_kerak=True).exists()
+        if kutmoqdagi:
             raise serializers.ValidationError(
                 {"error": "ariza_kutmoqda", "detail": "Arizangiz hali ko'rib chiqilmoqda"}
             )
-        # Eski (bekor/tasdiqlangan) ariza qolsa yangi ariza ochish uchun tozalanadi
-        Ariza.objects.filter(telegram_id=telegram_id).exclude(holati="kutmoqda").delete()
+        # Eski (noto'g'ri formatdagi, bekor yoki tasdiqlangan) arizalar yangi
+        # ariza ochish uchun o'chiriladi — faqat shu kutubxonadagilar.
+        arizalar.filter(telegram_id=telegram_id).delete()
         return attrs
 
 
@@ -245,3 +379,12 @@ class ArizaStatusSerializer(serializers.Serializer):
 
     holati = serializers.CharField()
     izoh = serializers.CharField(required=False, allow_blank=True)
+    qayta_ariza_kerak = serializers.BooleanField(default=False)
+
+
+class OquvchilarniOchirishSerializer(serializers.Serializer):
+    """Profil sahifasidan tanlangan kitobxonlarni o'chirish so'rovi."""
+
+    ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1), allow_empty=False
+    )

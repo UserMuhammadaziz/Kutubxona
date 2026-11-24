@@ -20,6 +20,8 @@ from django.urls import reverse
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 
+from config.test_helpers import TenantTestMixin
+
 from berish.models import Berish
 from berish.services import kitob_ber
 from kitob.models import BandQilish, Kitob
@@ -39,7 +41,7 @@ from oquvchi.models import Oquvchi
 User = get_user_model()
 
 
-class BandTestBase(TestCase):
+class BandTestBase(TenantTestMixin, TestCase):
     def setUp(self):
         super().setUp()
         self.client = APIClient()
@@ -49,6 +51,8 @@ class BandTestBase(TestCase):
         self.admin = User.objects.create_user(
             username="admin", password="parol12345", full_name="A", rol="administrator"
         )
+        self.azolik(self.xodim)
+        self.azolik(self.admin, rol="administrator")
         self.kitob = Kitob.objects.create(
             nomi="O'tkan kunlar", muallif="Abdulla Qodiriy", janr="badiiy", nashr_yili=2015
         )

@@ -33,6 +33,10 @@ import type {
   BandQilishMeni,
   BandQilishYaratishPayload,
   BandHolati,
+  FaollikReytingi,
+  RecentActivity,
+  XatolikXabari,
+  XatolikXabariNatijasi,
 } from '../types'
 
 // ---- Auth ----
@@ -111,6 +115,22 @@ export const authApi = {
     api.patch<OrganizationInfo>(`/organizations/${id}/`, payload).then((r) => r.data),
   register: (payload: RegisterPayload) =>
     api.post<{ access: string; refresh: string; user: User; organization: any }>('/auth/register/', payload).then((r) => r.data),
+  changePassword: (payload: ParolAlmashtirishPayload) =>
+    api.post<{ detail: string }>('/auth/change-password/', payload).then((r) => r.data),
+  updateProfile: (payload: ProfilYangilashPayload) =>
+    api.patch<User>('/auth/profile/', payload).then((r) => r.data),
+}
+
+export interface ProfilYangilashPayload {
+  username?: string
+  full_name?: string
+  telefon?: string
+}
+
+export interface ParolAlmashtirishPayload {
+  joriy_parol: string
+  yangi_parol: string
+  yangi_parol_takror: string
 }
 
 // ---- Books ----
@@ -177,6 +197,51 @@ export const readersApi = {
     api.patch<Oquvchi>(`/readers/${id}/`, payload).then((r) => r.data),
   sendMessage: (id: number, text: string) =>
     api.post<{ sent: boolean }>(`/readers/${id}/message/`, { text }).then((r) => r.data),
+  deleteSelected: (ids: number[]) =>
+    api.post<OchirishNatijasi>('/readers/ochirish/', { ids }).then((r) => r.data),
+}
+
+export interface OchirishNatijasi {
+  ochirildi: number
+  ochirilmadi: { id: number; fish: string; sabab: string }[]
+}
+
+// ---- Xabarlar (Profil sahifasidan) ----
+
+export interface XabarYuborishPayload {
+  tur: 'shaxs' | 'sinf' | 'hamma'
+  rol: OquvchiRol
+  oquvchi?: number
+  sinf?: string
+  matn: string
+}
+
+export interface XabarNatijasi {
+  jami: number
+  yuborildi: number
+  telegramsiz: number
+  xatolik: number
+}
+
+export const messagesApi = {
+  classes: (rol: OquvchiRol) =>
+    api.get<string[]>('/messages/classes/', { params: { rol } }).then((r) => r.data),
+  send: (payload: XabarYuborishPayload) =>
+    api.post<XabarNatijasi>('/messages/send/', payload).then((r) => r.data),
+}
+
+// ---- Profil: xatolik haqida xabar ----
+
+export interface XatolikXabariPayload {
+  matn: string
+  sahifa?: string
+  tur?: 'qolda' | 'avtomatik'
+}
+
+export const xatolikApi = {
+  list: () => api.get<XatolikXabari[]>('/auth/xatolik-xabari/').then((r) => r.data),
+  send: (payload: XatolikXabariPayload) =>
+    api.post<XatolikXabariNatijasi>('/auth/xatolik-xabari/', payload).then((r) => r.data),
 }
 
 // ---- Applications (Arizalar) ----
@@ -290,7 +355,11 @@ export const staffApi = {
 
 export const statsApi = {
   topBooks: (limit = 10) => api.get<TopBook[]>('/stats/top-books/', { params: { limit } }).then((r) => r.data),
+  recentActivity: (limit = 8) =>
+    api.get<RecentActivity[]>('/stats/recent-activity/', { params: { limit } }).then((r) => r.data),
   dashboard: () => api.get<DashboardStats>('/stats/dashboard/').then((r) => r.data),
+  faollikReytingi: () =>
+    api.get<FaollikReytingi>('/stats/ratings/activity/').then((r) => r.data),
 }
 
 // ---- Announcements ----

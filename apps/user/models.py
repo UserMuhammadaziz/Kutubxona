@@ -36,3 +36,46 @@ class ChatXabar(models.Model):
 
     def __str__(self):
         return f"{self.user_id} {self.rol}: {self.matn[:40]}"
+
+
+class XatolikXabari(models.Model):
+    """Profil orqali kelgan xatolik xabari (qo'lda yoki avtomatik ushlangan).
+
+    Xabar bazada saqlanadi (keyin ko'rish/tekshirish uchun) va joriy
+    kutubxonaning egasi/administratorlariga Telegram orqali yuboriladi.
+    """
+
+    TURLARI = [
+        ("qolda", "Qo'lda yuborilgan"),
+        ("avtomatik", "Avtomatik ushlangan"),
+    ]
+
+    organization = models.ForeignKey(
+        "organization.Organization",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="xatolik_xabarlari",
+    )
+    yuborgan = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="xatolik_xabarlari",
+    )
+    matn = models.TextField()
+    sahifa = models.CharField(max_length=300, blank=True)
+    tur = models.CharField(max_length=20, choices=TURLARI, default="qolda")
+    yaratilgan = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-yaratilgan"]
+        indexes = [
+            models.Index(
+                fields=["organization", "-yaratilgan"], name="xato_org_sana_idx"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.yaratilgan:%Y-%m-%d %H:%M} — {self.matn[:50]}"
