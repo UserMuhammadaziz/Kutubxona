@@ -2,8 +2,9 @@ import { useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuthStore } from './store/auth'
 import { Layout } from './components/Layout'
+import { Company } from './pages/Company'
 import { Profile } from './pages/Profile'
-import { RequireAdmin, RequireAuth } from './components/RequireAuth'
+import { RequireAdmin, RequireAuth, RequirePlatform } from './components/RequireAuth'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
 import { Books } from './pages/Books'
@@ -19,9 +20,9 @@ import { Announcements } from './pages/Announcements'
 import { Fines } from './pages/Fines'
 import { Staff } from './pages/Staff'
 import { Guide, PublicGuide } from './pages/Guide'
-import { Demo } from './pages/Demo'
 import { Register } from './pages/Register'
 import { Home } from './pages/Home'
+import { Platform } from './pages/Platform'
 
 function App() {
   const hydrate = useAuthStore((s) => s.hydrate)
@@ -36,7 +37,6 @@ function App() {
       <Route path="/yordam" element={<PublicGuide />} />
       <Route path="/register" element={<Register />} />
       <Route path="/welcome" element={<Home />} />
-      <Route path="/demo" element={<Demo />} />
 
       <Route element={<RequireAuth />}>
         <Route element={<Layout />}>
@@ -55,7 +55,9 @@ function App() {
           <Route path="/fines" element={<Fines />} />
           <Route path="/guide" element={<Guide />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/company" element={<Company />} />
 
+          <Route path="/platform" element={<RequirePlatform><Platform /></RequirePlatform>} />
           <Route element={<RequireAdmin />}>
             <Route path="/staff" element={<Staff />} />
           </Route>

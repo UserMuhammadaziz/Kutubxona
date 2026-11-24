@@ -5,8 +5,10 @@ yuborgan ID'lar (kitob, band, navbat) har doim shu kutubxona bo'yicha
 qayta tekshiriladi — boshqa kutubxona obyektiga murojaat qilib bo'lmaydi.
 """
 
+import hashlib
 import re
 
+from django.core.cache import cache
 from django.db.models import Count, Q
 from django.utils import timezone
 
@@ -16,13 +18,24 @@ from jarima.models import Jarima
 from kitob.models import BandQilish, Kitob
 from navbat.models import Navbat
 from organization.models import Membership
-from oquvchi.models import Ariza, Fan, Oquvchi
+from oquvchi.models import Ariza, Fan, Oquvchi, kasb_from_fans
 
-from .client import answer_callback_query, edit_message_reply_markup
+from .client import answer_callback_query, answer_inline_query, edit_message_reply_markup
 from .models import TelegramSession
 from .services import xabar_yubor
 
 TELEFON_RE = re.compile(r"^\+998\d{9}$")
+
+
+def _normalize_phone(raw):
+    """Accept '+998901234567', '998 90 123 45 67', '00998...', '901234567'; return '+998XXXXXXXXX' or None."""
+    digits = re.sub(r"\D", "", raw or "")
+    if digits.startswith("00998"):
+        digits = digits[2:]
+    if len(digits) == 9:
+        digits = "998" + digits
+    phone = "+" + digits
+    return phone if TELEFON_RE.match(phone) else None
 
 READER_MENU = {
     "keyboard": [
@@ -41,6 +54,9 @@ STAFF_MENU = {
     ],
     "resize_keyboard": True,
 }
+
+
+MENU_LABELS = {b["text"] for m in (READER_MENU, STAFF_MENU) for row in m["keyboard"] for b in row}
 
 
 def _inline(rows):
@@ -195,7 +211,7 @@ def _ariza_yarat(bot, chat_id, telegram_id, data):
         telefon=data["telefon"],
         rol=rol,
         sinf=data.get("sinf") if rol == "oquvchi" else None,
-        kasb=", ".join(f.nomi for f in fanlar) if rol == "oqituvchi" else "",
+        kasb=kasb_from_fans(fanlar) if rol == "oqituvchi" else "",
     )
     if fanlar:
         ariza.fanlar.set(fanlar)
@@ -258,18 +274,29 @@ def _ariza_text(bot, message, sessiya):
             return
         data["fish"] = matn[:130]
         _set_session(bot, telegram_id, chat_id, "ariza_telefon", data)
-        _send(bot, chat_id, "Telefon raqamingizni +998XXXXXXXXX formatida kiriting:")
+        _send(bot, chat_id, "Telefon raqamingizni kiriting. Masalan: +998901234567")
         return
     if step == "ariza_telefon":
-        if not TELEFON_RE.match(matn):
-            _send(bot, chat_id, "Telefon +998123456789 formatida bo'lishi kerak.")
+        telefon = _normalize_phone(matn)
+        if not telefon:
+            _send(
+                bot,
+                chat_id,
+                "Telefon raqam noto'g'ri. Masalan: +998901234567 yoki 90 123 45 67.\n"
+                "Bekor qilish: /start",
+            )
             return
         if Oquvchi.objects.filter(
-            organization=bot.organization, telefon=matn
+            organization=bot.organization, telefon=telefon
         ).exists():
-            _send(bot, chat_id, "Bu telefon raqam bilan o'quvchi allaqachon ro'yxatda.")
+            _send(
+                bot,
+                chat_id,
+                "Bu telefon raqam bilan o'quvchi allaqachon ro'yxatda. "
+                "Boshqa raqam yuboring yoki /start bosib, mavjud hisobingizni ulang.",
+            )
             return
-        data["telefon"] = matn
+        data["telefon"] = telefon
         if data.get("rol") == "oqituvchi":
             _set_session(bot, telegram_id, chat_id, "ariza_kasb", data)
             _send(bot, chat_id, FAN_SAVOLI, _fan_klaviatura([]))
@@ -297,6 +324,94 @@ def _ariza_text(bot, message, sessiya):
         return
 
 
+def _search_books(bot, q, limit, offset=0):
+    """Books of the bot's library matching title, author or ISBN, with copy availability counts.
+
+    An empty `q` lists the whole catalogue, available books first.
+    """
+    qs = Kitob.objects.filter(organization=bot.organization)
+    if q:
+        qs = qs.filter(Q(nomi__icontains=q) | Q(muallif__icontains=q) | Q(isbn__icontains=q))
+    qs = qs.annotate(
+        mavjud_soni=Count("nusxalar", filter=Q(nusxalar__holati="mavjud")),
+        jami_soni=Count("nusxalar"),
+    )
+    qs = qs.order_by("-mavjud_soni", "nomi", "pk") if not q else qs.order_by("nomi", "pk")
+    return qs[offset : offset + limit]
+
+
+INLINE_CACHE_SECONDS = 30
+INLINE_PAGE_SIZE = 20
+
+
+def _book_action_rows(kitob_pk, available):
+    """Reserve button, plus a queue button when no copy is free."""
+    rows = [[{"text": "🔒 Band qilish", "callback_data": f"band:{kitob_pk}"}]]
+    if not available:
+        rows.append([{"text": "⏳ Navbatga yozilish", "callback_data": f"navbat:{kitob_pk}"}])
+    return rows
+
+
+def _inline_query(bot, inline):
+    """Answer `@bot text` queries with matching books, only if the library enabled `search_inline`."""
+    if not bot.organization.has_capability("search_inline"):
+        return
+    token = bot.get_token()
+    query_id = inline["id"]
+    telegram_id = inline["from"]["id"]
+    q = (inline.get("query") or "").strip()
+    if not (_reader(bot, telegram_id) or _staff(bot, telegram_id)):
+        # The catalogue is for members only; point strangers to registration.
+        answer_inline_query(
+            token, query_id, [], cache_time=0,
+            button={"text": "Ro'yxatdan o'tish", "start_parameter": "start"},
+        )
+        return
+    if len(q) == 1:
+        answer_inline_query(token, query_id, [], cache_time=5)
+        return
+    # Results are the same for every member, so share them through Redis for a short while
+    # (availability counts may lag by up to INLINE_CACHE_SECONDS).
+    offset = int(inline["offset"]) if str(inline.get("offset") or "").isdigit() else 0
+    cache_key = f"inline:{bot.organization_id}:{offset}:{hashlib.md5(q.lower().encode()).hexdigest()}"
+    cached = cache.get(cache_key)
+    if cached is None:
+        cached = _inline_results(bot, q, offset)
+        cache.set(cache_key, cached, INLINE_CACHE_SECONDS)
+    results, has_more = cached
+    answer_inline_query(
+        token, query_id, results, cache_time=INLINE_CACHE_SECONDS,
+        next_offset=str(offset + INLINE_PAGE_SIZE) if has_more else "",
+    )
+
+
+def _inline_results(bot, q, offset=0):
+    """One page of article results plus whether more books follow (Telegram allows max 50 per answer)."""
+    results = []
+    books = list(_search_books(bot, q, INLINE_PAGE_SIZE + 1, offset))
+    has_more = len(books) > INLINE_PAGE_SIZE
+    for kitob in books[:INLINE_PAGE_SIZE]:
+        holat = f"🟢 Mavjud: {kitob.mavjud_soni}/{kitob.jami_soni}" if kitob.mavjud_soni else "🔴 Hozir mavjud emas"
+        results.append(
+            {
+                "type": "article",
+                "id": str(kitob.pk),
+                "title": kitob.nomi[:100],
+                "description": f"{kitob.muallif or '—'} · {holat}"[:200],
+                "input_message_content": {
+                    "message_text": (
+                        f"📖 <b>{telegram_escape(kitob.nomi)}</b>\n"
+                        f"✍️ {telegram_escape(kitob.muallif or '—')}\n{holat}"
+                    ),
+                    "parse_mode": "HTML",
+                },
+                # Reserve / queue straight from the posted message.
+                "reply_markup": _inline(_book_action_rows(kitob.pk, kitob.mavjud_soni)),
+            }
+        )
+    return results, has_more
+
+
 def _qidiruv(bot, chat_id, telegram_id, q):
     oquvchi = _reader(bot, telegram_id)
     if not oquvchi:
@@ -305,15 +420,7 @@ def _qidiruv(bot, chat_id, telegram_id, q):
     if not q:
         _send(bot, chat_id, "Qidiruv so'zini kiriting.")
         return
-    kitoblar = (
-        Kitob.objects.filter(organization=bot.organization)
-        .filter(Q(nomi__icontains=q) | Q(muallif__icontains=q) | Q(isbn__icontains=q))
-        .annotate(
-            mavjud_soni=Count("nusxalar", filter=Q(nusxalar__holati="mavjud")),
-            jami_soni=Count("nusxalar"),
-        )
-        .order_by("nomi")[:10]
-    )
+    kitoblar = _search_books(bot, q, 10)
     if not kitoblar:
         _send(bot, chat_id, "Hech narsa topilmadi. Boshqacha so'z bilan urinib ko'ring.")
         return
@@ -368,14 +475,7 @@ def _kitob_karta(bot, chat_id, telegram_id, kitob_id, callback_id=None):
                 f"{f' ({telegram_escape(sinf)})' if sinf else ''} — "
                 f"{berish.qaytarish_muddati}\n"
             )
-    tugmalar = [
-        [{"text": "🔒 Band qilish", "callback_data": f"band:{kitob.pk}"}],
-    ]
-    if not mavjud:
-        tugmalar.append(
-            [{"text": "⏳ Navbatga yozilish", "callback_data": f"navbat:{kitob.pk}"}]
-        )
-    _send(bot, chat_id, matn, _inline(tugmalar))
+    _send(bot, chat_id, matn, _inline(_book_action_rows(kitob.pk, mavjud)))
     if callback_id:
         try:
             answer_callback_query(bot.get_token(), callback_id)
@@ -665,7 +765,15 @@ def _text(bot, message):
     if not matn:
         return
 
+    if message.get("via_bot"):
+        # A book card posted from inline search: not a query, do not feed it to the search step.
+        return
+
     sessiya = _session(bot, telegram_id)
+    if sessiya and sessiya.step in ("qidiruv", "qaytarish") and matn in MENU_LABELS:
+        # A menu tap while waiting for a search/inventory text abandons that step.
+        _clear_session(bot, telegram_id)
+        sessiya = None
     if sessiya and not matn.startswith("/"):
         _ariza_text(bot, message, sessiya)
         return
@@ -698,6 +806,12 @@ def _text(bot, message):
     if matn.startswith("/yordam") or matn == "ℹ️ Yordam":
         return _yordam(bot, chat_id)
     if matn == "🔎 Kitob qidirish":
+        if bot.organization.has_capability("search_inline"):
+            _clear_session(bot, telegram_id)
+            return _send(
+                bot, chat_id, "Kitob nomi, muallifi yoki ISBNi bo'yicha qidiring:",
+                _inline([[{"text": "🔎 Qidirishni boshlash", "switch_inline_query_current_chat": ""}]]),
+            )
         _set_session(bot, telegram_id, chat_id, "qidiruv")
         return _send(bot, chat_id, "Kitob nomi, muallifi yoki ISBNini kiriting:")
     if matn == "📚 Kategoriyalar":
@@ -722,9 +836,17 @@ def _text(bot, message):
     return _send(bot, chat_id, "Kerakli bo'limni tanlang.", READER_MENU)
 
 
+def _ack(bot, callback_id):
+    try:
+        answer_callback_query(bot.get_token(), callback_id)
+    except Exception:
+        pass
+
+
 def _callback(bot, callback):
-    chat_id = callback["message"]["chat"]["id"]
     telegram_id = callback["from"]["id"]
+    # Cards posted via inline search in other chats carry no `message`; reply in the user's private chat.
+    chat_id = callback["message"]["chat"]["id"] if callback.get("message") else telegram_id
     data = callback.get("data", "")
     callback_id = callback.get("id")
     if data.startswith("rol:"):
@@ -765,8 +887,10 @@ def _callback(bot, callback):
     elif data.startswith("band_no:"):
         _band_qaror(bot, chat_id, telegram_id, data.split(":", 1)[1], False, callback_id)
     elif data.startswith("band:"):
+        _ack(bot, callback_id)
         _band_qilish(bot, chat_id, telegram_id, data.split(":", 1)[1])
     elif data.startswith("navbat:"):
+        _ack(bot, callback_id)
         _navbatga_qosh(bot, chat_id, telegram_id, data.split(":", 1)[1])
 
 
@@ -775,4 +899,6 @@ def handle_update(bot, update):
         _text(bot, update["message"])
     elif "callback_query" in update:
         _callback(bot, update["callback_query"])
+    elif "inline_query" in update:
+        _inline_query(bot, update["inline_query"])
     return True

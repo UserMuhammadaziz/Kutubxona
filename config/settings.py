@@ -210,8 +210,12 @@ REST_FRAMEWORK = {
         "django_filters.rest_framework.DjangoFilterBackend",
         "rest_framework.filters.SearchFilter",
     ),
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "DEFAULT_PAGINATION_CLASS": "config.pagination.StandardPagination",
     "PAGE_SIZE": 20,
+    "DEFAULT_RENDERER_CLASSES": (
+        "config.renderers.StatusJSONRenderer",
+        "rest_framework.renderers.BrowsableAPIRenderer",
+    ),
     "EXCEPTION_HANDLER": "config.exceptions.xato_handler",
     "DEFAULT_THROTTLE_CLASSES": (
         "rest_framework.throttling.AnonRateThrottle",
@@ -278,6 +282,12 @@ TELEGRAM_WEBHOOK_BASE_URL = os.environ.get(
 TELEGRAM_WEBHOOK_SECRET = os.environ.get("TELEGRAM_WEBHOOK_SECRET", "")
 BOT_SERVICE_USERNAME = os.environ.get("BOT_SERVICE_USERNAME", "")
 BOT_SERVICE_PASSWORD = os.environ.get("BOT_SERVICE_PASSWORD", "")
+
+# --- Web Push (VAPID). Kalitlarni `npx web-push generate-vapid-keys` yoki
+# pywebpush `vapid --gen` bilan yarating. Bo'sh bo'lsa push o'chiq.
+VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")
+VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
+VAPID_CLAIMS_EMAIL = os.environ.get("VAPID_CLAIMS_EMAIL", "admin@kutubxona.local")
 
 # Frontend manzili (parolni tiklash havolasi va CORS uchun).
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")

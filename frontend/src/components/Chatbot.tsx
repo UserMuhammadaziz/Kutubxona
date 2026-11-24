@@ -100,7 +100,7 @@ export function Chatbot() {
       )}
 
       {isOpen && (
-        <div className="fixed inset-x-4 bottom-20 z-50 sm:left-auto sm:w-96 lg:bottom-6 lg:right-6">
+        <div className="fixed inset-x-4 bottom-20 z-50 sm:left-auto sm:w-[30rem] lg:bottom-6 lg:right-6 lg:w-[36rem]">
           <div className="flex flex-col rounded-2xl border border-slate-200 bg-paper shadow-xl overflow-hidden dark:border-slate-700 dark:bg-slate-800">
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700">
               <div className="flex items-center gap-2">
@@ -128,7 +128,7 @@ export function Chatbot() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[min(400px,55dvh)]">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 h-[min(560px,62dvh)]">
               {messages.map((msg, idx) => (
                 <div
                   key={idx}

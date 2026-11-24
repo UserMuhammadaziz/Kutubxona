@@ -3,7 +3,9 @@ from datetime import date
 
 from rest_framework import serializers
 
-from .models import Fan, Ariza, Oquvchi
+from organization.tenancy import scope
+
+from .models import Fan, Ariza, Oquvchi, kasb_from_fans
 from .services import oquvchi_yarat
 
 # Ariza.rol va Oquvchi.rol uchun bir xil qiymatlar (models.RUL_CHOICES ga
@@ -67,7 +69,8 @@ class OquvchiYaratishSerializer(serializers.ModelSerializer):
         return attrs
 
     def validate_telefon(self, value):
-        if Oquvchi.objects.filter(telefon=value).exists():
+        org = self.context.get("organization")
+        if scope(Oquvchi.objects, org).filter(telefon=value).exists():
             raise serializers.ValidationError(
                 "Bu telefon raqamiga allaqachon o'quvchi kartasi ochilgan."
             )
@@ -208,7 +211,7 @@ class ArizaYaratishSerializer(serializers.ModelSerializer):
                 )
             attrs["fanlar"] = fanlar
             # `kasb` — tanlangan fanlar nomi (ro'yxatlarda ko'rsatish uchun).
-            kasb = ", ".join(f.nomi for f in fanlar)
+            kasb = kasb_from_fans(fanlar)
             attrs["kasb"] = kasb
         else:
             # Oquvchi uchun sinf majburiy, kasb kerak emas.

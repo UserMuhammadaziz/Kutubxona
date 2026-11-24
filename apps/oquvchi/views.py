@@ -13,6 +13,7 @@ from config.telegram import telegram_escape
 from telegrambot.services import organizatsiya_xabari
 from jarima.models import Jarima
 from jarima.serializers import JarimaMeniSerializer
+from organization.tenancy import TenantViewSetMixin
 from user.permissions import IsLibrarian
 from . import services
 from .filters import ReaderFilter
@@ -28,6 +29,25 @@ from .serializers import (
 )
 
 
+def trust_score(*, late_days, overdue_loans, lost, unpaid_fines, paid_fines):
+    """Reader reliability in percent (0-100).
+
+    Everyone starts at 100 and loses points gradually:
+    0.5 per day a loan was late (max 10 per loan), 2 per late return, 3 more per loan still overdue,
+    5 per unpaid fine, 2 per paid fine, 25 per lost book.
+    `late_days` is a list with the number of late days of each late loan (returned or still overdue).
+    """
+    penalty = sum(min(d * 0.5, 10) for d in late_days) + 2 * len(late_days)
+    penalty += 3 * overdue_loans + 5 * unpaid_fines + 2 * paid_fines + 25 * lost
+    return max(0, round(100 - penalty))
+
+
+def trust_level(score, total_loans=1):
+    if not total_loans:
+        return "new"
+    return "high" if score >= 80 else "medium" if score >= 50 else "low"
+
+
 def _reader_stats(reader):
     """Aggregate numbers for the reader profile header."""
     today = date.today()
@@ -35,17 +55,30 @@ def _reader_stats(reader):
     fines = Jarima.objects.filter(berish__oquvchi=reader)
     unpaid = fines.filter(tolandimi=False).aggregate(s=Sum("summa"))["s"] or 0
     paid = fines.filter(tolandimi=True).aggregate(s=Sum("summa"))["s"] or 0
+    total = loans.count()
+    overdue = loans.filter(qaytarilgan_sana__isnull=True, qaytarish_muddati__lt=today).count()
+    returned_late = loans.filter(qaytarilgan_sana__gt=F("qaytarish_muddati")).count()
+    late_days = [
+        ((returned or today) - due).days
+        for returned, due in loans.values_list("qaytarilgan_sana", "qaytarish_muddati")
+        if (returned or today) > due
+    ]
+    score = trust_score(
+        late_days=late_days,
+        overdue_loans=overdue,
+        lost=loans.filter(holati="yoqolgan").count(),
+        unpaid_fines=fines.filter(tolandimi=False).count(),
+        paid_fines=fines.filter(tolandimi=True).count(),
+    )
     return {
-        "total_loans": loans.count(),
+        "total_loans": total,
         "active_loans": loans.filter(qaytarilgan_sana__isnull=True).count(),
-        "overdue_loans": loans.filter(
-            qaytarilgan_sana__isnull=True, qaytarish_muddati__lt=today
-        ).count(),
-        "returned_late": loans.filter(
-            qaytarilgan_sana__gt=F("qaytarish_muddati")
-        ).count(),
+        "overdue_loans": overdue,
+        "returned_late": returned_late,
         "unpaid_fines_total": unpaid,
         "paid_fines_total": paid,
+        "trust_score": score,
+        "trust_level": trust_level(score, total),
     }
 
 
@@ -83,7 +116,7 @@ def _reader_history(reader, limit=30):
     return rows
 
 
-class OquvchiViewSet(viewsets.ModelViewSet):
+class OquvchiViewSet(TenantViewSetMixin, viewsets.ModelViewSet):
     """
     GET   /api/readers/       -> ro'yxat (qidiruv: fish, telefon, karta_raqami)
     GET   /api/readers/?rol=oqituvchi -> faqat o'qituvchilar ("O'qituvchilar" bo'limi)

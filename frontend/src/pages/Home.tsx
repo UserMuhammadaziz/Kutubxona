@@ -1,21 +1,22 @@
 import type { CSSProperties, ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Logo } from '../components/Logo'
-import { LiveDemo } from '../components/LiveDemo'
+import { Icons } from '../components/icons'
+import { useThemeStore } from '../store/theme'
 
 /*
  * Landing (/welcome). Iliq bej fon, to'q yashil aksent, yumshoq burchaklar (16-24px),
  * bitta shrift. Imkoniyatlar bir xil kartalarda emas, turli o'lchamdagi mozaikada.
- * Hero'dagi panel — LiveDemo (jonli namuna), skrinshot emas.
+ * Skrinshotlar — dev serverdagi real ilovadan (namunaviy ma'lumotlar bilan).
  */
 
-const FON = '#ece9de'
-const QUM = '#e2d6c0'
-const OQ = '#faf8f2'
-const YASHIL = '#0f3d2e'
-const YASHIL_OCH = '#1f9d63'
-const INK = '#1f1b16'
-const SOYA = '#5c554b'
+const FON = 'var(--l-bg)'
+const QUM = 'var(--l-sand)'
+const OQ = 'var(--l-card)'
+const YASHIL = 'var(--l-green)'
+const YASHIL_OCH = 'var(--l-accent)'
+const INK = 'var(--l-ink)'
+const SOYA = 'var(--l-muted)'
 const SHRIFT: CSSProperties = { fontFamily: "'IBM Plex Sans', system-ui, sans-serif" }
 
 const btn = 'inline-flex min-h-12 items-center rounded-full px-6 text-base font-semibold'
@@ -39,21 +40,28 @@ function Tile({
 }
 
 export function Home() {
+  const theme = useThemeStore((t) => t.theme)
+  const toggleTheme = useThemeStore((t) => t.toggle)
   return (
-    <div className="min-h-screen" style={{ ...SHRIFT, background: FON, color: INK }}>
+    <div className="landing min-h-screen" style={{ ...SHRIFT, background: FON, color: INK }}>
       <header className="mx-auto flex h-20 max-w-6xl items-center justify-between px-4">
         <Logo />
         <nav className="flex items-center gap-1 sm:gap-2">
-          <Link to="/demo" className="hidden px-3 py-2 text-sm font-medium hover:underline sm:block">
-            Sinab ko‘rish
-          </Link>
           <Link to="/yordam" className="hidden px-3 py-2 text-sm font-medium hover:underline md:block">
             Qo‘llanma
           </Link>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Yorug rejimga o‘tish' : 'Qorong‘i rejimga o‘tish'}
+            className="rounded-full p-2.5 hover:bg-black/10 dark:hover:bg-white/10"
+          >
+            {theme === 'dark' ? Icons.sun({ className: 'h-5 w-5' }) : Icons.moon({ className: 'h-5 w-5' })}
+          </button>
           <Link
             to="/login"
             className="rounded-full border px-4 py-2 text-sm font-semibold"
-            style={{ borderColor: YASHIL, color: YASHIL }}
+            style={{ borderColor: 'var(--l-green-ink)', color: 'var(--l-green-ink)' }}
           >
             Tizimga kirish
           </Link>
@@ -77,29 +85,33 @@ export function Home() {
             <Link to="/register" className={btn + ' text-white'} style={{ background: YASHIL }}>
               Ro‘yxatdan o‘tish
             </Link>
-            <Link to="/demo" className={btn} style={{ background: OQ }}>
-              Sinab ko‘rish
-            </Link>
           </div>
 
           <figure className="mt-12 overflow-hidden rounded-[24px] p-2 sm:p-3" style={{ background: QUM }}>
-            <LiveDemo />
+            {/* Light and dark variants; the `dark` class on <html> picks one. */}
+            <img
+              src="/landing/panel.jpg"
+              alt="Boshqaruv paneli: muddati o‘tgan berishlar, navbatlar, jarimalar, fond holati, so‘nggi harakatlar"
+              className="block h-auto w-full rounded-[16px] dark:hidden"
+              width={1568}
+              height={665}
+            />
+            <img
+              src="/landing/panel-dark.jpg"
+              alt="Boshqaruv paneli (qorong‘i rejim): muddati o‘tgan berishlar, navbatlar, jarimalar, fond holati"
+              className="hidden h-auto w-full rounded-[16px] dark:block"
+              width={1568}
+              height={720}
+            />
           </figure>
-          <p className="mt-2 text-sm" style={{ color: SOYA }}>
-            Bu ishlaydigan namuna: tugmalarni bosib ko‘ring. To‘liq sinov uchun{' '}
-            <Link to="/demo" className="font-semibold underline">
-              sinab ko‘rish sahifasiga
-            </Link>{' '}
-            o‘ting.
-          </p>
         </section>
 
         {/* Raqamlar */}
         <section className="mx-auto mt-12 grid max-w-6xl gap-3 px-4 sm:grid-cols-3">
           {[
-            ['Qizil', 'raqam: muddati o‘tgan berishlar panelda darrov ko‘rinadi'],
-            ['Nusxa', 'har birining inventar raqami bor: javonda yoki o‘quvchida ekani ko‘rinadi'],
-            ['Jarima', 'kechikkan kunga qarab o‘zi hisoblanadi'],
+            ['2', 'muddati o‘tgan berish — panelda qizil raqam bilan ajralib turadi'],
+            ['28', 'nusxa — qaysi biri javonda, qaysi biri o‘quvchida ko‘rinadi'],
+            ['35 000 so‘m', 'to‘lanmagan jarima — kechikish bo‘yicha o‘zi hisoblanadi'],
           ].map(([n, m]) => (
             <div key={n} className="rounded-[22px] p-5" style={{ background: OQ }}>
               <div className="text-2xl font-bold sm:text-3xl">{n}</div>
@@ -121,6 +133,22 @@ export function Home() {
                 O‘quvchini toping, kitobni tanlang, bering. Qaytganda qator oxiridagi tugmani bosasiz — nusxa
                 javonga qaytadi.
               </p>
+              <img
+                src="/landing/berish.jpg"
+                alt="Berish va qaytarish jadvali: kitob, o‘quvchi, berilgan sana, muddat, Qaytarish tugmasi"
+                className="mt-5 block h-auto w-full rounded-[14px] dark:hidden"
+                loading="lazy"
+                width={1340}
+                height={570}
+              />
+              <img
+                src="/landing/berish-dark.jpg"
+                alt="Berish va qaytarish jadvali (qorong‘i rejim)"
+                className="mt-5 hidden h-auto w-full rounded-[14px] dark:block"
+                loading="lazy"
+                width={1340}
+                height={570}
+              />
             </Tile>
 
             <Tile bg={YASHIL} color="#fff" className="lg:col-span-2">
@@ -200,7 +228,7 @@ export function Home() {
               Kutubxonangizni bugun ro‘yxatdan o‘tkazing
             </h2>
             <div className="flex flex-wrap gap-3">
-              <Link to="/register" className={btn} style={{ background: '#fff', color: YASHIL }}>
+              <Link to="/register" className={btn} style={{ background: '#fff', color: '#0f3d2e' }}>
                 Ro‘yxatdan o‘tish
               </Link>
               <Link to="/yordam" className={btn} style={{ border: '1px solid #ffffff80' }}>

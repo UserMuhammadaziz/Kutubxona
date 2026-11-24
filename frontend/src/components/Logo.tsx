@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { useId, useState } from 'react'
 
 interface LogoMarkProps {
   className?: string
@@ -39,14 +39,28 @@ interface LogoProps {
   className?: string
   /** Kutubxona nomi (bo'sh bo'lsa standart yozuv). */
   subtitle?: string
+  /** Kutubxonaning o'z logotipi (https URL); yuklanmasa standart belgi ko'rsatiladi. */
+  logoUrl?: string
 }
 
 /** Yagona brend lockup: belgi + «Kutubxona» matni. */
-export function Logo({ withWordmark = true, markClassName, className, subtitle }: LogoProps) {
-  if (!withWordmark) return <LogoMark className={markClassName} />
+export function Logo({ withWordmark = true, markClassName, className, subtitle, logoUrl }: LogoProps) {
+  const [broken, setBroken] = useState<string | null>(null)
+  const mark =
+    logoUrl && broken !== logoUrl ? (
+      <img
+        src={logoUrl}
+        alt=""
+        onError={() => setBroken(logoUrl)}
+        className={`${markClassName ?? 'h-7 w-7'} rounded-md object-contain`}
+      />
+    ) : (
+      <LogoMark className={markClassName ?? 'h-7 w-7'} />
+    )
+  if (!withWordmark) return mark
   return (
     <span className={`flex items-center gap-2 ${className ?? ''}`}>
-      <LogoMark className={markClassName ?? 'h-7 w-7'} />
+      {mark}
       <span className="flex flex-col leading-none">
         <span className="text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-100">
           Kutubxona

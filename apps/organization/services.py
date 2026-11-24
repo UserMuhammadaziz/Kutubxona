@@ -135,6 +135,10 @@ def set_status(organization, status, *, actor=None, reason="", request=None):
         metadata={"reason": reason},
         request=request,
     )
+    if status in (Organization.HOLAT_ACTIVE, Organization.HOLAT_REJECTED):
+        from .push import notify_organization_status
+
+        notify_organization_status(organization)
     return organization
 
 

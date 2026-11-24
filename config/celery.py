@@ -9,6 +9,14 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks()
 
 app.conf.beat_schedule = {
+    "heartbeat-har-daqiqada": {
+        "task": "organization.tasks.heartbeat",
+        "schedule": crontab(minute="*"),
+    },
+    "botlarni-har-10-daqiqada-tekshir": {
+        "task": "organization.tasks.check_bots",
+        "schedule": crontab(minute="*/10"),
+    },
     "jarimalarni-har-kuni-hisobla": {
         "task": "jarima.tasks.jarimalarni_hisobla",
         "schedule": crontab(hour=0, minute=30),

@@ -53,7 +53,7 @@ def set_webhook(token, url, secret, drop_pending_updates=False):
         {
             "url": url,
             "secret_token": secret,
-            "allowed_updates": ["message", "callback_query"],
+            "allowed_updates": ["message", "callback_query", "inline_query"],
             "drop_pending_updates": bool(drop_pending_updates),
         },
     )
@@ -78,6 +78,21 @@ def answer_callback_query(token, callback_query_id, text=""):
     return _chaqir(
         token, "answerCallbackQuery", {"callback_query_id": callback_query_id, "text": text}
     )
+
+
+def answer_inline_query(token, inline_query_id, results, cache_time=30, button=None, next_offset=""):
+    payload = {
+        "inline_query_id": inline_query_id,
+        "results": results,
+        "cache_time": cache_time,
+        "is_personal": True,
+    }
+    if button:
+        payload["button"] = button
+    if next_offset:
+        # Telegram calls us again with this offset when the user scrolls to the end of the list.
+        payload["next_offset"] = next_offset
+    return _chaqir(token, "answerInlineQuery", payload)
 
 
 def edit_message_reply_markup(token, chat_id, message_id, reply_markup):

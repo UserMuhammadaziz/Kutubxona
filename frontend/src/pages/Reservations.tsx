@@ -20,6 +20,7 @@ import {
 import { useToast } from '../components/Toast'
 import { formatDate } from '../lib/format'
 import DataTable, { type DataTableColumn } from '../components/DataTable'
+import { usePageSize } from '../hooks/usePageSize'
 
 const TONE: Record<NavbatHolati, 'amber' | 'blue' | 'green' | 'red'> = {
   kutmoqda: 'amber',
@@ -36,13 +37,14 @@ export function Reservations() {
   const qc = useQueryClient()
   const toast = useToast()
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = usePageSize()
   const [holati, setHolati] = useState<NavbatHolati | ''>('')
   const [tasdiqlanadigan, setTasdiqlanadigan] = useState<Navbat | null>(null)
   const [bekorQilinadigan, setBekorQilinadigan] = useState<Navbat | null>(null)
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ['reservations', page, holati],
-    queryFn: () => reservationsApi.list({ page, holati: holati || undefined }),
+    queryKey: ['reservations', page, pageSize, holati],
+    queryFn: () => reservationsApi.list({ page, page_size: pageSize, holati: holati || undefined }),
   })
 
   const cancelMut = useMutation({
@@ -179,7 +181,11 @@ export function Reservations() {
             pagination={{
               count: data.count,
               page: page - 1,
-              rowsPerPage: 20,
+              rowsPerPage: pageSize,
+              onRowsPerPageChange: (n) => {
+                setPageSize(n)
+                setPage(1)
+              },
               onPageChange: (p) => setPage(p + 1),
             }}
             columns={
@@ -267,7 +273,7 @@ export function Reservations() {
       {/* Mobilda jadvaldagi MUI pagination ko'rinmaydi */}
       {data && (
         <div className="md:hidden">
-          <Pagination count={data.count} page={page} onChange={setPage} />
+          <Pagination count={data.count} page={page} pageSize={pageSize} onChange={setPage} />
         </div>
       )}
 

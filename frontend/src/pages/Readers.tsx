@@ -21,10 +21,12 @@ import {
   Pagination,
   ResponsiveList,
   TableSkeleton,
+  PhoneInput,
 } from '../components/ui'
 import DataTable, { type DataTableColumn } from '../components/DataTable'
 import { useToast } from '../components/Toast'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
+import { usePageSize } from '../hooks/usePageSize'
 
 const emptyForm: OquvchiCreatePayload = {
   rol: 'oquvchi',
@@ -50,6 +52,7 @@ export function Readers({ rol = 'oquvchi' }: ReadersProps = {}) {
   const qc = useQueryClient()
   const toast = useToast()
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = usePageSize()
   const [search, setSearch] = useState('')
   const kechikkanQidiruv = useDebouncedValue(search)
   // AI buyruq paneli (Ctrl+K) qidiruvni `?q=` orqali to'ldiradi.
@@ -82,10 +85,10 @@ export function Readers({ rol = 'oquvchi' }: ReadersProps = {}) {
     refetch: refetchList,
     isFetching,
   } = useQuery({
-    queryKey: ['readers', page, kechikkanQidiruv, rol ?? null, filters],
+    queryKey: ['readers', page, pageSize, kechikkanQidiruv, rol ?? null, filters],
     queryFn: () =>
       readersApi.list({
-        page,
+        page, page_size: pageSize,
         search: kechikkanQidiruv || undefined,
         rol: rol ?? undefined,
         has_telegram: toBool(filters.telegram),
@@ -279,7 +282,11 @@ export function Readers({ rol = 'oquvchi' }: ReadersProps = {}) {
             pagination={{
               count: data.count,
               page: page - 1,
-              rowsPerPage: 20,
+              rowsPerPage: pageSize,
+              onRowsPerPageChange: (n) => {
+                setPageSize(n)
+                setPage(1)
+              },
               onPageChange: (p) => setPage(p + 1),
             }}
             columns={
@@ -333,7 +340,7 @@ export function Readers({ rol = 'oquvchi' }: ReadersProps = {}) {
       {/* Mobilda jadvaldagi MUI pagination ko'rinmaydi */}
       {data && (
         <div className="md:hidden">
-          <Pagination count={data.count} page={page} onChange={setPage} />
+          <Pagination count={data.count} page={page} pageSize={pageSize} onChange={setPage} />
         </div>
       )}
 
@@ -356,12 +363,11 @@ export function Readers({ rol = 'oquvchi' }: ReadersProps = {}) {
           </Field>
           <Field>
             <Label htmlFor="y-telefon">Telefon raqami</Label>
-            <Input
+            <PhoneInput
               id="y-telefon"
-              required
-              placeholder="+998901234567"
               value={form.telefon}
-              onChange={(e) => setForm({ ...form, telefon: e.target.value })}
+              onValueChange={(v) => setForm({ ...form, telefon: v })}
+              required
             />
           </Field>
           <Field>

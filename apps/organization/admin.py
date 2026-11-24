@@ -23,3 +23,14 @@ class MembershipAdmin(admin.ModelAdmin):
     list_display = ["user", "organization", "rol", "faol", "telegram_id"]
     list_filter = ["rol", "faol", "organization"]
     search_fields = ["user__username", "user__full_name", "organization__nomi"]
+
+
+from .models import IssueReport  # noqa: E402
+
+
+@admin.register(IssueReport)
+class IssueReportAdmin(admin.ModelAdmin):
+    list_display = ("id", "created_at", "module", "category", "status", "organization", "user")
+    list_filter = ("module", "category", "status")
+    search_fields = ("message", "page_url")
+    readonly_fields = ("screenshot",)

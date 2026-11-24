@@ -27,6 +27,7 @@ import { useToast } from '../components/Toast'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { formatDate } from '../lib/format'
 import DataTable, { type DataTableColumn } from '../components/DataTable'
+import { usePageSize } from '../hooks/usePageSize'
 
 const TONE: Record<ArizaHolati, 'amber' | 'green' | 'red'> = {
   kutmoqda: 'amber',
@@ -64,6 +65,7 @@ export function Applications() {
   const qc = useQueryClient()
   const toast = useToast()
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = usePageSize()
   const [holati, setHolati] = useState<ArizaHolati | ''>('kutmoqda')
   const [rol, setRol] = useState<ArizaRol | ''>('')
   const [search, setSearch] = useState('')
@@ -77,10 +79,10 @@ export function Applications() {
     // queryKey o'zgarmaydi va 1-sahifa natijasi qayta ishlatiladi.
     // `kechikkanQidiruv` esa har bir tugma bosilishida so'rov yubormasligi
     // uchun ishlatiladi.
-    queryKey: ['applications', page, holati, rol, kechikkanQidiruv],
+    queryKey: ['applications', page, pageSize, holati, rol, kechikkanQidiruv],
     queryFn: () =>
       applicationsApi.list({
-        page,
+        page, page_size: pageSize,
         holati: holati || undefined,
         rol: rol || undefined,
         search: kechikkanQidiruv.trim() || undefined,
@@ -263,7 +265,11 @@ export function Applications() {
             pagination={{
               count: data.count,
               page: page - 1,
-              rowsPerPage: 20,
+              rowsPerPage: pageSize,
+              onRowsPerPageChange: (n) => {
+                setPageSize(n)
+                setPage(1)
+              },
               onPageChange: (p) => setPage(p + 1),
             }}
             columns={
@@ -350,7 +356,7 @@ export function Applications() {
       {/* Mobilda jadvaldagi MUI pagination ko'rinmaydi */}
       {data && (
         <div className="md:hidden">
-          <Pagination count={data.count} page={page} onChange={setPage} />
+          <Pagination count={data.count} page={page} pageSize={pageSize} onChange={setPage} />
         </div>
       )}
 

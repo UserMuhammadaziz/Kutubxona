@@ -10,3 +10,8 @@ export function useOrganization() {
     retry: false,
   })
 }
+
+/** Owner (or platform/org administrator) may open the company profile and set up the bot. */
+export function canManageCompany(org: { rol?: string | null } | null | undefined): boolean {
+  return org?.rol === 'egasi' || org?.rol === 'administrator'
+}

@@ -80,8 +80,15 @@ class Organization(models.Model):
     taklif_soat = models.PositiveIntegerField(default=24)
     eslatma_kunlar_oldin = models.PositiveIntegerField(default=2)
     kitob_xabarlari_yoqilgan = models.BooleanField(default=True)
+    # Per-library feature switches, e.g. {"search_inline": true}. Unknown/missing keys mean "off".
+    capabilities = models.JSONField(default=dict, blank=True)
     yaratilgan = models.DateTimeField(auto_now_add=True)
     yangilangan = models.DateTimeField(auto_now=True)
+
+    CAPABILITY_KEYS = ("search_inline",)
+
+    def has_capability(self, name):
+        return self.capabilities.get(name) is True
 
     class Meta:
         ordering = ["nomi"]
@@ -310,3 +317,76 @@ class AuditLog(models.Model):
 
     def __str__(self):
         return f"{self.action} — {self.organization or 'platforma'}"
+
+
+class PushSubscription(models.Model):
+    """Browser Web Push subscription of a user (e.g. a newly registered owner
+    waiting for the platform admin to approve the organization)."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="push_subscriptions"
+    )
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="push_subscriptions",
+    )
+    endpoint = models.TextField(unique=True)
+    p256dh = models.CharField(max_length=255)
+    auth = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"push:{self.user_id}"
+
+
+class Heartbeat(models.Model):
+    """Last-seen timestamp of a background component (celery worker, beat, ...).
+
+    Written by a periodic task; the platform health view marks a component as
+    stale when the timestamp is older than its allowed interval."""
+
+    name = models.CharField(max_length=40, unique=True)
+    last_seen = models.DateTimeField()
+    detail = models.JSONField(default=dict, blank=True)
+
+    def __str__(self):
+        return self.name
+
+
+class IssueReport(models.Model):
+    """User-submitted problem report with auto-collected diagnostics
+    (console errors, failed requests, screenshot)."""
+
+    CATEGORY_CHOICES = [
+        ("bug", "Xatolik"),
+        ("validation", "Forma / ma'lumot xatosi"),
+        ("performance", "Sekin ishlash"),
+        ("other", "Boshqa"),
+    ]
+    STATUS_CHOICES = [("new", "Yangi"), ("resolved", "Hal qilindi")]
+
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, null=True, blank=True, related_name="issue_reports"
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="issue_reports"
+    )
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default="other")
+    module = models.CharField(max_length=40, blank=True)  # auth, books, copies, ...
+    message = models.TextField(blank=True)
+    page_url = models.CharField(max_length=500, blank=True)
+    user_agent = models.CharField(max_length=300, blank=True)
+    console_errors = models.JSONField(default=list, blank=True)
+    failed_requests = models.JSONField(default=list, blank=True)
+    screenshot = models.TextField(blank=True)  # data: URL (JPEG), size-capped
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="new")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"issue:{self.module}:{self.category}:{self.pk}"

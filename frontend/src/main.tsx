@@ -5,6 +5,9 @@ import { keepPreviousData, QueryClient, QueryClientProvider } from '@tanstack/re
 import './index.css'
 import App from './App.tsx'
 import { ToastProvider } from './components/Toast.tsx'
+import { installDiagnostics } from './lib/diagnostics'
+
+installDiagnostics()
 
 const queryClient = new QueryClient({
   defaultOptions: {

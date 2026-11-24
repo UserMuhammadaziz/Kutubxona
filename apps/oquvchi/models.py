@@ -4,6 +4,27 @@ from django.core.validators import RegexValidator
 from organization.models import TenantModel
 
 
+KASB_MAX_LENGTH = 200
+
+
+def kasb_from_fans(fanlar):
+    """Join subject names for the denormalised `kasb` column without exceeding its max_length.
+
+    The M2M relation keeps the full list; `kasb` is only a display string, so it is cut at a
+    name boundary and marked with an ellipsis instead of failing with DataError."""
+    names = [f.nomi for f in fanlar]
+    text = ", ".join(names)
+    if len(text) <= KASB_MAX_LENGTH:
+        return text
+    kept = []
+    for i, name in enumerate(names):
+        # reserve room for the " +N" tail that reports how many names were cut
+        if len(", ".join(kept + [name])) + len(f" +{len(names) - i}") > KASB_MAX_LENGTH:
+            break
+        kept.append(name)
+    return ", ".join(kept) + f" +{len(names) - len(kept)}"
+
+
 class Fan(models.Model):
     """O'qituvchi dars beradigan fan (oldindan ro'yxatga olingan).
 

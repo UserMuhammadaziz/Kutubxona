@@ -1,7 +1,12 @@
 import {
+  Children,
+  Fragment,
+  isValidElement,
   useEffect,
   useRef,
   type ButtonHTMLAttributes,
+  type ChangeEvent,
+  type ReactElement,
   type HTMLAttributes,
   type InputHTMLAttributes,
   type Key,
@@ -10,6 +15,9 @@ import {
   type TextareaHTMLAttributes,
 } from 'react'
 import clsx from 'clsx'
+import { createPortal } from 'react-dom'
+import { SelectBox, type SelectOption } from './controls'
+import { formatPhone, normalizePhone } from '../lib/phone'
 import { Icons } from './icons'
 
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
@@ -74,6 +82,29 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
   )
 }
 
+/** Masked phone input: shows "+998 90 123 45 67", reports "+998901234567". */
+export function PhoneInput({
+  value,
+  onValueChange,
+  ...props
+}: Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'> & {
+  value: string
+  onValueChange: (value: string) => void
+}) {
+  return (
+    <Input
+      type="tel"
+      inputMode="tel"
+      autoComplete="tel"
+      placeholder="+998 90 123 45 67"
+      maxLength={17}
+      {...props}
+      value={formatPhone(value)}
+      onChange={(e) => onValueChange(normalizePhone(e.target.value))}
+    />
+  )
+}
+
 export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
@@ -86,17 +117,45 @@ export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTex
   )
 }
 
-export function Select({ className, children, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
+/** Collects <option> children (also through fragments and .map arrays) into SelectBox options. */
+function optionsFromChildren(children: ReactNode): SelectOption[] {
+  const out: SelectOption[] = []
+  Children.forEach(children, (child) => {
+    if (!isValidElement(child)) return
+    const el = child as ReactElement<{ value?: string | number; disabled?: boolean; children?: ReactNode }>
+    if (el.type === Fragment) return void out.push(...optionsFromChildren(el.props.children))
+    if (el.type !== 'option') return
+    const label = el.props.children
+    const text = Children.toArray(label).join('')
+    out.push({ value: String(el.props.value ?? text), label, disabled: el.props.disabled })
+  })
+  return out
+}
+
+/**
+ * Custom select with the same API as the native one: <option> children, value, and
+ * onChange(e) reading e.target.value. Rendered as a SelectBox popup instead of the OS list.
+ */
+export function Select({
+  className,
+  children,
+  value,
+  onChange,
+  disabled,
+  id,
+  'aria-label': ariaLabel,
+}: SelectHTMLAttributes<HTMLSelectElement>) {
+  const options = optionsFromChildren(children)
   return (
-    <select
-      className={clsx(
-        'w-full rounded-lg border border-slate-300 bg-paper px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:focus:border-brand-400 dark:focus:ring-brand-900',
-        className,
-      )}
-      {...props}
-    >
-      {children}
-    </select>
+    <SelectBox
+      id={id}
+      aria-label={ariaLabel}
+      className={className}
+      disabled={disabled}
+      options={options}
+      value={value === undefined || value === null ? '' : String(value)}
+      onChange={(v) => onChange?.({ target: { value: v }, currentTarget: { value: v } } as unknown as ChangeEvent<HTMLSelectElement>)}
+    />
   )
 }
 
@@ -172,6 +231,49 @@ export function Spinner({ label, className }: { label?: string; className?: stri
     >
       <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-brand-600 dark:border-slate-600 dark:border-t-brand-400" />
       {label && <span className="text-sm text-slate-500 dark:text-slate-400">{label}</span>}
+    </div>
+  )
+}
+
+/** Base skeleton block. Compose it; size via className. */
+export function Skeleton({ className }: { className?: string }) {
+  return <div aria-hidden className={clsx('animate-pulse rounded bg-slate-200 motion-reduce:animate-none dark:bg-slate-700', className)} />
+}
+
+/** Row of stat tiles. */
+export function StatsSkeleton({ count = 4 }: { count?: number }) {
+  return (
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="rounded-xl border border-slate-200 bg-paper p-4 dark:border-slate-700 dark:bg-slate-800">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="mt-3 h-7 w-16" />
+          <Skeleton className="mt-3 h-3 w-28" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** Whole-page placeholder: title, stat tiles and two panels. Announces itself to screen readers. */
+export function PageSkeleton({ stats = 4, panels = 2 }: { stats?: number; panels?: number }) {
+  return (
+    <div role="status" aria-busy="true" aria-label="Yuklanmoqda">
+      <Skeleton className="h-7 w-56" />
+      <Skeleton className="mt-2 h-3 w-32" />
+      {stats > 0 && (
+        <div className="mt-6">
+          <StatsSkeleton count={stats} />
+        </div>
+      )}
+      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+        {Array.from({ length: panels }).map((_, i) => (
+          <div key={i} className="rounded-xl border border-slate-200 bg-paper p-4 dark:border-slate-700 dark:bg-slate-800">
+            <Skeleton className="h-4 w-40" />
+            <ListSkeleton className="mt-3" />
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -301,9 +403,10 @@ export function Modal({
   }, [open, onClose])
 
   if (!open) return null
-  return (
+  // Portal to <body> so sticky table headers / stacking contexts can't paint over the modal.
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-0 sm:items-center sm:p-4 dark:bg-slate-950/70"
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-900/40 p-0 sm:items-center sm:p-4 dark:bg-slate-950/70"
       onClick={onClose}
     >
       <div
@@ -331,7 +434,8 @@ export function Modal({
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

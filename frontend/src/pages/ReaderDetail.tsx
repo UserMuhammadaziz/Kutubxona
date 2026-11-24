@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { finesApi, loansApi, readersApi } from '../api/resources'
 import { errorMessage } from '../api/client'
 import { Icons } from '../components/icons'
-import type { BerishMeni, JarimaMeni } from '../types'
+import type { BerishMeni, JarimaMeni, ReaderStats } from '../types'
 import {
   Badge,
   Button,
@@ -13,13 +13,46 @@ import {
   ErrorState,
   PageHeader,
   ResponsiveList,
-  Spinner,
+  PageSkeleton,
   Table,
   Textarea,
   Modal,
 } from '../components/ui'
 import { useToast } from '../components/Toast'
 import { formatDate, formatMoney } from '../lib/format'
+
+const TRUST_STYLE = {
+  new: { label: 'Yangi', bar: 'bg-brand-600', text: 'text-brand-700 dark:text-brand-400' },
+  high: { label: 'Yuqori', bar: 'bg-brand-600', text: 'text-brand-700 dark:text-brand-400' },
+  medium: { label: 'O‘rta', bar: 'bg-amber-500', text: 'text-amber-600 dark:text-amber-400' },
+  low: { label: 'Past', bar: 'bg-red-500', text: 'text-red-600 dark:text-red-400' },
+} as const
+
+function TrustCard({ score, level }: { score: number; level: ReaderStats['trust_level'] }) {
+  const st = TRUST_STYLE[level]
+  return (
+    <Card
+      className="col-span-2 p-4 lg:col-span-1"
+      title="100% dan boshlanadi; kechikkan kunlar, jarimalar va yo‘qotilgan kitoblar uchun asta-sekin kamayadi"
+    >
+      <div className="text-sm font-medium text-slate-600 dark:text-slate-300">Ishonch darajasi</div>
+      <div className={'mt-1 text-2xl font-bold tabular-nums ' + st.text}>
+        {score}%
+        <span className="ml-2 text-sm font-medium">{st.label}</span>
+      </div>
+      <div
+        className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"
+        role="progressbar"
+        aria-label="Ishonch darajasi"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={score}
+      >
+        <div className={'h-full rounded-full transition-all ' + st.bar} style={{ width: `${score}%` }} />
+      </div>
+    </Card>
+  )
+}
 
 export function ReaderDetail() {
   const { id } = useParams()
@@ -82,7 +115,7 @@ export function ReaderDetail() {
     onError: (err) => toast.error(errorMessage(err)),
   })
 
-  if (isLoading) return <Spinner label="O‘quvchi ma’lumotlari yuklanmoqda..." />
+  if (isLoading) return <PageSkeleton stats={3} />
 
   if (isError || !reader) {
     return (
@@ -133,7 +166,8 @@ export function ReaderDetail() {
         }
       />
 
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <TrustCard score={reader.stats.trust_score} level={reader.stats.trust_level} />
         {[
           { label: 'Jami berilgan', value: reader.stats.total_loans, tone: '' },
           { label: 'Hozir qo‘lida', value: reader.stats.active_loans, tone: '' },

@@ -13,7 +13,7 @@ import {
   Input,
   PageHeader,
   Select,
-  Spinner,
+  ListSkeleton,
   Textarea,
 } from '../components/ui'
 import { ANNOUNCEMENT_AUDIENCE_LABELS, type AnnouncementAudience } from '../types'
@@ -125,7 +125,7 @@ export function Announcements() {
         <div className="lg:col-span-2">
           <h2 className="mb-3 text-lg font-semibold text-slate-900 dark:text-slate-100">Yuborilganlar</h2>
           {log.isLoading ? (
-            <Spinner label="Yuklanmoqda..." />
+            <ListSkeleton rows={4} />
           ) : !log.data?.results.length ? (
             <EmptyState
               icon={<Icons.bell className="h-10 w-10" />}

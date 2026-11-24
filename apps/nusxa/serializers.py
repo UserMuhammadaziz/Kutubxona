@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import serializers
 from kitob.models import Kitob
 from nusxa.models import Nusxa
@@ -54,7 +55,18 @@ class NusxaYaratishSerializer(TenantSerializerMixin, serializers.ModelSerializer
         model = Nusxa
         fields = ["id", "kitob", "inventar_raqami", "javon", "qabul_sana", "izoh"]
         read_only_fields = ["id"]
+        # Received date defaults to today when the client omits it.
+        extra_kwargs = {"qabul_sana": {"required": False}}
+
+    def validate_inventar_raqami(self, value):
+        # Unique per organization; `organization` is not a serializer field,
+        # so DRF would not catch this and the DB constraint would raise a 500.
+        org = self._organization()
+        if org is not None and Nusxa.objects.filter(organization=org, inventar_raqami=value).exists():
+            raise serializers.ValidationError("Bu inventar raqami allaqachon mavjud.")
+        return value
 
     def create(self, validated_data):
         validated_data.setdefault("holati", "mavjud")
+        validated_data.setdefault("qabul_sana", timezone.localdate())
         return super().create(validated_data)

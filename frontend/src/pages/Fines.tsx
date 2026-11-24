@@ -23,21 +23,23 @@ import {
 import DataTable, { type DataTableColumn } from '../components/DataTable'
 import { useToast } from '../components/Toast'
 import { formatDate, formatMoney } from '../lib/format'
+import { usePageSize } from '../hooks/usePageSize'
 
 export function Fines() {
   const qc = useQueryClient()
   const toast = useToast()
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = usePageSize()
   const [tolandimi, setTolandimi] = useState('')
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebouncedValue(search)
   const [tasdiqlanadigan, setTasdiqlanadigan] = useState<Jarima | null>(null)
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ['fines', page, tolandimi, debouncedSearch],
+    queryKey: ['fines', page, pageSize, tolandimi, debouncedSearch],
     queryFn: () =>
       finesApi.list({
-        page,
+        page, page_size: pageSize,
         tolandimi: tolandimi === '' ? undefined : tolandimi === 'true',
         search: debouncedSearch || undefined,
       }),
@@ -168,7 +170,11 @@ export function Fines() {
             pagination={{
               count: data.count,
               page: page - 1,
-              rowsPerPage: 20,
+              rowsPerPage: pageSize,
+              onRowsPerPageChange: (n) => {
+                setPageSize(n)
+                setPage(1)
+              },
               onPageChange: (p) => setPage(p + 1),
             }}
             columns={
@@ -224,7 +230,7 @@ export function Fines() {
       {/* Mobilda jadvaldagi MUI pagination ko'rinmaydi */}
       {data && (
         <div className="md:hidden">
-          <Pagination count={data.count} page={page} onChange={setPage} />
+          <Pagination count={data.count} page={page} pageSize={pageSize} onChange={setPage} />
         </div>
       )}
 

@@ -1,5 +1,6 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import type { ApiError } from '../types'
+import { recordFailedRequest } from '../lib/diagnostics'
 
 const ACCESS_KEY = 'kutubxona_access'
 const REFRESH_KEY = 'kutubxona_refresh'
@@ -65,6 +66,15 @@ api.interceptors.response.use(
       }
     }
 
+    // Feed diagnostics for problem reports (skip 401: handled by refresh above).
+    if (original && error.response?.status !== 401) {
+      recordFailedRequest({
+        method: (original.method ?? 'get').toUpperCase(),
+        url: `${original.baseURL ?? ''}${original.url ?? ''}`,
+        status: error.response?.status ?? null,
+        detail: errorMessage(error).slice(0, 300),
+      })
+    }
     return Promise.reject(error)
   },
 )

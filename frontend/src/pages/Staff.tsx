@@ -19,6 +19,7 @@ import {
   ResponsiveList,
   Select,
   TableSkeleton,
+  PhoneInput,
 } from '../components/ui'
 import { useToast } from '../components/Toast'
 import DataTable, { type DataTableColumn } from '../components/DataTable'
@@ -254,11 +255,10 @@ export function Staff() {
           </Field>
           <Field>
             <Label htmlFor="x-telefon">Telefon</Label>
-            <Input
+            <PhoneInput
               id="x-telefon"
-              placeholder="+998 ..."
               value={form.telefon}
-              onChange={(e) => setForm({ ...form, telefon: e.target.value })}
+              onValueChange={(v) => setForm({ ...form, telefon: v })}
             />
           </Field>
           <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

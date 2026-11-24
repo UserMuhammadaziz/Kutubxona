@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
 from django.conf import settings
+from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from rest_framework import status, viewsets
@@ -131,12 +132,61 @@ class SaaSOrganizationViewSet(viewsets.ModelViewSet):
     queryset = Organization.objects.select_related("egasi").order_by("-yaratilgan")
     serializer_class = SaaSOrganizationSerializer
     permission_classes = [IsPlatformAdmin]
-    http_method_names = ["get", "post", "patch"]
+    http_method_names = ["get", "post", "patch", "delete"]
     filterset_fields = ["status", "turi", "faol"]
     search_fields = ["nomi", "slug", "email", "telefon"]
 
     def get_serializer_context(self):
         return {**super().get_serializer_context(), "request": self.request}
+
+    def perform_create(self, serializer):
+        org = serializer.save()
+        log_action(
+            "organization.created_by_platform",
+            actor=self.request.user,
+            organization=org,
+            target_type="organization",
+            target_id=org.pk,
+            metadata={"nomi": org.nomi},
+            request=self.request,
+        )
+
+    def perform_update(self, serializer):
+        org = serializer.save()
+        log_action(
+            "organization.updated_by_platform",
+            actor=self.request.user,
+            organization=org,
+            target_type="organization",
+            target_id=org.pk,
+            metadata={"fields": sorted(serializer.validated_data)},
+            request=self.request,
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        """Hard delete — only for archived organizations, and only when no protected data blocks it."""
+        from django.db.models import ProtectedError
+
+        org = self.get_object()
+        if org.status != Organization.HOLAT_ARCHIVED:
+            return Response({"detail": "O'chirishdan oldin tashkilotni arxivlang."}, status=409)
+        nomi, pk = org.nomi, org.pk
+        try:
+            org.delete()
+        except ProtectedError:
+            return Response(
+                {"detail": "Tashkilotda bog'langan ma'lumotlar bor, o'chirib bo'lmaydi. Arxivlangan holda qoldiring."},
+                status=409,
+            )
+        log_action(
+            "organization.deleted",
+            actor=request.user,
+            target_type="organization",
+            target_id=pk,
+            metadata={"nomi": nomi},
+            request=request,
+        )
+        return Response(status=204)
 
     def _holat(self, request, status, default_reason=""):
         org = self.get_object()
@@ -227,6 +277,9 @@ class SaaSOrganizationViewSet(viewsets.ModelViewSet):
                     "berishlar": Berish.objects.filter(organization=org).count(),
                     "azoliklar": Membership.objects.filter(organization=org, faol=True).count(),
                     "bot_ulangan": hasattr(org, "telegram_bot"),
+                    "egasi_ismi": org.egasi.full_name if org.egasi_id else "",
+                    "telefon": org.telefon,
+                    "status_reason": org.status_reason,
                     "yaratilgan": org.yaratilgan,
                 }
             )
@@ -335,3 +388,93 @@ def my_memberships(request):
         item["organization_status_display"] = azolik.organization.get_status_display()
         data.append(item)
     return Response(data)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def push_public_key(request):
+    from django.conf import settings
+
+    return Response({"public_key": settings.VAPID_PUBLIC_KEY or None})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def push_subscribe(request):
+    """Save the browser's Web Push subscription for the current user and the
+    organization they belong to (works while the organization is still pending)."""
+    from .models import PushSubscription
+
+    endpoint = str(request.data.get("endpoint", "")).strip()
+    keys = request.data.get("keys") or {}
+    p256dh = str(keys.get("p256dh", "")).strip()
+    auth = str(keys.get("auth", "")).strip()
+    if not (endpoint and p256dh and auth):
+        return Response({"detail": "Obuna ma'lumoti to'liq emas."}, status=400)
+    org = joriy_kutubxonani_aniqla(request, required=False, allow_inactive=True)
+    PushSubscription.objects.update_or_create(
+        endpoint=endpoint,
+        defaults={"user": request.user, "organization": org, "p256dh": p256dh, "auth": auth},
+    )
+    return Response({"subscribed": True}, status=201)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def health(request):
+    """Public liveness probe for uptime monitors (no tenant data)."""
+    from .health import liveness
+
+    data = liveness()
+    return Response(data, status=200 if data["status"] == "ok" else 503)
+
+
+@api_view(["GET"])
+@permission_classes([IsPlatformAdmin])
+def platform_health(request):
+    """Detailed component, heartbeat and bot status for the platform panel."""
+    from .health import bots_status, check_cache, check_database, heartbeat_status
+
+    db_ok, db_err = check_database()
+    cache_ok, cache_err = check_cache()
+    return Response(
+        {
+            "checked_at": timezone.now(),
+            "web": {"status": "ok"},
+            "database": {"status": "ok" if db_ok else "down", "error": db_err},
+            "cache": {"status": "ok" if cache_ok else "down", "error": cache_err},
+            "heartbeats": heartbeat_status(),
+            "bots": bots_status(),
+        }
+    )
+
+
+class IssueReportThrottle(AnonRateThrottle):
+    """Anonymous and authenticated clients: max 10 reports per hour."""
+
+    scope = "issue_report"
+
+    def get_rate(self):
+        return "10/hour"
+
+    def get_cache_key(self, request, view):
+        ident = request.user.pk if request.user and request.user.is_authenticated else self.get_ident(request)
+        return self.cache_format % {"scope": self.scope, "ident": ident}
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])  # login/register errors must be reportable too
+def issue_report_create(request):
+    """Store a problem report with auto-collected diagnostics."""
+    from .models import IssueReport
+    from .serializers import IssueReportSerializer
+
+    for throttle in (IssueReportThrottle(),):
+        if not throttle.allow_request(request, None):
+            return Response({"detail": "Juda ko'p xabar yuborildi. Keyinroq urinib ko'ring."}, status=429)
+    serializer = IssueReportSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    user = request.user if request.user.is_authenticated else None
+    org = joriy_kutubxonani_aniqla(request, required=False, allow_inactive=True) if user else None
+    serializer.save(user=user, organization=org)
+    return Response({"id": serializer.instance.pk}, status=201)

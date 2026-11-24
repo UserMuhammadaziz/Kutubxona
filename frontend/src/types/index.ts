@@ -23,6 +23,8 @@ export interface User {
   rol: Rol
   telefon: string
   is_active: boolean
+  is_platform?: boolean
+  kutubxonalar?: { id: number; nomi: string; slug: string; rol: string }[]
 }
 
 export interface UserCreatePayload {
@@ -186,6 +188,9 @@ export interface ReaderStats {
   returned_late: number
   unpaid_fines_total: string | number
   paid_fines_total: string | number
+  /** Reliability in percent; starts at 100 and decreases with lateness, fines and losses. */
+  trust_score: number
+  trust_level: 'new' | 'high' | 'medium' | 'low'
 }
 
 export type ReaderHistoryStatus = 'active' | 'overdue' | 'returned'

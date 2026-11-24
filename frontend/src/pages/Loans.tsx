@@ -1,3 +1,4 @@
+import { DatePicker } from '../components/DatePicker'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -30,11 +31,19 @@ import DataTable, { type DataTableColumn } from '../components/DataTable'
 import { useToast } from '../components/Toast'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { formatDate, formatMoney } from '../lib/format'
+import { usePageSize } from '../hooks/usePageSize'
 
 const TONE: Record<BerishHolati, 'blue' | 'green' | 'red'> = {
   faol: 'blue',
   qaytarilgan: 'green',
   yoqolgan: 'red',
+}
+
+/** Active loan past its due date is shown as overdue (red) instead of plain "Faol". */
+function StatusBadge({ loan }: { loan: Berish }) {
+  const overdue = loan.holati === 'faol' && loan.qaytarish_muddati < new Date().toISOString().slice(0, 10)
+  if (overdue) return <Badge tone="red">Muddati o‘tgan</Badge>
+  return <Badge tone={TONE[loan.holati]}>{BERISH_HOLATI_LABELS[loan.holati]}</Badge>
 }
 
 /** Berish ro'yxatida nusxa o'rniga ko'rsatiladigan matn. */
@@ -78,6 +87,7 @@ export function Loans() {
   const qc = useQueryClient()
   const toast = useToast()
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = usePageSize()
   // AI buyruq paneli (Ctrl+K) shu parametrlar orqali sahifani tayyorlab beradi.
   const [params, setParams] = useSearchParams()
   const kechikkanRejim = params.get('kechikkan') === '1'
@@ -102,14 +112,14 @@ export function Loans() {
   const [qaytariladigan, setQaytariladigan] = useState<Berish | null>(null)
 
   const { data, isLoading, isError, error: listError, refetch, isFetching } = useQuery({
-    queryKey: ['loans', page, holati, kechikkanRejim, debouncedLoanQuery, issuedFrom, issuedTo],
+    queryKey: ['loans', page, pageSize, holati, kechikkanRejim, debouncedLoanQuery, issuedFrom, issuedTo],
     queryFn: async () => {
       if (kechikkanRejim) {
         const results = await loansApi.overdue()
         return { count: results.length, next: null, previous: null, results }
       }
       return loansApi.list({
-        page,
+        page, page_size: pageSize,
         holati: holati || undefined,
         q: debouncedLoanQuery || undefined,
         issued_from: issuedFrom || undefined,
@@ -261,20 +271,18 @@ function onSubmit(e: FormEvent) {
             }}
             aria-label="Berishlarni qidirish"
           />
-          <Input
-            type="date"
+          <DatePicker
             value={issuedFrom}
-            onChange={(e) => {
-              setIssuedFrom(e.target.value)
+            onChange={(v) => {
+              setIssuedFrom(v)
               setPage(1)
             }}
             aria-label="Berilgan sana: dan"
           />
-          <Input
-            type="date"
+          <DatePicker
             value={issuedTo}
-            onChange={(e) => {
-              setIssuedTo(e.target.value)
+            onChange={(v) => {
+              setIssuedTo(v)
               setPage(1)
             }}
             aria-label="Berilgan sana: gacha"
@@ -350,7 +358,7 @@ function onSubmit(e: FormEvent) {
                     )}
                   </div>
                 </div>
-                <Badge tone={TONE[l.holati]}>{BERISH_HOLATI_LABELS[l.holati]}</Badge>
+                <StatusBadge loan={l} />
               </div>
               <div className="text-sm text-slate-600 dark:text-slate-300">{l.oquvchi_fish}</div>
               <div className="text-xs text-slate-500 dark:text-slate-400">
@@ -373,7 +381,11 @@ function onSubmit(e: FormEvent) {
                 ? {
                     count: data.count,
                     page: page - 1,
-                    rowsPerPage: 20,
+                    rowsPerPage: pageSize,
+              onRowsPerPageChange: (n) => {
+                setPageSize(n)
+                setPage(1)
+              },
                     onPageChange: (p) => setPage(p + 1),
                   }
                 : undefined
@@ -410,7 +422,7 @@ function onSubmit(e: FormEvent) {
                   id: 'holati',
                   label: 'Holati',
                   sortBy: (l) => l.holati,
-                  render: (l) => <Badge tone={TONE[l.holati]}>{BERISH_HOLATI_LABELS[l.holati as BerishHolati]}</Badge>,
+                  render: (l) => <StatusBadge loan={l} />,
                 },
                 {
                   id: 'amallar',
@@ -433,7 +445,7 @@ function onSubmit(e: FormEvent) {
       {/* Mobilda jadvaldagi MUI pagination ko'rinmaydi */}
       {data && !kechikkanRejim && (
         <div className="md:hidden">
-          <Pagination count={data.count} page={page} onChange={setPage} />
+          <Pagination count={data.count} page={page} pageSize={pageSize} onChange={setPage} />
         </div>
       )}
 
@@ -515,7 +527,7 @@ function onSubmit(e: FormEvent) {
             )}
           </Field>
 
-          {tanlanganKitob && !aniqNusxa && (
+          {tanlanganKitob && !aniqNusxa && !reja.aside && (
             <p
               className={`-mt-2 mb-4 rounded-lg border px-3 py-2 text-sm ${
                 reja.aside

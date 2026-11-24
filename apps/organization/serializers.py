@@ -4,7 +4,7 @@ from django.utils.text import slugify
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import AuditLog, Membership, Organization, SubscriptionPlan
+from .models import AuditLog, IssueReport, Membership, Organization, SubscriptionPlan
 from .services import subscription_for
 from .tenancy import foydalanuvchi_azoligi
 
@@ -38,6 +38,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "taklif_soat",
             "eslatma_kunlar_oldin",
             "kitob_xabarlari_yoqilgan",
+            "capabilities",
             "yaratilgan",
             "rol",
             "obuna",
@@ -63,6 +64,70 @@ class OrganizationSerializer(serializers.ModelSerializer):
             return "administrator"
         azolik = foydalanuvchi_azoligi(request.user, obj)
         return azolik.rol if azolik else None
+
+    @staticmethod
+    def _in_range(value, low, high, label):
+        if not low <= value <= high:
+            raise serializers.ValidationError(f"{label} {low} dan {high} gacha bo'lishi kerak.")
+        return value
+
+    def validate_nomi(self, value):
+        value = value.strip()
+        if len(value) < 2:
+            raise serializers.ValidationError("Nom kamida 2 ta belgidan iborat bo'lishi kerak.")
+        return value
+
+    def validate_muddat_kun(self, value):
+        return self._in_range(value, 1, 365, "Qaytarish muddati")
+
+    def validate_kunlik_jarima(self, value):
+        return self._in_range(value, 0, 1_000_000, "Kunlik jarima")
+
+    def validate_limit_kitob(self, value):
+        return self._in_range(value, 1, 100, "Kitob limiti")
+
+    def validate_taklif_soat(self, value):
+        return self._in_range(value, 1, 720, "Taklif muddati (soat)")
+
+    def validate_eslatma_kunlar_oldin(self, value):
+        return self._in_range(value, 0, 30, "Eslatma kunlari")
+
+    def validate_logo_url(self, value):
+        if value and not value.lower().startswith("https://"):
+            raise serializers.ValidationError("Logo manzili https:// bilan boshlanishi kerak.")
+        return value
+
+    def validate_capabilities(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("Imkoniyatlar obyekt ko'rinishida bo'lishi kerak.")
+        unknown = set(value) - set(Organization.CAPABILITY_KEYS)
+        if unknown:
+            raise serializers.ValidationError(f"Noma'lum imkoniyat: {', '.join(sorted(unknown))}")
+        if any(not isinstance(v, bool) for v in value.values()):
+            raise serializers.ValidationError("Imkoniyat qiymati true yoki false bo'lishi kerak.")
+        # Merge so a partial update does not switch the other capabilities off.
+        return {**(self.instance.capabilities if self.instance else {}), **value}
+
+    def update(self, instance, validated_data):
+        was_on = instance.has_capability("search_inline")
+        instance = super().update(instance, validated_data)
+        if instance.has_capability("search_inline") and not was_on:
+            self._refresh_bot_webhook(instance)
+        return instance
+
+    @staticmethod
+    def _refresh_bot_webhook(organization):
+        """Telegram only delivers `inline_query` after the webhook is re-registered with it allowed."""
+        import logging
+
+        from telegrambot.services import botni_ol, webhookni_qayta_ornat
+
+        bot = botni_ol(organization)
+        if bot and bot.holati == "ulangan":
+            try:
+                webhookni_qayta_ornat(bot)
+            except Exception:  # the setting is saved; the librarian can reconnect the bot
+                logging.getLogger(__name__).exception("webhook refresh failed (org=%s)", organization.pk)
 
     def get_obuna(self, obj):
         obuna = subscription_for(obj)
@@ -95,6 +160,9 @@ class SaaSOrganizationSerializer(OrganizationSerializer):
     reyting = serializers.SerializerMethodField()
     telegram_bot_status = serializers.SerializerMethodField()
 
+    # Create-only: owner account (created, or reused when the phone already exists).
+    owner = serializers.DictField(child=serializers.CharField(allow_blank=True), write_only=True, required=False)
+
     class Meta(OrganizationSerializer.Meta):
         fields = OrganizationSerializer.Meta.fields + [
             "egasi_username",
@@ -102,7 +170,61 @@ class SaaSOrganizationSerializer(OrganizationSerializer):
             "azoliklar_soni",
             "reyting",
             "telegram_bot_status",
+            "owner",
         ]
+        # Platform admin may set the slug; status changes go through the action endpoints.
+        read_only_fields = [f for f in OrganizationSerializer.Meta.read_only_fields if f != "slug"]
+
+    def validate_slug(self, value):
+        value = super().validate_slug(value)
+        qs = Organization.objects.filter(slug=value)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("Bu slug band.")
+        return value
+
+    def validate_owner(self, value):
+        if self.instance:
+            raise serializers.ValidationError("Egani yangilash bu yerda qo'llab-quvvatlanmaydi.")
+        import re
+
+        telefon = (value.get("telefon") or "").strip()
+        if not re.fullmatch(r"\+998\d{9}", telefon):
+            raise serializers.ValidationError({"telefon": "Telefon +998901234567 formatida bo'lishi kerak."})
+        existing = User.objects.filter(username__iexact=telefon).first()
+        if not existing:
+            if not (value.get("full_name") or "").strip():
+                raise serializers.ValidationError({"full_name": "Egasining ismini kiriting."})
+            password = value.get("password") or ""
+            if len(password) < 8:
+                raise serializers.ValidationError({"password": "Parol kamida 8 ta belgidan iborat bo'lishi kerak."})
+        return {**value, "telefon": telefon}
+
+    @transaction.atomic
+    def create(self, validated_data):
+        owner = validated_data.pop("owner", None)
+        # Created by the platform admin: active right away (no approval step).
+        validated_data["status"] = Organization.HOLAT_ACTIVE
+        organization = Organization.objects.create(**validated_data)
+        if owner:
+            user = User.objects.filter(username__iexact=owner["telefon"]).first()
+            if not user:
+                user = User.objects.create_user(
+                    username=owner["telefon"],
+                    password=owner["password"],
+                    full_name=owner["full_name"].strip(),
+                    telefon=owner["telefon"],
+                    email=owner.get("email", ""),
+                    rol="administrator",
+                )
+            organization.egasi = user
+            organization.save(update_fields=["egasi", "faol"])
+            Membership.objects.get_or_create(
+                organization=organization, user=user, defaults={"rol": "egasi", "faol": True}
+            )
+        subscription_for(organization, trial=True)
+        return organization
 
     def get_azoliklar_soni(self, obj):
         return obj.a_zolar.filter(faol=True).count()
@@ -205,24 +327,39 @@ class RegisterSerializer(serializers.Serializer):
     )
     tavsif = serializers.CharField(required=False, allow_blank=True, max_length=2000)
     full_name = serializers.CharField(max_length=120)
-    username = serializers.CharField(max_length=150)
-    telefon = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    # Phone is the login: there is no separate username field.
+    telefon = serializers.RegexField(
+        r"^\+998\d{9}$",
+        max_length=20,
+        error_messages={"invalid": "Telefon +998901234567 formatida bo'lishi kerak."},
+    )
     email = serializers.EmailField(required=False, allow_blank=True)
-    password = serializers.CharField(write_only=True, min_length=8)
+    password = serializers.CharField(write_only=True, min_length=8, error_messages={"min_length": "Parol kamida 8 ta belgidan iborat bo'lishi kerak."})
     password_confirm = serializers.CharField(write_only=True)
 
-    def validate_username(self, value):
-        value = value.strip()
+    PAROL_XABARLARI = {
+        "password_too_short": "Parol kamida 8 ta belgidan iborat bo'lishi kerak.",
+        "password_too_common": "Parol juda oddiy. Boshqa, murakkabroq parol tanlang.",
+        "password_entirely_numeric": "Parol faqat raqamlardan iborat bo'lmasligi kerak.",
+        "password_too_similar": "Parol telefon yoki ismingizga juda o'xshash.",
+    }
+
+    def validate_telefon(self, value):
         if User.objects.filter(username__iexact=value).exists():
-            raise serializers.ValidationError("Bu login allaqachon band.")
+            raise serializers.ValidationError("Bu telefon raqami bilan allaqachon ro'yxatdan o'tilgan.")
         return value
 
     def validate(self, attrs):
         if attrs["password"] != attrs["password_confirm"]:
             raise serializers.ValidationError({"password_confirm": "Parollar mos emas."})
         from django.contrib.auth.password_validation import validate_password
+        from django.core.exceptions import ValidationError as DjangoValidationError
 
-        validate_password(attrs["password"])
+        try:
+            validate_password(attrs["password"], user=User(username=attrs["telefon"], full_name=attrs["full_name"]))
+        except DjangoValidationError as e:
+            xabarlar = [self.PAROL_XABARLARI.get(x.code, str(x.message)) for x in e.error_list]
+            raise serializers.ValidationError({"password": xabarlar[0]})
         return attrs
 
     def _slug(self, nomi, slug):
@@ -249,7 +386,7 @@ class RegisterSerializer(serializers.Serializer):
             egasi=None,
         )
         user = User.objects.create_user(
-            username=validated_data["username"].strip(),
+            username=validated_data["telefon"],
             password=password,
             full_name=validated_data["full_name"].strip(),
             telefon=validated_data.get("telefon", ""),
@@ -340,3 +477,34 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
 
         validate_password(attrs["password"])
         return attrs
+
+
+class IssueReportSerializer(serializers.ModelSerializer):
+    """POST /api/issue-reports/ — accepts client diagnostics, caps their size."""
+
+    MAX_SCREENSHOT = 2_000_000  # chars of data URL
+    MAX_ITEMS = 30
+
+    class Meta:
+        model = IssueReport
+        fields = [
+            "id", "category", "module", "message", "page_url", "user_agent",
+            "console_errors", "failed_requests", "screenshot", "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+    def validate_screenshot(self, value):
+        if value and not value.startswith("data:image/"):
+            raise serializers.ValidationError("Skrinshot formati noto'g'ri.")
+        if len(value) > self.MAX_SCREENSHOT:
+            raise serializers.ValidationError("Skrinshot juda katta.")
+        return value
+
+    def _cap(self, value):
+        return (value or [])[: self.MAX_ITEMS]
+
+    def validate_console_errors(self, value):
+        return self._cap(value)
+
+    def validate_failed_requests(self, value):
+        return self._cap(value)

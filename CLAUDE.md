@@ -26,3 +26,13 @@ Tokens live in `frontend/src/index.css` (`@theme`): green `brand-*`, warm neutra
 - Add features incrementally; do not degrade existing screens. Compare before/after screenshots for UI changes.
 - Run only the tests related to the change; full suite at the end.
 - Deploy only to the dev server unless the user explicitly asks for production.
+
+## Environments
+
+| | URL | Rules |
+|---|---|---|
+| **Dev** | https://kutubxona-dev.orgtrace.uz/ | Sandbox with demo/test data. Change anything here without asking: deploy, migrations, test records, demo accounts, screenshots. |
+| **Prod** | https://kutubxona.sharqsoft.uz/ | Real library data. **Never touch without the user's explicit permission in chat**: no deploy, SSH, DB/shell commands, migrations, config changes, or state-changing browser actions. Permission is per action and does not carry over. |
+
+- SSH access details for either server: ask the user; never guess keys/users.
+- When unsure which environment a URL, host, or database belongs to, treat it as prod and ask.

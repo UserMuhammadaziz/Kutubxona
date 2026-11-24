@@ -10,6 +10,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     kutubxonalar = serializers.SerializerMethodField()
     joriy_rol = serializers.SerializerMethodField()
+    is_platform = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -22,8 +23,13 @@ class UserSerializer(serializers.ModelSerializer):
             "is_active",
             "kutubxonalar",
             "joriy_rol",
+            "is_platform",
         ]
         read_only_fields = ["id"]
+
+    def get_is_platform(self, obj):
+        # Platform (master) users manage all organizations from /platform.
+        return bool(obj.is_superuser or obj.is_staff)
 
     def get_kutubxonalar(self, obj):
         from organization.models import Membership

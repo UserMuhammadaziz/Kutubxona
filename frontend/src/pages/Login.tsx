@@ -1,3 +1,4 @@
+import { loginIdentifier } from '../lib/phone'
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { BookOpen, Eye, EyeOff, Loader2, Lock, User, Users, Clock, BarChart3 } from 'lucide-react'
@@ -41,7 +42,7 @@ export function Login() {
     setError(null)
     setLoading(true)
     try {
-      await login(username, password)
+      await login(loginIdentifier(username), password)
       navigate(from, { replace: true })
     } catch (err) {
       setError(errorMessage(err))
@@ -119,7 +120,7 @@ export function Login() {
           <form onSubmit={onSubmit} className="mt-2 space-y-4">
             <div>
               <label htmlFor="login-username" className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                Foydalanuvchi nomi
+                Telefon raqami yoki login
               </label>
               <div className="relative">
                 <User className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400" aria-hidden="true" />
@@ -129,7 +130,7 @@ export function Login() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   autoComplete="username"
-                  placeholder="masalan: librarian_1"
+                  placeholder="+998 90 123 45 67"
                   className={inputCls}
                   required
                 />
@@ -179,9 +180,6 @@ export function Login() {
           >
             <BookOpen className="h-4 w-4" aria-hidden="true" />
             Tizimdan foydalanish qo‘llanmasi
-          </Link>
-          <Link to="/demo" className="mt-2 block text-center text-sm font-medium text-slate-600 hover:underline dark:text-slate-400">
-            Ro‘yxatdan o‘tmasdan sinab ko‘rish
           </Link>
         </div>
       </main>

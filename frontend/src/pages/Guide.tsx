@@ -1209,12 +1209,6 @@ export function PublicGuide() {
         >
           ← Kirish sahifasiga qaytish
         </Link>
-        <Link
-          to="/demo"
-          className="mb-4 ml-4 inline-flex items-center rounded-full bg-brand-700 px-4 py-1.5 text-sm font-semibold text-white hover:bg-brand-800"
-        >
-          Sinab ko‘rish
-        </Link>
         <Guide />
       </div>
     </div>
