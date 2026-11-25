@@ -11,6 +11,7 @@ import { ReportIssueButton } from './ReportIssue'
 import { CommandBar } from './CommandBar'
 import { Icons } from './icons'
 import { canManageCompany as canManageCompanyRole, useOrganization } from '../hooks/useOrganization'
+import { useOrganizationBlock } from '../hooks/useOrganizationBlock'
 
 type NavItem = { to: string; label: string; icon: (p: { className?: string }) => React.ReactNode; end?: boolean; badge?: 'overdue' | 'applications' }
 
@@ -53,11 +54,17 @@ const tabItems = [
   { to: '/readers', label: "O'quvchilar", icon: Icons.graduationCap },
 ]
 
+const platformTabItems = [{ to: '/platform', label: 'Platforma', icon: Icons.shield, end: true }]
+
 function BottomTabs({ onMenu }: { onMenu: () => void }) {
+  const { user } = useAuthStore()
+  const blocked = useOrganizationBlock()
+  // Library tabs lead nowhere for a platform user without a usable library.
+  const items = user?.is_platform && (!user.kutubxonalar?.length || blocked) ? platformTabItems : tabItems
   const tab = 'pwa-tab flex min-h-[3.25rem] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 whitespace-nowrap px-0.5 text-[0.6875rem] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500'
   return (
     <nav className="pwa-tabs fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-paper lg:hidden dark:border-slate-700 dark:bg-slate-800">
-      {tabItems.map((item) => (
+      {items.map((item) => (
         <NavLink
           key={item.to}
           to={item.to}
@@ -115,7 +122,9 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
   const { user } = useAuthStore()
   const canManageCompany = canManageCompanyRole(useOrganization().data)
   // A platform-only master user belongs to no library: library pages would be empty for them.
-  const platformOnly = !!user?.is_platform && !(user.kutubxonalar?.length)
+  // Same when the selected library is blocked: only the platform pages stay usable.
+  const blocked = useOrganizationBlock()
+  const platformOnly = !!user?.is_platform && (!user.kutubxonalar?.length || !!blocked)
   const stats = useQuery({ queryKey: ['stats', 'dashboard'], queryFn: statsApi.dashboard, enabled: !platformOnly, staleTime: 60_000 })
   const apps = useQuery({
     queryKey: ['applications', 'pending-count'],

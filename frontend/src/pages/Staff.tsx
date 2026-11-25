@@ -128,18 +128,20 @@ export function Staff() {
               <div className="text-sm text-slate-600 dark:text-slate-300">@{u.username}</div>
               <div className="flex flex-wrap gap-1.5">
                 <Badge tone={u.rol === 'administrator' ? 'blue' : 'slate'}>
-                  {u.rol === 'administrator' ? 'Administrator' : 'Kutubxonachi'}
+                  {u.joriy_rol === 'egasi' ? 'Egasi' : u.rol === 'administrator' ? 'Administrator' : 'Kutubxonachi'}
                 </Badge>
                 {u.telefon && <span className="text-xs text-slate-500 dark:text-slate-400">{u.telefon}</span>}
               </div>
-              <Button
-                size="sm"
-                variant="secondary"
-                className="w-full"
-                onClick={() => setHolatiOzgartiriladigan(u)}
-              >
-                {u.is_active ? 'Bloklash' : 'Faollashtirish'}
-              </Button>
+              {u.joriy_rol !== 'egasi' && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="w-full"
+                  onClick={() => setHolatiOzgartiriladigan(u)}
+                >
+                  {u.is_active ? 'Bloklash' : 'Faollashtirish'}
+                </Button>
+              )}
             </div>
           )}
         >
@@ -164,7 +166,7 @@ export function Staff() {
                   sortBy: (u) => u.rol,
                   render: (u) => (
                     <Badge tone={u.rol === 'administrator' ? 'blue' : 'slate'}>
-                      {u.rol === 'administrator' ? 'Administrator' : 'Kutubxonachi'}
+                      {u.joriy_rol === 'egasi' ? 'Egasi' : u.rol === 'administrator' ? 'Administrator' : 'Kutubxonachi'}
                     </Badge>
                   ),
                 },
@@ -189,16 +191,18 @@ export function Staff() {
                   label: '',
                   sortable: false,
                   align: 'right',
-                  render: (u) => (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => setHolatiOzgartiriladigan(u)}
-                      disabled={toggleActiveMut.isPending}
-                    >
-                      {u.is_active ? 'Bloklash' : 'Faollashtirish'}
-                    </Button>
-                  ),
+                  // The server refuses to block a library owner.
+                  render: (u) =>
+                    u.joriy_rol === 'egasi' ? null : (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setHolatiOzgartiriladigan(u)}
+                        disabled={toggleActiveMut.isPending}
+                      >
+                        {u.is_active ? 'Bloklash' : 'Faollashtirish'}
+                      </Button>
+                    ),
                 },
               ] as DataTableColumn<User>[]
             }

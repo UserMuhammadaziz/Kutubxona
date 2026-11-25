@@ -83,7 +83,12 @@ export function SelectBox({
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Escape') return setOpen(false)
+    if (e.key === 'Escape') {
+      if (!open) return
+      // Closes the list only, not the modal around it.
+      e.stopPropagation()
+      return setOpen(false)
+    }
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault()
       if (!open) return toggle()

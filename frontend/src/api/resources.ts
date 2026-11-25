@@ -74,6 +74,11 @@ export interface OrganizationInfo {
   /** Current user's role inside this organization (membership role). */
   rol?: string | null
   status?: string
+  status_reason?: string
+  status_changed_at?: string | null
+  yaratilgan?: string
+  /** Platform contacts; empty strings when not configured. */
+  support?: { phone: string; telegram: string }
   /** Per-library feature switches (missing key = off). */
   capabilities?: { search_inline?: boolean }
 }
@@ -393,6 +398,27 @@ export interface PlatformOrg {
   telefon: string
   status_reason: string
   yaratilgan: string
+  subscription: PlatformSubscription | null
+}
+
+export type SubscriptionStatus = 'trial' | 'active' | 'past_due' | 'canceled' | 'expired'
+
+export interface PlatformSubscription {
+  plan: string
+  plan_name: string
+  status: SubscriptionStatus
+  /** Same as `status`, or "expired" when the period has ended. */
+  effective_status: SubscriptionStatus
+  trial_ends_at: string | null
+  current_period_end: string | null
+  limits: PlanLimits
+}
+
+/** `null` means unlimited. */
+export interface PlanLimits {
+  max_staff: number | null
+  max_resources: number | null
+  max_customers: number | null
 }
 
 export interface PlatformStats {
@@ -401,13 +427,19 @@ export interface PlatformStats {
   tashkilotlar: PlatformOrg[]
 }
 
-export interface PlatformPlan {
+export interface PlatformPlan extends PlanLimits {
   id: number
   code: string
   nomi: string
+  tavsif: string
   narx_oylik: string
+  tartib: number
   faol: boolean
+  organization_count: number
+  is_default: boolean
 }
+
+export type PlatformPlanForm = PlanLimits & Pick<PlatformPlan, 'nomi' | 'tavsif' | 'narx_oylik' | 'faol'>
 
 export interface AuditEntry {
   id: number
@@ -416,6 +448,7 @@ export interface AuditEntry {
   action: string
   target_type: string
   target_id: string
+  metadata: Record<string, unknown> | null
   yaratilgan: string
 }
 
@@ -444,10 +477,17 @@ export const platformApi = {
   stats: () => api.get<PlatformStats>('/saas/organizations/stats/').then((r) => r.data),
   setStatus: (id: number, action: 'approve' | 'reject' | 'suspend' | 'activate' | 'archive', reason = '') =>
     api.post(`/saas/organizations/${id}/${action}/`, reason ? { reason } : {}).then((r) => r.data),
-  setSubscription: (id: number, payload: { plan?: string; status?: string }) =>
+  setSubscription: (
+    id: number,
+    payload: { plan?: string; status?: SubscriptionStatus; trial_ends_at?: string | null; current_period_end?: string | null },
+  ) =>
     api.post(`/saas/organizations/${id}/subscription/`, payload).then((r) => r.data),
   plans: () =>
     api.get<Paginated<PlatformPlan> | PlatformPlan[]>('/saas/plans/').then((r) => (Array.isArray(r.data) ? r.data : r.data.results)),
+  createPlan: (payload: PlatformPlanForm) => api.post<PlatformPlan>('/saas/plans/', payload).then((r) => r.data),
+  updatePlan: (id: number, payload: Partial<PlatformPlanForm> & { tartib?: number }) =>
+    api.patch<PlatformPlan>(`/saas/plans/${id}/`, payload).then((r) => r.data),
+  removePlan: (id: number) => api.delete(`/saas/plans/${id}/`).then((r) => r.data),
   audit: (page = 1) => api.get<Paginated<AuditEntry>>('/saas/audit/', { params: { page } }).then((r) => r.data),
 }
 

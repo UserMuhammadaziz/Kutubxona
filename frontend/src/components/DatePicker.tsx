@@ -1,4 +1,5 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import clsx from 'clsx'
 import { Calendar, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X } from 'lucide-react'
 
@@ -69,7 +70,8 @@ export function DatePicker({
   const uid = useId()
   const root = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
-  const [up, setUp] = useState(false)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ left: number; top?: number; bottom?: number } | null>(null)
   const [text, setText] = useState(display(value))
   const [panel, setPanel] = useState<Panel>('date')
   const selected = parseISO(value)
@@ -81,11 +83,30 @@ export function DatePicker({
   useEffect(() => {
     if (!open) return
     const onDown = (e: MouseEvent) => {
-      if (!(e.target instanceof Node) || !root.current?.contains(e.target)) close()
+      if (!(e.target instanceof Node) || (!root.current?.contains(e.target) && !panelRef.current?.contains(e.target))) close()
     }
     document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  // The panel is portalled to <body> (fixed), so modals with overflow never clip it.
+  function place() {
+    const r = root.current?.getBoundingClientRect()
+    if (!r) return
+    const left = Math.max(8, Math.min(r.left, document.documentElement.clientWidth - 288 - 8))
+    const up = window.innerHeight - r.bottom < 360 && r.top > 360
+    setPos({ left, ...(up ? { bottom: window.innerHeight - r.top + 6 } : { top: r.bottom + 6 }) })
+  }
+
+  useLayoutEffect(() => {
+    if (open) place()
   }, [open])
 
   const outOfRange = (iso: string) => (min !== undefined && min !== '' && iso < min) || (max !== undefined && max !== '' && iso > max)
@@ -95,8 +116,6 @@ export function DatePicker({
     const base = parseISO(value) ?? new Date()
     setView({ y: base.getFullYear(), m: base.getMonth() })
     setPanel('date')
-    const r = root.current?.getBoundingClientRect()
-    setUp(!!r && window.innerHeight - r.bottom < 360 && r.top > 360)
     setOpen(true)
   }
 
@@ -168,7 +187,11 @@ export function DatePicker({
           onClick={() => !open && openPanel()}
           onChange={(e) => onType(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Escape') close()
+            if (e.key === 'Escape' && open) {
+              // Closes the calendar only, not the modal around it.
+              e.stopPropagation()
+              close()
+            }
             if (e.key === 'Enter') {
               e.preventDefault()
               const iso = fromDisplay(text)
@@ -194,15 +217,20 @@ export function DatePicker({
         )}
       </div>
 
-      {open && (
+      {open && pos && createPortal(
         <div
+          ref={panelRef}
+          onKeyDown={(e) => {
+            if (e.key !== 'Escape') return
+            e.stopPropagation()
+            close()
+          }}
+          style={{ position: 'fixed', ...pos }}
           id={`${uid}-panel`}
           role="dialog"
           aria-label="Sana tanlash"
           className={clsx(
-            'animate-pop absolute z-50 w-[288px] rounded-popup border border-slate-200 bg-paper p-3 shadow-pop dark:border-slate-600 dark:bg-slate-800',
-            up ? 'bottom-full mb-1.5' : 'top-full mt-1.5',
-            'left-0',
+            'animate-pop z-[110] w-[288px] rounded-popup border border-slate-200 bg-paper p-3 shadow-pop dark:border-slate-600 dark:bg-slate-800',
           )}
         >
           <div className="mb-2 flex items-center justify-between">
@@ -343,7 +371,8 @@ export function DatePicker({
               ))}
             </div>
           )}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

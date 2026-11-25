@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuthStore, isAdmin } from '../store/auth'
 import { PageSkeleton } from './ui'
+import { OrganizationGate } from './OrganizationGate'
 
 export function RequireAuth() {
   const status = useAuthStore((s) => s.status)
@@ -17,7 +18,11 @@ export function RequireAuth() {
     return <Navigate to={`/login?from=${encodeURIComponent(qaytish)}`} replace />
   }
 
-  return <Outlet />
+  return (
+    <OrganizationGate>
+      <Outlet />
+    </OrganizationGate>
+  )
 }
 
 export function RequireAdmin() {

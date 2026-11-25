@@ -21,6 +21,7 @@ export interface UserKutubxona {
   nomi: string
   slug: string
   rol: string
+  status?: string
 }
 
 /** GET /api/auth/organization/ — to'liq OrganizationSerializer yoki null. */
@@ -57,6 +58,8 @@ export interface User {
   telefon: string
   is_active: boolean
   is_platform?: boolean
+  /** True when the user is a member of no library (only in /auth/me/). */
+  no_organization?: boolean
   kutubxonalar?: UserKutubxona[]
   joriy_rol?: string | null
 }

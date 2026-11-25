@@ -39,6 +39,47 @@ function Tile({
   )
 }
 
+// Bump when the files in public/landing are retaken: nginx caches them for days.
+const SHOTS_VERSION = '2611'
+
+/** App screenshot that follows the theme and swaps to a phone capture on small screens. */
+function Screenshot({
+  name,
+  alt,
+  width,
+  height,
+  className,
+  lazy = false,
+}: {
+  name: 'panel' | 'loans'
+  alt: string
+  width: number
+  height: number
+  className: string
+  lazy?: boolean
+}) {
+  const theme = useThemeStore((t) => t.theme)
+  const suffix = `${theme === 'dark' ? 'dark' : 'light'}-${SHOTS_VERSION}.webp`
+  return (
+    <picture>
+      <source
+        media="(max-width: 639px)"
+        srcSet={`/landing/${name}-mobile-${suffix}`}
+        width={780}
+        height={1560}
+      />
+      <img
+        src={`/landing/${name}-${suffix}`}
+        alt={alt}
+        width={width}
+        height={height}
+        loading={lazy ? 'lazy' : undefined}
+        className={`block h-auto w-full ${className}`}
+      />
+    </picture>
+  )
+}
+
 export function Home() {
   const theme = useThemeStore((t) => t.theme)
   const toggleTheme = useThemeStore((t) => t.toggle)
@@ -60,12 +101,17 @@ export function Home() {
           </button>
           <Link
             to="/login"
-            className="rounded-full border px-4 py-2 text-sm font-semibold"
+            className="whitespace-nowrap rounded-full border px-4 py-2 text-sm font-semibold"
             style={{ borderColor: 'var(--l-green-ink)', color: 'var(--l-green-ink)' }}
           >
             Tizimga kirish
           </Link>
-          <Link to="/register" className="rounded-full px-5 py-2.5 text-sm font-semibold text-white" style={{ background: YASHIL }}>
+          {/* Phones: the hero repeats this button right below, so the header keeps only login. */}
+          <Link
+            to="/register"
+            className="hidden whitespace-nowrap rounded-full px-5 py-2.5 text-sm font-semibold text-white sm:block"
+            style={{ background: YASHIL }}
+          >
             Ro‘yxatdan o‘tish
           </Link>
         </nav>
@@ -88,20 +134,12 @@ export function Home() {
           </div>
 
           <figure className="mt-12 overflow-hidden rounded-[24px] p-2 sm:p-3" style={{ background: QUM }}>
-            {/* Light and dark variants; the `dark` class on <html> picks one. */}
-            <img
-              src="/landing/panel.jpg"
-              alt="Boshqaruv paneli: muddati o‘tgan berishlar, navbatlar, jarimalar, fond holati, so‘nggi harakatlar"
-              className="block h-auto w-full rounded-[16px] dark:hidden"
-              width={1568}
-              height={665}
-            />
-            <img
-              src="/landing/panel-dark.jpg"
-              alt="Boshqaruv paneli (qorong‘i rejim): muddati o‘tgan berishlar, navbatlar, jarimalar, fond holati"
-              className="hidden h-auto w-full rounded-[16px] dark:block"
-              width={1568}
-              height={720}
+            <Screenshot
+              name="panel"
+              alt="Boshqaruv paneli: fond holati, muddati o‘tgan berishlar, jarimalar, so‘nggi harakatlar va muammo haqida xabar tugmasi"
+              width={2560}
+              height={1960}
+              className="rounded-[16px]"
             />
           </figure>
         </section>
@@ -133,21 +171,13 @@ export function Home() {
                 O‘quvchini toping, kitobni tanlang, bering. Qaytganda qator oxiridagi tugmani bosasiz — nusxa
                 javonga qaytadi.
               </p>
-              <img
-                src="/landing/berish.jpg"
-                alt="Berish va qaytarish jadvali: kitob, o‘quvchi, berilgan sana, muddat, Qaytarish tugmasi"
-                className="mt-5 block h-auto w-full rounded-[14px] dark:hidden"
-                loading="lazy"
-                width={1340}
-                height={570}
-              />
-              <img
-                src="/landing/berish-dark.jpg"
-                alt="Berish va qaytarish jadvali (qorong‘i rejim)"
-                className="mt-5 hidden h-auto w-full rounded-[14px] dark:block"
-                loading="lazy"
-                width={1340}
-                height={570}
+              <Screenshot
+                name="loans"
+                alt="Berish va qaytarish jadvali: kitob, kitobxon, berilgan sana, muddat, Qaytarish tugmasi"
+                width={1958}
+                height={1364}
+                className="mt-5 rounded-[14px]"
+                lazy
               />
             </Tile>
 

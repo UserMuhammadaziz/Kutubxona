@@ -378,15 +378,25 @@ export function Modal({
   onClose,
   title,
   description,
+  wide = false,
   children,
 }: {
   open: boolean
   onClose: () => void
   title: string
   description?: string
+  wide?: boolean
   children: ReactNode
 }) {
   const boxRef = useRef<HTMLDivElement>(null)
+
+  // Keyboard focus moves into the dialog and returns to the opener afterwards.
+  useEffect(() => {
+    if (!open) return
+    const opener = document.activeElement as HTMLElement | null
+    if (!boxRef.current?.contains(opener)) boxRef.current?.focus({ preventScroll: true })
+    return () => opener?.focus?.({ preventScroll: true })
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -414,7 +424,11 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="max-h-[90dvh] w-full overflow-y-auto rounded-t-2xl bg-paper p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-xl sm:max-w-lg sm:rounded-xl sm:p-6 dark:bg-slate-800 dark:shadow-black/40"
+        tabIndex={-1}
+        className={clsx(
+          'max-h-[90dvh] w-full overflow-y-auto rounded-t-2xl bg-paper p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-xl outline-none sm:rounded-xl sm:p-6 dark:bg-slate-800 dark:shadow-black/40',
+          wide ? 'sm:max-w-2xl' : 'sm:max-w-lg',
+        )}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-start justify-between gap-3">
