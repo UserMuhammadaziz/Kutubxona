@@ -1,6 +1,5 @@
 from django.utils import timezone
 from rest_framework import serializers
-from kitob.models import Kitob
 from nusxa.models import Nusxa
 from organization.tenancy import TenantSerializerMixin
 
@@ -41,11 +40,6 @@ class NusxaSerializer(TenantSerializerMixin, serializers.ModelSerializer):
                 }
             )
         return attrs
-
-    def validate_kitob(self, value):
-        if not Kitob.objects.filter(pk=value.pk).exists():
-            raise serializers.ValidationError("Ko'rsatilgan kitob topilmadi.")
-        return value
 
 
 class NusxaYaratishSerializer(TenantSerializerMixin, serializers.ModelSerializer):

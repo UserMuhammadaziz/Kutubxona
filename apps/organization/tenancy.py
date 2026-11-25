@@ -132,7 +132,13 @@ def joriy_kutubxonani_aniqla(request, required=True, allow_inactive=False):
             {"organization": "Qaysi kutubxonada ishlayotganingizni tanlang."}
         )
     if required:
-        raise PermissionDenied("Siz hech qanday faol kutubxonaga a'zo emassiz.")
+        raise PermissionDenied(
+            {
+                "error": "organization_none",
+                "detail": "Siz hech qanday faol kutubxonaga a'zo emassiz.",
+                "status": "none",
+            }
+        )
     return None
 
 
@@ -215,10 +221,13 @@ class TenantSerializerMixin:
     def get_fields(self):
         fields = super().get_fields()
         org = self._organization()
-        if org is None:
-            return fields
         for field in fields.values():
-            qs = getattr(field, "queryset", None)
+            # `many=True` relations keep the queryset on the child field.
+            relation = getattr(field, "child_relation", field)
+            qs = getattr(relation, "queryset", None)
+            # Auto-generated ModelSerializer relations hold a Manager, not a QuerySet.
+            if isinstance(qs, models.Manager):
+                qs = qs.all()
             if isinstance(qs, QuerySet) and hasattr(qs.model, "organization"):
-                field.queryset = qs.filter(organization=org)
+                relation.queryset = scope(qs, org)
         return fields

@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from kitob.models import BandQilish, Kitob
+from organization.tenancy import scope
 
 
 class KitobSerializer(serializers.ModelSerializer):
@@ -35,8 +36,12 @@ class KitobSerializer(serializers.ModelSerializer):
         value = value.strip()
         if not value:
             return None
-        # unique=True modelda bor, lekin aniq xabar uchun qo'shimcha tekshiruv
-        qs = Kitob.objects.filter(isbn=value)
+        # Unique per organization (`org_bitta_isbn`): another library may own
+        # the same ISBN, and its existence must not be revealed here.
+        org = self.context.get("organization") or getattr(
+            self.instance, "organization", None
+        )
+        qs = scope(Kitob.objects.all(), org).filter(isbn=value)
         if self.instance:
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():

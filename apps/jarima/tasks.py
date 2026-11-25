@@ -45,7 +45,7 @@ def jarima_eslatma_yubor():
     """
     qarz = (
         Jarima.objects.filter(tolandimi=False)
-        .select_related("berish__oquvchi", "berish__kitob")
+        .select_related("berish__oquvchi__organization", "berish__kitob")
         .order_by("berish__oquvchi_id")
     )
 
@@ -100,7 +100,9 @@ def jarima_eslatma_yubor():
         )
 
         yuborish_vaqti = now()
-        if not telegram_xabar_yubor(oquvchi.telegram_id, matn):
+        if not telegram_xabar_yubor(
+            oquvchi.telegram_id, matn, organization=oquvchi.organization
+        ):
             continue
 
         # Yuborildi — kelgori uchun sanani belgilaymiz, shunda keyingi

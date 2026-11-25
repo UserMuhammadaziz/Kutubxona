@@ -299,9 +299,9 @@ class ArizaTasdiqlashTest(ArizaTestMixin, TestCase):
         oquvchi = Oquvchi.objects.get(telefon="+998901234567")
         self.assertEqual(oquvchi.organization_id, self.org.pk)
 
-        # Arizaorganizatsiyasi o'zgarmaydi — xabar global tokendan ketadi.
+        # The application is linked too; delivery falls back to the global bot.
         self.ariza.refresh_from_db()
-        self.assertIsNone(self.ariza.organization_id)
+        self.assertEqual(self.ariza.organization_id, self.org.pk)
 
         # O'quvchi kutubxonachining ro'yxatida ko'rinadi.
         royxat = self.client.get("/api/readers/")

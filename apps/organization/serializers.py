@@ -4,8 +4,15 @@ from django.utils.text import slugify
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import AuditLog, IssueReport, Membership, Organization, SubscriptionPlan
-from .services import subscription_for
+from .models import (
+    AuditLog,
+    IssueReport,
+    Membership,
+    Organization,
+    OrganizationSubscription,
+    SubscriptionPlan,
+)
+from .services import DEFAULT_PLAN_CODE, subscription_for
 from .tenancy import foydalanuvchi_azoligi
 
 User = get_user_model()
@@ -423,11 +430,18 @@ class RegisterSerializer(serializers.Serializer):
 
 
 class SubscriptionPlanSerializer(serializers.ModelSerializer):
+    # Optional on create: generated from the name. Fixed afterwards.
+    code = serializers.SlugField(max_length=40, required=False)
+    organization_count = serializers.SerializerMethodField()
+    is_default = serializers.SerializerMethodField()
+
     class Meta:
         model = SubscriptionPlan
         fields = [
             "id",
             "code",
+            "organization_count",
+            "is_default",
             "nomi",
             "tavsif",
             "narx_oylik",
@@ -438,6 +452,79 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
             "tartib",
             "faol",
         ]
+
+    def get_organization_count(self, obj):
+        count = getattr(obj, "organization_count", None)
+        return obj.obunalar.count() if count is None else count
+
+    def get_is_default(self, obj):
+        return obj.code == DEFAULT_PLAN_CODE
+
+    def validate_nomi(self, value):
+        value = value.strip()
+        if len(value) < 2:
+            raise serializers.ValidationError("Tarif nomi kamida 2 ta belgidan iborat bo'lishi kerak.")
+        qs = SubscriptionPlan.objects.filter(nomi__iexact=value)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("Bu nomli tarif allaqachon bor.")
+        return value
+
+    def validate_narx_oylik(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Narx manfiy bo'lishi mumkin emas.")
+        return value
+
+    def validate_code(self, value):
+        if self.instance:
+            if value != self.instance.code:
+                raise serializers.ValidationError("Tarif kodini o'zgartirib bo'lmaydi.")
+        elif SubscriptionPlan.objects.filter(code=value).exists():
+            raise serializers.ValidationError("Bu kodli tarif allaqachon bor.")
+        return value
+
+    def _validate_limit(self, value):
+        if value is not None and value < 1:
+            raise serializers.ValidationError("Limit kamida 1 bo'lishi kerak. Cheksiz bo'lsa bo'sh qoldiring.")
+        return value
+
+    validate_max_staff = _validate_limit
+    validate_max_resources = _validate_limit
+    validate_max_customers = _validate_limit
+
+    def validate_faol(self, value):
+        if not value and self.instance and self.instance.code == DEFAULT_PLAN_CODE:
+            raise serializers.ValidationError("Boshlang'ich tarifni o'chirib qo'yib bo'lmaydi.")
+        return value
+
+    @staticmethod
+    def _unique_code(name):
+        base = slugify(name)[:34] or "tarif"
+        code, n = base, 2
+        while SubscriptionPlan.objects.filter(code=code).exists():
+            code, n = f"{base}-{n}", n + 1
+        return code
+
+    def create(self, validated_data):
+        validated_data.setdefault("code", self._unique_code(validated_data["nomi"]))
+        if "tartib" not in validated_data:
+            last = SubscriptionPlan.objects.order_by("-tartib").values_list("tartib", flat=True).first()
+            validated_data["tartib"] = (last or 0) + 1
+        return super().create(validated_data)
+
+
+class SubscriptionChangeSerializer(serializers.Serializer):
+    """Platform admin changes an organization's plan, status or period."""
+
+    plan = serializers.SlugField(required=False, allow_blank=True)
+    status = serializers.ChoiceField(
+        choices=OrganizationSubscription.HOLAT_CHOICES,
+        required=False,
+        error_messages={"invalid_choice": "Obuna holati noto'g'ri."},
+    )
+    trial_ends_at = serializers.DateTimeField(required=False, allow_null=True)
+    current_period_end = serializers.DateTimeField(required=False, allow_null=True)
 
 
 class AuditLogSerializer(serializers.ModelSerializer):

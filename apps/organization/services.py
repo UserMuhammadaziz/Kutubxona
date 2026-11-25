@@ -7,6 +7,8 @@ from rest_framework.exceptions import ValidationError
 
 from .models import AuditLog, Organization, OrganizationSubscription, SubscriptionPlan
 
+# Given to every new organization; cannot be deactivated or deleted.
+DEFAULT_PLAN_CODE = "free"
 DEFAULT_TRIAL_KUN = 14
 
 
@@ -49,7 +51,7 @@ def log_action(
 
 
 def free_plan():
-    return SubscriptionPlan.objects.filter(code="free").first()
+    return SubscriptionPlan.objects.filter(code=DEFAULT_PLAN_CODE).first()
 
 
 def subscription_for(organization, *, trial=True):
@@ -57,7 +59,7 @@ def subscription_for(organization, *, trial=True):
     plan = free_plan()
     if plan is None:
         plan = SubscriptionPlan.objects.create(
-            code="free",
+            code=DEFAULT_PLAN_CODE,
             nomi="Free",
             narx_oylik=0,
             max_staff=3,

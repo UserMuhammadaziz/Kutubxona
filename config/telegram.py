@@ -74,10 +74,26 @@ def telegram_xabar_yubor(
             chat_id = int(chat_id)
         except (TypeError, ValueError):
             return False
-    try:
-        from telegrambot.client import send_message
+    from telegrambot.client import TelegramAPIError, send_message
 
-        send_message(token, chat_id, matn, reply_markup=reply_markup, parse_mode=parse_mode)
+    options = {"reply_markup": reply_markup, "parse_mode": parse_mode}
+    try:
+        send_message(token, chat_id, matn, **options)
+        return True
+    except TelegramAPIError as error:
+        # The person may know only the polling bot, never the library's own one.
+        # Retry on a definite rejection only: after a timeout the message may
+        # already have been delivered.
+        rejected = error.status in (400, 401, 403)
+    except Exception:
+        return False
+
+    if not rejected or bot is not None or organization is None:
+        return False
+    if not _global_token_mumkin() or token == settings.TELEGRAM_BOT_TOKEN:
+        return False
+    try:
+        send_message(settings.TELEGRAM_BOT_TOKEN, chat_id, matn, **options)
         return True
     except Exception:
         return False

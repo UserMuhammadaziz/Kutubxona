@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
 from django.conf import settings
+from django.db.models import Count
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
@@ -18,7 +19,6 @@ from .models import (
     AuditLog,
     Membership,
     Organization,
-    OrganizationSubscription,
     SubscriptionPlan,
 )
 from .permissions import IsPlatformAdmin
@@ -29,8 +29,9 @@ from .serializers import (
     PasswordResetRequestSerializer,
     RegisterSerializer,
     SaaSOrganizationSerializer,
+    SubscriptionChangeSerializer,
 )
-from .services import check_limit, log_action, set_status, subscription_for
+from .services import DEFAULT_PLAN_CODE, log_action, set_status, subscription_for
 from .tenancy import (
     foydalanuvchi_azoligi,
     foydalanuvchi_kutubxonalari,
@@ -228,21 +229,19 @@ class SaaSOrganizationViewSet(viewsets.ModelViewSet):
         """Tarif rejasini o'zgartirish (to'lovsiz, foundation bosqichi)."""
         org = self.get_object()
         obuna = subscription_for(org)
-        plan_code = request.data.get("plan")
-        if plan_code:
+        serializer = SubscriptionChangeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        plan_code = data.get("plan")
+        # A deactivated plan stays with the organizations that already have it.
+        if plan_code and plan_code != obuna.plan.code:
             plan = SubscriptionPlan.objects.filter(code=plan_code, faol=True).first()
             if not plan:
                 return Response({"detail": "Tarif rejasi topilmadi."}, status=404)
             obuna.plan = plan
-        if "status" in request.data:
-            status_value = request.data["status"]
-            if status_value not in dict(OrganizationSubscription.HOLAT_CHOICES):
-                return Response({"detail": "Obuna holati noto'g'ri."}, status=400)
-            obuna.status = status_value
-        if "trial_ends_at" in request.data:
-            obuna.trial_ends_at = request.data["trial_ends_at"] or None
-        if "current_period_end" in request.data:
-            obuna.current_period_end = request.data["current_period_end"] or None
+        for field in ("status", "trial_ends_at", "current_period_end"):
+            if field in data:
+                setattr(obuna, field, data[field])
         obuna.save()
         log_action(
             "organization.subscription_changed",
@@ -250,12 +249,36 @@ class SaaSOrganizationViewSet(viewsets.ModelViewSet):
             organization=org,
             target_type="organization_subscription",
             target_id=obuna.pk,
-            metadata={"plan": obuna.plan.code, "status": obuna.status},
+            metadata={
+                "plan": obuna.plan.code,
+                "plan_name": obuna.plan.nomi,
+                "status": obuna.status,
+            },
             request=request,
         )
         return Response(
             SaaSOrganizationSerializer(org, context={"request": request}).data
         )
+
+    @staticmethod
+    def _subscription_summary(org):
+        # Read only: an organization without a subscription row is not given one here.
+        sub = getattr(org, "subscription", None)
+        if sub is None:
+            return None
+        return {
+            "plan": sub.plan.code,
+            "plan_name": sub.plan.nomi,
+            "status": sub.status,
+            "effective_status": sub.samarali_holat,
+            "trial_ends_at": sub.trial_ends_at,
+            "current_period_end": sub.current_period_end,
+            "limits": {
+                "max_staff": sub.plan.max_staff,
+                "max_resources": sub.plan.max_resources,
+                "max_customers": sub.plan.max_customers,
+            },
+        }
 
     @action(detail=False, methods=["get"], url_path="stats")
     def stats(self, request):
@@ -268,7 +291,7 @@ class SaaSOrganizationViewSet(viewsets.ModelViewSet):
             for kod, _ in Organization.HOLAT_CHOICES
         }
         data = []
-        for org in self.get_queryset():
+        for org in self.get_queryset().select_related("subscription__plan", "telegram_bot"):
             data.append(
                 {
                     "id": org.id,
@@ -286,6 +309,7 @@ class SaaSOrganizationViewSet(viewsets.ModelViewSet):
                     "telefon": org.telefon,
                     "status_reason": org.status_reason,
                     "yaratilgan": org.yaratilgan,
+                    "subscription": self._subscription_summary(org),
                 }
             )
         return Response(
@@ -298,16 +322,53 @@ class SaaSOrganizationViewSet(viewsets.ModelViewSet):
 
 
 class SubscriptionPlanViewSet(viewsets.ModelViewSet):
-    """Tarif rejalari (o'qish hamma uchun, yozish platforma administratori)."""
+    """Tariff plans: platform admins only."""
 
-    queryset = SubscriptionPlan.objects.all()
+    # Meta.ordering is ignored by GROUP BY queries, so the order is explicit.
+    queryset = SubscriptionPlan.objects.annotate(
+        organization_count=Count("obunalar")
+    ).order_by("tartib", "narx_oylik", "nomi")
     permission_classes = [IsPlatformAdmin]
-    http_method_names = ["get", "post", "patch"]
+    pagination_class = None
+    http_method_names = ["get", "post", "patch", "delete"]
 
     def get_serializer_class(self):
         from .serializers import SubscriptionPlanSerializer
 
         return SubscriptionPlanSerializer
+
+    def _log(self, action_name, plan, plan_id=None):
+        log_action(
+            action_name,
+            actor=self.request.user,
+            target_type="subscription_plan",
+            target_id=plan_id or plan.pk,
+            metadata={"code": plan.code, "name": plan.nomi},
+            request=self.request,
+        )
+
+    def perform_create(self, serializer):
+        self._log("plan.created", serializer.save())
+
+    def perform_update(self, serializer):
+        self._log("plan.updated", serializer.save())
+
+    def destroy(self, request, *args, **kwargs):
+        from django.db.models import ProtectedError
+
+        plan = self.get_object()
+        if plan.code == DEFAULT_PLAN_CODE:
+            return Response({"detail": "Boshlang'ich tarifni o'chirib bo'lmaydi."}, status=409)
+        plan_id = plan.pk
+        try:
+            plan.delete()
+        except ProtectedError:
+            return Response(
+                {"detail": "Bu tarifdan foydalanayotgan tashkilotlar bor. Avval ularni boshqa tarifga o'tkazing."},
+                status=409,
+            )
+        self._log("plan.deleted", plan, plan_id)
+        return Response(status=204)
 
 
 class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
@@ -379,7 +440,13 @@ def current_organization(request):
     org = joriy_kutubxonani_aniqla(request, required=False, allow_inactive=True)
     if not org:
         return Response(None)
-    return Response(OrganizationSerializer(org, context={"request": request}).data)
+    data = dict(OrganizationSerializer(org, context={"request": request}).data)
+    # Platform contacts for the blocking status screen; empty values are hidden there.
+    data["support"] = {
+        "phone": settings.SUPPORT_PHONE,
+        "telegram": settings.SUPPORT_TELEGRAM,
+    }
+    return Response(data)
 
 
 @api_view(["GET"])

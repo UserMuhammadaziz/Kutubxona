@@ -299,6 +299,10 @@ VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")
 VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
 VAPID_CLAIMS_EMAIL = os.environ.get("VAPID_CLAIMS_EMAIL", "admin@kutubxona.local")
 
+# Platform contacts shown to blocked/pending organizations (both optional).
+SUPPORT_PHONE = os.environ.get("SUPPORT_PHONE", "").strip()
+SUPPORT_TELEGRAM = os.environ.get("SUPPORT_TELEGRAM", "").strip().lstrip("@")
+
 # Frontend manzili (parolni tiklash havolasi va CORS uchun).
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
 CORS_ALLOWED_ORIGINS = [

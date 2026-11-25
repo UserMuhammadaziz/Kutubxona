@@ -142,7 +142,10 @@ def kitob_ber(nusxa, oquvchi, xodim, kitob=None, band_tasdiqlandi=False):
         kitob_id = nusxa.kitob_id
         nusxa_holati = "berilgan"
         kitob = nusxa.kitob
-        if organization is not None and kitob.organization_id != organization.pk:
+        if organization is not None and (
+            kitob.organization_id != organization.pk
+            or nusxa.organization_id not in (None, organization.pk)
+        ):
             _xato("boshqa_kutubxona", "Nusxa boshqa kutubxonaga tegishli")
 
     # Band himoyasi: tasdiqlanmagan band so'rovi bo'lsa kitobni hech kimga

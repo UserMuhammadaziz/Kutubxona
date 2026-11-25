@@ -14,7 +14,12 @@ from config.telegram import telegram_escape
 from telegrambot.services import organizatsiya_xabari
 from jarima.models import Jarima
 from jarima.serializers import JarimaMeniSerializer
-from organization.tenancy import TenantViewSetMixin, joriy_kutubxonani_aniqla, scope
+from organization.tenancy import (
+    TenantViewSetMixin,
+    joriy_kutubxonani_aniqla,
+    legacy_rejimmi,
+    scope,
+)
 from user.permissions import IsLibrarian
 from . import services
 from .filters import ReaderFilter
@@ -311,12 +316,19 @@ class ArizaViewSet(viewsets.ModelViewSet):
         return qs
 
     def create(self, request, *args, **kwargs):
+        # An application without a library is invisible to every librarian, so
+        # it is refused instead of being stored as an orphan.
+        organization = ariza_kutubxonasi(request)
+        if organization is None and not legacy_rejimmi():
+            raise ValidationError(
+                {
+                    "error": "kutubxona_aniqlanmadi",
+                    "detail": "Kutubxona aniqlanmadi. Kutubxonangiz botidan foydalaning.",
+                }
+            )
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        # Endpoint ochiq (bot JWT'siz chaqiradi), lekin kutubxona aniqlansa
-        # ariza shu kutubxonaga bog'lanadi — aks holda tasdiqlovchi xodim
-        # uni ro'yxatda ko'rmaydi va boshqa tenant'ga "oqib ketadi".
-        ariza = serializer.save(organization=ariza_kutubxonasi(request))
+        ariza = serializer.save(organization=organization)
         return Response(ArizaSerializer(ariza).data, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=["get"], url_path="status")
