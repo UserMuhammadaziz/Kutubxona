@@ -155,3 +155,48 @@ class TypographicApostropheMismatchTest(TenantTestMixin, TestCase):
     def test_regex_characters_are_literal(self):
         self.assertEqual(self.ids("A.zamova"), [])
         self.assertEqual(self.ids("(+"), [])
+
+
+class CaseAndNewAlphabetSearchTest(TenantTestMixin, TestCase):
+    """Lower/upper case and the different ways to type oʻ / gʻ must not matter, on any list."""
+
+    def setUp(self):
+        super().setUp()
+        from kitob.models import Kitob
+
+        staff = User.objects.create_user(username="searcher3", password="parol12345", full_name="S", rol="kutubxonachi")
+        self.azolik(staff)
+        self.client = APIClient()
+        self.client.force_authenticate(staff)
+        self.reader = Oquvchi.objects.create(
+            organization=self.org, fish="MAʼRUFA GʻOFUROVA", telefon="+998906666666", karta_raqami="C-1", sinf="9-B",
+        )
+        self.book = Kitob.objects.create(
+            organization=self.org, nomi="Oʻtkan kunlar", muallif="Abdulla Qodiriy", janr="badiiy", nashr_yili=2015,
+        )
+
+    def reader_ids(self, query):
+        return [x["id"] for x in self.client.get("/api/readers/", {"search": query}).data["results"]]
+
+    def book_ids(self, query):
+        return [x["id"] for x in self.client.get("/api/books/", {"search": query}).data["results"]]
+
+    def test_lowercase_finds_uppercase(self):
+        for query in ("maʼrufa", "ma'rufa", "marufa", "Marufa gofurova", "gʻofurova", "ğofurova"):
+            self.assertIn(self.reader.pk, self.reader_ids(query), query)
+
+    def test_case_is_folded_in_python_for_non_ascii(self):
+        from oquvchi.search import search_pattern
+
+        self.assertRegex("ÕZBEK", search_pattern("õzbek"))
+        self.assertRegex("ДИЛНОЗА", search_pattern("дилноза"))
+
+    def test_new_alphabet_variants_find_book(self):
+        for query in ("o'tkan", "õtkan", "OTKAN KUNLAR", "oʻtkan", "qodiriy"):
+            self.assertIn(self.book.pk, self.book_ids(query), query)
+        self.assertEqual(self.book_ids("utkan"), [])
+
+    def test_book_search_endpoint_and_loans_filter(self):
+        res = self.client.get("/api/books/search/", {"q": "o'tkan"})
+        self.assertEqual([b["id"] for b in res.data], [self.book.pk])
+        self.assertEqual(self.client.get("/api/loans/", {"q": "marufa"}).status_code, 200)

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { matchesSearch } from '../lib/search'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { api, errorMessage } from '../api/client'
@@ -95,12 +96,12 @@ export function CommandBar() {
 
   async function prepareReturn(p: Payload) {
     const inv = p.inventory_number?.toLowerCase()
-    const who = p.reader_query?.toLowerCase()
+    const who = p.reader_query?.trim()
     const { results } = await loansApi.list({ holati: 'faol' })
     const found = results.filter(
       (b) =>
         (inv && b.inventar_raqami?.toLowerCase() === inv) ||
-        (!inv && who && b.oquvchi_fish.toLowerCase().includes(who)),
+        (!inv && who && matchesSearch(b.oquvchi_fish, who)),
     )
     if (!found.length) {
       setError('Mos faol berish topilmadi.')
