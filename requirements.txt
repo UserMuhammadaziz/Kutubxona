@@ -31,3 +31,4 @@ google-generativeai==0.8.5
 # (>= qo'yiladi — mavzuning pasaytirilishiga yo'l qo'ymaydi).
 gunicorn>=23.0.0
 pywebpush>=2.0.0
+pillow>=12.0,<13

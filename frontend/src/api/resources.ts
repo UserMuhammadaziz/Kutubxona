@@ -123,6 +123,12 @@ export const authApi = {
   organization: () => api.get<OrganizationInfo | null>('/auth/organization/').then((r) => r.data),
   updateOrganization: (id: number, payload: Partial<Omit<OrganizationInfo, 'id' | 'rol' | 'status' | 'available_dashboard_widgets'>>) =>
     api.patch<OrganizationInfo>(`/organizations/${id}/`, payload).then((r) => r.data),
+  uploadLogo: (id: number, file: File) => {
+    const body = new FormData()
+    body.append('file', file)
+    return api.post<OrganizationInfo>(`/organizations/${id}/logo/`, body).then((r) => r.data)
+  },
+  deleteLogo: (id: number) => api.delete<OrganizationInfo>(`/organizations/${id}/logo/`).then((r) => r.data),
   register: (payload: RegisterPayload) =>
     api.post<{ access: string; refresh: string; user: User; organization: any }>('/auth/register/', payload).then((r) => r.data),
   changePassword: (payload: ParolAlmashtirishPayload) =>

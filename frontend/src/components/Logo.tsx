@@ -11,9 +11,9 @@ export function LogoMark({ className = 'h-7 w-7' }: LogoMarkProps) {
     <svg viewBox="0 0 64 64" className={className} role="img" aria-label="Kutubxona">
       <defs>
         <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#3FA877" />
-          <stop offset="0.55" stopColor="#17694A" />
-          <stop offset="1" stopColor="#0F3D2E" />
+          <stop offset="0" stopColor="#5B80EF" />
+          <stop offset="0.55" stopColor="#1E4FD8" />
+          <stop offset="1" stopColor="#163A9E" />
         </linearGradient>
       </defs>
       <rect width="64" height="64" rx="15" fill={`url(#${gid})`} />

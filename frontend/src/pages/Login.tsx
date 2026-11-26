@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { BookOpen, Eye, EyeOff, Loader2, Lock, User, Users, Clock, BarChart3 } from 'lucide-react'
+import { BookOpen, Eye, EyeOff, Loader2, Lock, Phone, User, Users, Clock, BarChart3 } from 'lucide-react'
+import { formatPhone, isCompletePhone, normalizePhone } from '../lib/phone'
 import { useAuthStore } from '../store/auth'
 import { errorMessage } from '../api/client'
 import { ErrorBanner } from '../components/ui'
@@ -16,11 +17,24 @@ const FEATURES = [
 const inputCls =
   'w-full rounded-xl border border-slate-300 bg-white py-3 pl-11 pr-3 text-[15px] text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-brand-400 dark:focus:ring-brand-900/60'
 
+type LoginMode = 'phone' | 'login'
+const MODE_KEY = 'login-mode'
+
+function savedMode(): LoginMode {
+  try {
+    return localStorage.getItem(MODE_KEY) === 'login' ? 'login' : 'phone'
+  } catch {
+    return 'phone'
+  }
+}
+
 export function Login() {
   const { status, login } = useAuthStore()
   const navigate = useNavigate()
   const location = useLocation()
+  const [mode, setModeState] = useState<LoginMode>(savedMode)
   const [username, setUsername] = useState('')
+  const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -36,12 +50,26 @@ export function Login() {
     return <Navigate to={from} replace />
   }
 
+  function setMode(next: LoginMode) {
+    setModeState(next)
+    setError(null)
+    try {
+      localStorage.setItem(MODE_KEY, next)
+    } catch {
+      /* private mode */
+    }
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
+    if (mode === 'phone' && !isCompletePhone(phone)) {
+      setError('Telefon raqamini to‘liq kiriting: +998 90 123 45 67')
+      return
+    }
     setLoading(true)
     try {
-      await login(username.trim(), password)
+      await login(mode === 'phone' ? phone : username.trim(), password)
       navigate(from, { replace: true })
     } catch (err) {
       setError(errorMessage(err))
@@ -117,23 +145,75 @@ export function Login() {
           </div>
 
           <form onSubmit={onSubmit} className="mt-2 space-y-4">
+            <div role="tablist" aria-label="Kirish usuli" className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+              {([
+                ['phone', 'Telefon raqam'],
+                ['login', 'Login'],
+              ] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === value}
+                  onClick={() => setMode(value)}
+                  className={
+                    'rounded-lg py-2 text-sm font-medium transition ' +
+                    (mode === value
+                      ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-slate-100'
+                      : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200')
+                  }
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
             <div>
-              <label htmlFor="login-username" className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                Telefon raqami yoki login
-              </label>
-              <div className="relative">
-                <User className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400" aria-hidden="true" />
-                <input
-                  id="login-username"
-                  autoFocus
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  autoComplete="username"
-                  placeholder="+998 90 123 45 67"
-                  className={inputCls}
-                  required
-                />
-              </div>
+              {mode === 'phone' ? (
+                <>
+                  <label htmlFor="login-phone" className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Telefon raqami
+                  </label>
+                  <div className="relative">
+                    <Phone className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                    <input
+                      id="login-phone"
+                      autoFocus
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      maxLength={17}
+                      value={phone ? formatPhone(phone) : ''}
+                      onFocus={() => !phone && setPhone('+998')}
+                      onChange={(e) => setPhone(normalizePhone(e.target.value))}
+                      placeholder="+998 90 123 45 67"
+                      className={inputCls}
+                      required
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <label htmlFor="login-username" className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Login
+                  </label>
+                  <div className="relative">
+                    <User className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                    <input
+                      id="login-username"
+                      autoFocus
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      autoComplete="username"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      placeholder="Masalan: kutubxonachi1"
+                      className={inputCls}
+                      required
+                    />
+                  </div>
+                </>
+              )}
             </div>
 
             <div>

@@ -5,6 +5,8 @@ from . import views
 urlpatterns = [
     # PWA service worker — IndexView catch-all'idan oldin turishi shart.
     path("sw.js", views.service_worker, name="service-worker"),
+    # Uploaded organization logos (must stay before the public-file pattern).
+    path("media/logos/<str:name>", views.media_logo, name="media-logo"),
     # Root files of the frontend build (logo, landing screenshots, manifest).
     # A path that looks like a file must never fall through to the SPA shell.
     re_path(

@@ -65,10 +65,13 @@ export interface User {
   joriy_rol?: string | null
 }
 
+/** Role inside one library; `egasi` is the owner (co-owners allowed). */
+export type MembershipRole = Rol | 'egasi'
+
 export interface UserCreatePayload {
   username: string
   full_name: string
-  rol: Rol
+  rol: MembershipRole
   telefon: string
   is_active?: boolean
   password: string

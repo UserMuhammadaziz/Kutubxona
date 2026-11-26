@@ -171,6 +171,12 @@ class UserCreateSerializer(serializers.ModelSerializer):
     """Administrator yangi xodim (kutubxonachi) yaratganda ishlatiladi."""
 
     password = serializers.CharField(write_only=True, validators=[validate_password])
+    # Membership role in the current library; "egasi" is stored as
+    # "administrator" on the global User.rol (same as the owner's account).
+    rol = serializers.ChoiceField(
+        choices=[("egasi", "Egasi"), ("administrator", "Administrator"), ("kutubxonachi", "Kutubxonachi")],
+        default="kutubxonachi",
+    )
 
     class Meta:
         model = User
@@ -191,11 +197,29 @@ class UserCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Bu login allaqachon band.")
         return value
 
+    def validate_rol(self, value):
+        if value != "egasi":
+            return value
+        request = self.context.get("request")
+        organization = self.context.get("organization")
+        actor = getattr(request, "user", None)
+        if actor is not None and (actor.is_staff or actor.is_superuser):
+            return value
+        if (
+            organization is not None
+            and actor is not None
+            and actor.a_zoliklar.filter(organization=organization, rol="egasi", faol=True).exists()
+        ):
+            return value
+        raise serializers.ValidationError("Egasi rolini faqat kutubxona egasi bera oladi.")
+
     def create(self, validated_data):
         from organization.models import Membership
 
         organization = validated_data.pop("organization", None)
         password = validated_data.pop("password")
+        membership_role = validated_data.pop("rol", "kutubxonachi")
+        validated_data["rol"] = "administrator" if membership_role == "egasi" else membership_role
         user = User(**validated_data)
         user.set_password(password)
         user.save()
@@ -203,7 +227,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
             Membership.objects.create(
                 organization=organization,
                 user=user,
-                rol=user.rol if user.rol in ("administrator", "kutubxonachi") else "kutubxonachi",
+                rol=membership_role,
                 faol=True,
             )
         return user

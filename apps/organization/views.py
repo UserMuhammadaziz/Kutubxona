@@ -7,6 +7,8 @@ from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from rest_framework import status, viewsets
+from rest_framework.parsers import MultiPartParser
+from .logo import LogoError, remove_old_logos, save_logo
 from rest_framework.decorators import action, api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -75,7 +77,7 @@ class RegisterView(APIView):
 class OrganizationViewSet(viewsets.GenericViewSet):
     serializer_class = OrganizationSerializer
     permission_classes = [IsAuthenticated]
-    http_method_names = ["get", "patch"]
+    http_method_names = ["get", "patch", "post", "delete"]
 
     def get_queryset(self):
         return foydalanuvchi_kutubxonalari(self.request.user).order_by("nomi")
@@ -109,6 +111,34 @@ class OrganizationViewSet(viewsets.GenericViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
+    @action(
+        detail=True,
+        methods=["post", "delete"],
+        url_path="logo",
+        parser_classes=[MultiPartParser],
+    )
+    def logo(self, request, pk=None):
+        """POST a logo image (field `file`) or DELETE to remove it."""
+        org = self.get_queryset().filter(pk=pk).first()
+        if not org:
+            return Response({"detail": "Kutubxona topilmadi."}, status=404)
+        azolik = foydalanuvchi_azoligi(request.user, org)
+        if not request.user.is_superuser and not (azolik and azolik.adminmi):
+            return Response({"detail": "Ruxsat yo'q."}, status=403)
+        if request.method == "DELETE":
+            remove_old_logos(org)
+            org.logo_url = ""
+        else:
+            upload = request.FILES.get("file")
+            if upload is None:
+                return Response({"file": "Rasm faylini tanlang."}, status=400)
+            try:
+                org.logo_url = save_logo(org, upload)
+            except LogoError as exc:
+                return Response({"file": str(exc)}, status=400)
+        org.save(update_fields=["logo_url"])
+        return Response(OrganizationSerializer(org, context={"request": request}).data)
 
     @action(detail=False, methods=["post"], url_path="telegram-link-code")
     def telegram_link_code(self, request):
