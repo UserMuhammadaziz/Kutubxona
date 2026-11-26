@@ -27,6 +27,8 @@ NAVBAT_FAQOL = ("kutmoqda", "taklif_qilindi")
 class KitobViewSet(viewsets.ModelViewSet):
     queryset = Kitob.objects.all().order_by("nomi")
     filterset_fields = ["janr", "muallif", "nashr_yili"]
+    # The copy form picks a book through `?search=`.
+    search_fields = ["nomi", "muallif", "isbn"]
     http_method_names = ["get", "post", "patch", "delete"]
 
     def get_serializer_class(self):
@@ -51,9 +53,9 @@ class KitobViewSet(viewsets.ModelViewSet):
                 scope(Kitob.objects, org)
                 .order_by("nomi")
                 .annotate(
-                    mavjud_nusxalar=Count("nusxalar", filter=Q(nusxalar__holati="mavjud")),
-                    jami_nusxalar=Count("nusxalar"),
-                    faol_navbatlar=Count("navbat", filter=Q(navbat__holati__in=NAVBAT_FAQOL)),
+                    mavjud_nusxalar=Count("nusxalar", filter=Q(nusxalar__holati="mavjud"), distinct=True),
+                    jami_nusxalar=Count("nusxalar", distinct=True),
+                    faol_navbatlar=Count("navbat", filter=Q(navbat__holati__in=NAVBAT_FAQOL), distinct=True),
                 )
             )
         return scope(super().get_queryset(), org)
@@ -128,9 +130,9 @@ class KitobViewSet(viewsets.ModelViewSet):
         qs = self.get_queryset().filter(
             Q(nomi__icontains=q) | Q(muallif__icontains=q) | Q(isbn__icontains=q)
         ).annotate(
-            mavjud_nusxalar=Count("nusxalar", filter=Q(nusxalar__holati="mavjud")),
-            jami_nusxalar=Count("nusxalar"),
-            faol_navbatlar=Count("navbat", filter=Q(navbat__holati__in=NAVBAT_FAQOL)),
+            mavjud_nusxalar=Count("nusxalar", filter=Q(nusxalar__holati="mavjud"), distinct=True),
+            jami_nusxalar=Count("nusxalar", distinct=True),
+            faol_navbatlar=Count("navbat", filter=Q(navbat__holati__in=NAVBAT_FAQOL), distinct=True),
         )
         serializer = KitobQidiruvSerializer(qs, many=True)
         return Response(serializer.data)

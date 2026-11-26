@@ -1,3 +1,4 @@
+import type { DashboardWidget } from '../lib/organization'
 // ---- Shared ----
 
 export interface Paginated<T> {
@@ -192,6 +193,8 @@ export interface NusxaCreatePayload {
   javon?: string
   qabul_sana?: string
   izoh?: string
+  /** How many copies to add; inventory numbers continue from `inventar_raqami`. */
+  count?: number
 }
 
 // ---- Oquvchi (Reader) ----
@@ -256,6 +259,9 @@ export interface OquvchiCreatePayload {
   telefon: string
   sinf?: string
   kasb?: string
+  /** Library organizations: required address and birth date (YYYY-MM-DD). */
+  manzil?: string
+  tugilgan_sana?: string
 }
 
 // ---- Ariza (Application) ----
@@ -511,6 +517,13 @@ export interface DashboardStats {
   umumiy_qarz: string
   oquvchi_soni?: number
   oqituvchi_soni?: number
+  members_count?: number
+  pending_applications?: number
+  approved_applications?: number
+  /** Active students per class; `class_name` is '' when no class was given. */
+  readers_by_class?: { class_name: string; count: number }[]
+  /** Ordered widget keys the organization chose to show. */
+  widgets?: DashboardWidget[]
 }
 
 // ---- Announcements (bulk Telegram messages) ----

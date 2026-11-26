@@ -1,4 +1,6 @@
+from django.db.models import Count
 from rest_framework import viewsets
+from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
@@ -55,6 +57,16 @@ class NusxaViewSet(viewsets.ModelViewSet):
         # darhol ishga tushiramiz (navbat o'lik chorakda qolmasin).
         if nusxa.holati == "mavjud":
             navbatni_mavjud_nusxa_bilan_ishga_tushir(nusxa.kitob_id)
+
+    @action(detail=False, methods=["get"])
+    def summary(self, request):
+        """GET /api/copies/summary/ — copy counts per status for the current search/book filter.
+
+        The client leaves `holati` out: the summary chips are what switch it.
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+        by_status = dict(queryset.order_by().values_list("holati").annotate(n=Count("id")))
+        return Response({"total": sum(by_status.values()), "by_status": by_status})
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()

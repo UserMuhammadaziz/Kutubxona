@@ -1,3 +1,4 @@
+import { ORG_TYPE_OPTIONS, type OrganizationType } from '../../lib/organization'
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { platformApi, type PlatformOrgForm } from '../../api/resources'
@@ -5,18 +6,10 @@ import { useToast } from '../../components/Toast'
 import { Button, ErrorBanner, Field, Input, Label, PhoneInput, Select, Textarea } from '../../components/ui'
 import { formError } from './shared'
 
-const ORG_TYPES: [string, string][] = [
-  ['library', 'Kutubxona'],
-  ['school', "Maktab / ta'lim muassasasi"],
-  ['university', 'Universitet / kollej'],
-  ['office', 'Ofis / tashkilot'],
-  ['other', 'Boshqa'],
-]
-
 export const emptyOrgForm = (): PlatformOrgForm => ({
   nomi: '',
   slug: '',
-  turi: 'library',
+  type: 'school',
   tavsif: '',
   telefon: '',
   email: '',
@@ -68,10 +61,10 @@ export function OrganizationForm({ id, initial, onClose }: { id: number | null; 
           <Input id="o-nomi" required autoFocus value={form.nomi} onChange={(e) => set('nomi', e.target.value)} />
         </Field>
         <Field>
-          <Label htmlFor="o-turi">Turi</Label>
-          <Select id="o-turi" value={form.turi} onChange={(e) => set('turi', e.target.value)}>
-            {ORG_TYPES.map(([v, l]) => (
-              <option key={v} value={v}>{l}</option>
+          <Label htmlFor="o-type">Turi</Label>
+          <Select id="o-type" value={form.type} onChange={(e) => set('type', e.target.value as OrganizationType)}>
+            {ORG_TYPE_OPTIONS.map((t) => (
+              <option key={t.value} value={t.value}>{t.label}</option>
             ))}
           </Select>
         </Field>

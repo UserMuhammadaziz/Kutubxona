@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { Navigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { authApi, telegramApi, type OrganizationInfo, type TelegramBotState } from '../api/resources'
@@ -7,6 +8,13 @@ import { errorMessage } from '../api/client'
 import { canManageCompany, useOrganization } from '../hooks/useOrganization'
 import { useToast } from '../components/Toast'
 import { Icons } from '../components/icons'
+import {
+  DASHBOARD_WIDGET_INFO,
+  ORG_TYPE_LABELS,
+  ORG_TYPE_OPTIONS,
+  type DashboardWidget,
+  type OrganizationType,
+} from '../lib/organization'
 import {
   Badge,
   Button,
@@ -22,14 +30,6 @@ import {
   ListSkeleton,
   PageSkeleton,
 } from '../components/ui'
-
-const TYPE_LABELS: Record<string, string> = {
-  library: 'Kutubxona',
-  school: "Maktab / ta'lim muassasasi",
-  university: 'Universitet / kollej',
-  office: 'Ofis / tashkilot',
-  other: 'Boshqa',
-}
 
 function NumberField({
   id,
@@ -127,7 +127,7 @@ function SettingsForm({ org }: { org: OrganizationInfo }) {
       <Card className="p-5">
         <h2 className="mb-1 text-lg font-semibold text-slate-900 dark:text-slate-100">Kutubxona ma‘lumotlari</h2>
         <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-          Turi: {TYPE_LABELS[org.turi] ?? org.turi}. Bu ma‘lumotlarni faqat siz o‘zgartira olasiz.
+          Turi: {ORG_TYPE_LABELS[org.type] ?? org.type}. Bu ma‘lumotlarni faqat siz o‘zgartira olasiz.
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field className="sm:col-span-2">
@@ -202,6 +202,170 @@ function SettingsForm({ org }: { org: OrganizationInfo }) {
         </Button>
       </div>
     </form>
+  )
+}
+
+/** Owner picks library or school: it decides what the bot and reader forms ask for. */
+function OrganizationTypeSection({ org }: { org: OrganizationInfo }) {
+  const qc = useQueryClient()
+  const toast = useToast()
+  const isOwner = org.rol === 'egasi'
+  const [pending, setPending] = useState<OrganizationType | null>(null)
+  const mut = useMutation({
+    mutationFn: (type: OrganizationType) => authApi.updateOrganization(org.id, { type }),
+    onSuccess: (next) => {
+      qc.setQueryData(['organization-info'], next)
+      qc.invalidateQueries({ queryKey: ['stats', 'dashboard'] })
+      toast.success(`Tashkilot turi: ${ORG_TYPE_LABELS[next.type]}`)
+      setPending(null)
+    },
+    onError: (e) => {
+      toast.error(errorMessage(e))
+      setPending(null)
+    },
+  })
+  return (
+    <Card className="p-5">
+      <h2 className="mb-1 text-lg font-semibold text-slate-900 dark:text-slate-100">Tashkilot turi</h2>
+      <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+        Telegram bot va kitobxon qo‘shish formasi shu turga qarab ma‘lumot so‘raydi.
+        {!isOwner && ' Turni faqat tashkilot egasi o‘zgartira oladi.'}
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Tashkilot turi">
+        {ORG_TYPE_OPTIONS.map((option) => {
+          const active = org.type === option.value
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              disabled={!isOwner || mut.isPending}
+              onClick={() => !active && setPending(option.value)}
+              className={
+                'rounded-lg border p-4 text-left transition disabled:cursor-not-allowed ' +
+                (active
+                  ? 'border-brand-500 bg-brand-50 ring-1 ring-brand-500 dark:bg-brand-900/20'
+                  : 'border-slate-200 hover:border-slate-300 disabled:opacity-60 dark:border-slate-600')
+              }
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-medium text-slate-900 dark:text-slate-100">{option.label}</span>
+                {active && <Badge tone="green">Joriy</Badge>}
+              </div>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{option.hint}</p>
+            </button>
+          )
+        })}
+      </div>
+      <ConfirmDialog
+        open={pending !== null}
+        title="Tashkilot turini o‘zgartirasizmi?"
+        message={
+          pending
+            ? `Tur «${ORG_TYPE_LABELS[pending]}» bo‘ladi. Yangi arizalar va kitobxon formasi shunga moslashadi; mavjud kitobxonlar o‘zgarmaydi.`
+            : ''
+        }
+        confirmLabel="O‘zgartirish"
+        variant="primary"
+        loading={mut.isPending}
+        onConfirm={() => pending && mut.mutate(pending)}
+        onCancel={() => setPending(null)}
+      />
+    </Card>
+  )
+}
+
+/** Owner/admin chooses which dashboard widgets the whole organization sees, and their order. */
+function DashboardWidgetsSection({ org }: { org: OrganizationInfo }) {
+  const qc = useQueryClient()
+  const toast = useToast()
+  const available = (org.available_dashboard_widgets ?? []).filter((key) => key in DASHBOARD_WIDGET_INFO)
+  const initial = (org.dashboard_widgets ?? available).filter((key) => available.includes(key))
+  const [enabled, setEnabled] = useState<DashboardWidget[]>(initial)
+  // Enabled widgets first in their saved order, then the switched-off ones in catalogue order.
+  const rows = [...enabled, ...available.filter((key) => !enabled.includes(key))]
+  const dirty = JSON.stringify(enabled) !== JSON.stringify(initial)
+
+  const toggle = (key: DashboardWidget, on: boolean) =>
+    setEnabled((list) => (on ? [...list, key] : list.filter((k) => k !== key)))
+  const move = (index: number, delta: number) =>
+    setEnabled((list) => {
+      const next = [...list]
+      const [item] = next.splice(index, 1)
+      next.splice(index + delta, 0, item)
+      return next
+    })
+
+  const mut = useMutation({
+    mutationFn: () => authApi.updateOrganization(org.id, { dashboard_widgets: enabled }),
+    onSuccess: (next) => {
+      qc.setQueryData(['organization-info'], next)
+      qc.invalidateQueries({ queryKey: ['stats', 'dashboard'] })
+      toast.success('Dashboard sozlamalari saqlandi')
+    },
+    onError: (e) => toast.error(errorMessage(e)),
+  })
+
+  return (
+    <Card className="p-5">
+      <h2 className="mb-1 text-lg font-semibold text-slate-900 dark:text-slate-100">Dashboard widgetlari</h2>
+      <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+        Bosh sahifada qaysi statistikalar chiqishini tanlang va tartibini belgilang. Sozlama tashkilotdagi barcha xodimlarga qo‘llanadi.
+      </p>
+      <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 dark:divide-slate-700 dark:border-slate-600">
+        {rows.map((key) => {
+          const info = DASHBOARD_WIDGET_INFO[key]
+          const index = enabled.indexOf(key)
+          const on = index !== -1
+          return (
+            <li key={key} className="flex items-center gap-3 px-3 py-2.5">
+              <div className="flex flex-col">
+                <button
+                  type="button"
+                  aria-label={`${info.label}: yuqoriga`}
+                  disabled={!on || index === 0}
+                  onClick={() => move(index, -1)}
+                  className="rounded p-0.5 text-slate-400 hover:text-slate-700 disabled:invisible dark:hover:text-slate-200"
+                >
+                  <ChevronUp className="h-4 w-4" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  aria-label={`${info.label}: pastga`}
+                  disabled={!on || index === enabled.length - 1}
+                  onClick={() => move(index, 1)}
+                  className="rounded p-0.5 text-slate-400 hover:text-slate-700 disabled:invisible dark:hover:text-slate-200"
+                >
+                  <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className={'text-sm font-medium ' + (on ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400')}>
+                  {info.label}
+                  {info.kind === 'panel' && <span className="ml-2 text-xs font-normal text-slate-400">ro‘yxat</span>}
+                </div>
+                <div className="truncate text-xs text-slate-500 dark:text-slate-400">{info.hint}</div>
+              </div>
+              <Switch checked={on} onChange={(v) => toggle(key, v)} label={on ? 'Ko‘rinadi' : 'Yashirin'} />
+            </li>
+          )
+        })}
+      </ul>
+      <div className="mt-4 flex items-center justify-end gap-2">
+        {dirty && (
+          <Button type="button" variant="secondary" onClick={() => setEnabled(initial)}>
+            Bekor qilish
+          </Button>
+        )}
+        <Button type="button" variant="secondary" onClick={() => setEnabled(available)} disabled={mut.isPending}>
+          Hammasini ko‘rsatish
+        </Button>
+        <Button type="button" loading={mut.isPending} disabled={!dirty} onClick={() => mut.mutate()}>
+          Saqlash
+        </Button>
+      </div>
+    </Card>
   )
 }
 
@@ -410,6 +574,8 @@ export function Company() {
       <PageHeader title="Kutubxona profili" subtitle="Kutubxona ma‘lumotlari va Telegram bot sozlamalari" />
 
       {org && <SettingsForm key={org.id} org={org} />}
+      {org && <OrganizationTypeSection org={org} />}
+      {org && <DashboardWidgetsSection key={`${org.type}-${(org.dashboard_widgets ?? []).join(',')}`} org={org} />}
 
       <BotSection />
       {org && <InlineSearchSection org={org} />}

@@ -8,18 +8,20 @@ import re
 import unicodedata
 
 # Oxiridagi "sinf"/"sinfi" qo'shimchasi (ixtiyoriy chiziqcha bilan).
-_SINF_OXIRI = re.compile(r"\s*-?\s*(?:sinf|sinfi|class)\s*$", re.IGNORECASE)
+_SINF_OXIRI = re.compile(r"\s*-?\s*(?:sinf|sinfi|синф|синфи|class)\s*$", re.IGNORECASE)
 # 5-A, 10-, 11-V, 5b, 5 - B ko'rinishlari.
-_SINF_SHABLON = re.compile(r"^(\d{1,2})\s*-?\s*([A-Za-z]?)$")
+_SINF_SHABLON = re.compile(r"^(\d{1,2})\s*-?\s*([A-Za-zА-Яа-я]?)$")
 # Eski bazada uchraydigan kirill litralarini lotinga o'tkazish.
 _KIRILL = str.maketrans(
-    {"А": "A", "а": "A", "В": "B", "в": "B", "Б": "B", "б": "B", "С": "C", "с": "C"}
+    {"А": "A", "а": "A", "В": "B", "в": "B", "Б": "B", "б": "B", "С": "C", "с": "C",
+     "Д": "D", "д": "D", "Е": "E", "е": "E"}
 )
 
 
 def sinf_normal(qiymat) -> str:
     """Sinfning yagona ko'rinishi: ``5-B``. Bo'sh qiymat -> ``''``."""
     matn = unicodedata.normalize("NFKC", "" if qiymat is None else str(qiymat)).strip()
+    matn = re.sub(r"[\"'‘’ʻʼ`,.]", "", matn)  # 9-"B", 9-B', 7-B, sinf
     matn = _SINF_OXIRI.sub("", matn).strip()
     if not matn:
         return ""

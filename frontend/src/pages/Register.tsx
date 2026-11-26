@@ -4,18 +4,11 @@ import type { RegisterPayload } from '../api/resources'
 import { errorMessage } from '../api/client'
 import { useAuthStore } from '../store/auth'
 import { isCompletePhone } from '../lib/phone'
+import { ORG_TYPE_OPTIONS } from '../lib/organization'
 import { askPushPermission, subscribeToPush } from '../lib/push'
 import { PhoneInput, Button, Card, ErrorBanner, Field, Input, Label, Select } from '../components/ui'
 import { LogoMark } from '../components/Logo'
 import { AuthAside } from '../components/AuthAside'
-
-const TURLAR: { value: RegisterPayload['turi']; label: string }[] = [
-  { value: 'library', label: 'Kutubxona' },
-  { value: 'school', label: "Maktab / ta'lim muassasasi" },
-  { value: 'university', label: 'Universitet / kollej' },
-  { value: 'office', label: 'Ofis / tashkilot' },
-  { value: 'other', label: 'Boshqa' },
-]
 
 export function Register() {
   const status = useAuthStore((s) => s.status)
@@ -23,7 +16,7 @@ export function Register() {
   const navigate = useNavigate()
   const [form, setForm] = useState<RegisterPayload>({
     kutubxona_nomi: '',
-    turi: 'library',
+    type: 'library',
     full_name: '',
     telefon: '+998',
     password: '',
@@ -86,9 +79,9 @@ export function Register() {
               <Input id="kutubxona_nomi" value={form.kutubxona_nomi} onChange={(e) => set('kutubxona_nomi', e.target.value)} autoComplete="organization" required />
             </Field>
             <Field className="sm:col-span-2">
-              <Label htmlFor="turi">Tashkilot turi</Label>
-              <Select id="turi" value={form.turi} onChange={(e) => set('turi', e.target.value as RegisterPayload['turi'])}>
-                {TURLAR.map((t) => (
+              <Label htmlFor="org-type">Tashkilot turi</Label>
+              <Select id="org-type" value={form.type} onChange={(e) => set('type', e.target.value as RegisterPayload['type'])}>
+                {ORG_TYPE_OPTIONS.map((t) => (
                   <option key={t.value} value={t.value}>{t.label}</option>
                 ))}
               </Select>

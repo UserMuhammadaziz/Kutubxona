@@ -30,17 +30,19 @@ class Organization(models.Model):
     # Faol bo'lmagan holatlar: tashkilot ma'lumotlariga kirish yopiladi.
     FAOL_EMAS_HOLATLAR = (HOLAT_PENDING, HOLAT_REJECTED, HOLAT_SUSPENDED, HOLAT_ARCHIVED)
 
-    TURI_CHOICES = [
-        ("library", "Kutubxona"),
-        ("school", "Maktab / ta'lim muassasasi"),
-        ("university", "Universitet / kollej"),
-        ("office", "Ofis / tashkilot"),
-        ("other", "Boshqa"),
+    # The type decides which reader fields are asked (school: role, class,
+    # subject; library: address, birth date) and which dashboard widgets exist.
+    TYPE_LIBRARY = "library"
+    TYPE_SCHOOL = "school"
+    TYPE_CHOICES = [
+        (TYPE_LIBRARY, "Kutubxona"),
+        (TYPE_SCHOOL, "Maktab"),
     ]
 
     nomi = models.CharField(max_length=160)
     slug = models.SlugField(max_length=80, unique=True)
-    turi = models.CharField(max_length=20, choices=TURI_CHOICES, default="library")
+    # School by default: before the type existed every organization ran the school flow.
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_SCHOOL)
     tavsif = models.TextField(blank=True)
     telefon = models.CharField(max_length=20, blank=True)
     email = models.EmailField(blank=True)
@@ -82,6 +84,9 @@ class Organization(models.Model):
     kitob_xabarlari_yoqilgan = models.BooleanField(default=True)
     # Per-library feature switches, e.g. {"search_inline": true}. Unknown/missing keys mean "off".
     capabilities = models.JSONField(default=dict, blank=True)
+    # Ordered list of widget keys shown on the dashboard (see `dashboard.py`).
+    # `None` means "not configured yet": the default set for the type is used.
+    dashboard_widgets = models.JSONField(null=True, blank=True, default=None)
     yaratilgan = models.DateTimeField(auto_now_add=True)
     yangilangan = models.DateTimeField(auto_now=True)
 
@@ -107,6 +112,10 @@ class Organization(models.Model):
         # `faol` va `status` hech qachon bir-biriga zid bo'lmasin.
         self.faol = self.status == self.HOLAT_ACTIVE
         super().save(*args, **kwargs)
+
+    @property
+    def is_school(self):
+        return self.type == self.TYPE_SCHOOL
 
     @property
     def faolmi(self):
@@ -276,6 +285,10 @@ class OrganizationSubscription(models.Model):
         if self.muddati_otganmi and self.status in ("trial", "active", "past_due"):
             return "expired"
         return self.status
+
+    @property
+    def is_school(self):
+        return self.type == self.TYPE_SCHOOL
 
     @property
     def faolmi(self):

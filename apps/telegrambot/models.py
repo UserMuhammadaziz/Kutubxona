@@ -69,6 +69,8 @@ class TelegramSession(models.Model):
         ("ariza_telefon", "Ariza: telefon"),
         ("ariza_sinf", "Ariza: sinf"),
         ("ariza_kasb", "Ariza: kasb"),
+        ("application_address", "Ariza: manzil"),
+        ("application_birth_date", "Ariza: tug'ilgan sana"),
         ("qidiruv", "Qidiruv"),
         ("qaytarish", "Qaytarish"),
     ]

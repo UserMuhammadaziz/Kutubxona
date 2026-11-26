@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { MapPin } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { applicationsApi } from '../api/resources'
 import { errorMessage } from '../api/client'
@@ -35,6 +36,9 @@ const TONE: Record<ArizaHolati, 'amber' | 'green' | 'red'> = {
   bekor: 'red',
 }
 
+/** Library applications carry an address instead of a class. */
+const isLibraryApplication = (a: Ariza) => a.rol !== 'oqituvchi' && !a.sinf && !!a.manzil
+
 /** Oquvchida sinf, o'qituvchida kasb (o'qitayotgan fan) ko'rsatiladi. */
 function rolBoshqicha(a: Ariza) {
   return (
@@ -43,6 +47,12 @@ function rolBoshqicha(a: Ariza) {
         <>
           <Icons.books className="h-3.5 w-3.5 shrink-0" />
           Kasb: {a.kasb || 'ko‘rsatilmagan'}
+        </>
+      ) : isLibraryApplication(a) ? (
+        <>
+          <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          {a.manzil}
+          {a.tugilgan_sana && <span className="text-slate-400">· {formatDate(a.tugilgan_sana)}</span>}
         </>
       ) : (
         <>
@@ -58,7 +68,9 @@ function rolBoshqicha(a: Ariza) {
 function rolQisqa(a: Ariza): string {
   return a.rol === 'oqituvchi'
     ? `kasb: ${a.kasb || '—'}`
-    : `sinf: ${a.sinf || '—'}`
+    : isLibraryApplication(a)
+      ? `manzil: ${a.manzil}`
+      : `sinf: ${a.sinf || '—'}`
 }
 
 export function Applications() {
@@ -305,11 +317,11 @@ export function Applications() {
                 },
                 {
                   id: 'sinf_kasb',
-                  label: 'Sinf / Kasb',
-                  sortBy: (a) => (a.rol === 'oqituvchi' ? (a.kasb ?? '') : (a.sinf ?? '')),
+                  label: 'Sinf / Kasb / Manzil',
+                  sortBy: (a) => (a.rol === 'oqituvchi' ? (a.kasb ?? '') : (a.sinf ?? a.manzil ?? '')),
                   render: (a) => (
                     <span className="text-slate-700 dark:text-slate-200">
-                      {a.rol === 'oqituvchi' ? a.kasb || '—' : a.sinf || '—'}
+                      {a.rol === 'oqituvchi' ? a.kasb || '—' : isLibraryApplication(a) ? a.manzil : a.sinf || '—'}
                     </span>
                   ),
                 },

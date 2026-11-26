@@ -1,3 +1,4 @@
+import type { DashboardWidget, OrganizationType } from '../lib/organization'
 import { api } from './client'
 import type {
   Paginated,
@@ -43,7 +44,7 @@ import type {
 
 export interface RegisterPayload {
   kutubxona_nomi: string
-  turi: 'library' | 'school' | 'university' | 'office' | 'other'
+  type: OrganizationType
   full_name: string
   /** Contact phone, +998901234567 */
   telefon: string
@@ -54,7 +55,11 @@ export interface RegisterPayload {
 export interface OrganizationInfo {
   id: number
   nomi: string
-  turi: string
+  type: OrganizationType
+  /** Effective ordered widget keys shown on the dashboard. */
+  dashboard_widgets?: DashboardWidget[]
+  /** Widget keys this organization's type may show. */
+  available_dashboard_widgets?: DashboardWidget[]
   manzil?: string
   telefon?: string
   email?: string
@@ -116,7 +121,7 @@ export const authApi = {
     api.post<{ access: string; refresh: string }>('/auth/token/', { username, password }).then((r) => r.data),
   me: () => api.get<User>('/auth/me/').then((r) => r.data),
   organization: () => api.get<OrganizationInfo | null>('/auth/organization/').then((r) => r.data),
-  updateOrganization: (id: number, payload: Partial<Omit<OrganizationInfo, 'id' | 'rol' | 'status' | 'turi'>>) =>
+  updateOrganization: (id: number, payload: Partial<Omit<OrganizationInfo, 'id' | 'rol' | 'status' | 'available_dashboard_widgets'>>) =>
     api.patch<OrganizationInfo>(`/organizations/${id}/`, payload).then((r) => r.data),
   register: (payload: RegisterPayload) =>
     api.post<{ access: string; refresh: string; user: User; organization: any }>('/auth/register/', payload).then((r) => r.data),
@@ -146,6 +151,7 @@ export interface BookListParams {
   janr?: string
   muallif?: string
   nashr_yili?: number
+  search?: string
 }
 
 export const booksApi = {
@@ -173,7 +179,11 @@ export interface CopyListParams {
 export const copiesApi = {
   list: (params?: CopyListParams) => api.get<Paginated<Nusxa>>('/copies/', { params }).then((r) => r.data),
   get: (id: number) => api.get<NusxaDetail>(`/copies/${id}/`).then((r) => r.data),
-  create: (payload: NusxaCreatePayload) => api.post<Nusxa>('/copies/', payload).then((r) => r.data),
+  create: (payload: NusxaCreatePayload) =>
+    api.post<Nusxa & { created_count: number }>('/copies/', payload).then((r) => r.data),
+  /** Copy counts per status; `holati` is left out on purpose. */
+  summary: (params?: Omit<CopyListParams, 'holati' | 'page' | 'page_size'>) =>
+    api.get<{ total: number; by_status: Partial<Record<NusxaHolati, number>> }>('/copies/summary/', { params }).then((r) => r.data),
   update: (id: number, payload: Partial<Pick<Nusxa, 'holati' | 'javon' | 'izoh'>>) =>
     api.patch<Nusxa>(`/copies/${id}/`, payload).then((r) => r.data),
   remove: (id: number) => api.delete(`/copies/${id}/`),
@@ -386,7 +396,7 @@ export interface PlatformOrg {
   id: number
   nomi: string
   slug: string
-  turi: string
+  type: OrganizationType
   status: OrgStatus
   faol: boolean
   kitoblar: number
@@ -455,7 +465,7 @@ export interface AuditEntry {
 export interface PlatformOrgForm {
   nomi: string
   slug?: string
-  turi: string
+  type: OrganizationType
   tavsif: string
   telefon: string
   email: string

@@ -1,18 +1,11 @@
 import clsx from 'clsx'
 import { Building2, Check, LogOut, MapPin, Moon, Phone, Sun, Type } from 'lucide-react'
 import { useOrganization } from '../hooks/useOrganization'
+import { ORG_TYPE_LABELS } from '../lib/organization'
 import { useAuthStore } from '../store/auth'
 import { FONT_SIZES, useFontSizeStore } from '../store/fontSize'
 import { useThemeStore } from '../store/theme'
 import { Card } from './ui'
-
-const TURI: Record<string, string> = {
-  library: 'Kutubxona',
-  school: "Maktab / ta'lim muassasasi",
-  university: 'Universitet / kollej',
-  office: 'Ofis / tashkilot',
-  other: 'Boshqa',
-}
 
 function Row({ icon: Icon, label, value }: { icon: typeof Building2; label: string; value?: string }) {
   return (
@@ -40,7 +33,7 @@ export function ProfilePreferences() {
         <h2 className="mb-1 text-lg font-semibold text-slate-900 dark:text-slate-100">Kutubxonam</h2>
         <div className="divide-y divide-slate-100 dark:divide-slate-700">
           <Row icon={Building2} label="Nomi" value={org?.nomi} />
-          <Row icon={Building2} label="Turi" value={org ? TURI[org.turi] ?? org.turi : undefined} />
+          <Row icon={Building2} label="Turi" value={org ? ORG_TYPE_LABELS[org.type] ?? org.type : undefined} />
           <Row icon={MapPin} label="Manzil" value={org?.manzil} />
           <Row icon={Phone} label="Telefon" value={org?.telefon} />
         </div>

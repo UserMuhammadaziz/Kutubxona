@@ -35,6 +35,7 @@ const makeEmptyForm = (): NusxaCreatePayload => ({
   javon: '',
   izoh: '',
   qabul_sana: toISO(new Date()),
+  count: 1,
 })
 
 const TONE: Record<NusxaHolati, 'green' | 'blue' | 'amber' | 'red'> = {
@@ -43,6 +44,15 @@ const TONE: Record<NusxaHolati, 'green' | 'blue' | 'amber' | 'red'> = {
   band: 'amber',
   tamirda: 'amber',
   yoqolgan: 'red',
+}
+
+/** Mirrors `inventory_numbers` in apps/nusxa/serializers.py for the form hint. */
+function inventoryPreview(start: string, count: number) {
+  const match = /(\d+)$/.exec(start)
+  if (!match) return 'inventar raqami raqam bilan tugashi kerak (masalan, INV-001)'
+  const prefix = start.slice(0, match.index)
+  const at = (i: number) => prefix + String(Number(match[1]) + i).padStart(match[1].length, '0')
+  return count === 2 ? `${at(0)}, ${at(1)}` : `${at(0)} … ${at(count - 1)}`
 }
 
 export function Copies() {
@@ -63,18 +73,26 @@ export function Copies() {
     queryFn: () => copiesApi.list({ page, page_size: pageSize, holati: holati || undefined, search: debouncedSearch || undefined }),
   })
 
+  const [bookSearch, setBookSearch] = useState('')
+  const debouncedBookSearch = useDebouncedValue(bookSearch)
   const { data: books, isLoading: booksLoading } = useQuery({
-    queryKey: ['books', 'all-for-select'],
-    queryFn: () => booksApi.list({ page: 1 }),
+    queryKey: ['books', 'for-copy-select', debouncedBookSearch],
+    queryFn: () => booksApi.list({ page: 1, page_size: 50, search: debouncedBookSearch || undefined }),
+    enabled: modalOpen,
+  })
+
+  const { data: summary } = useQuery({
+    queryKey: ['copies', 'summary', debouncedSearch],
+    queryFn: () => copiesApi.summary({ search: debouncedSearch || undefined }),
   })
 
   const createMut = useMutation({
     mutationFn: (payload: NusxaCreatePayload) => copiesApi.create(payload),
-    onSuccess: () => {
+    onSuccess: (created) => {
       qc.invalidateQueries({ queryKey: ['copies'] })
       qc.invalidateQueries({ queryKey: ['books'] })
       closeModal()
-      toast.success('Nusxa qo‘shildi.')
+      toast.success(created.created_count > 1 ? `${created.created_count} ta nusxa qo‘shildi.` : 'Nusxa qo‘shildi.')
     },
     onError: (err) => setError(errorMessage(err)),
   })
@@ -103,6 +121,7 @@ export function Copies() {
 
   function openCreate() {
     setForm(makeEmptyForm())
+    setBookSearch('')
     setError(null)
     setModalOpen(true)
   }
@@ -166,6 +185,29 @@ export function Copies() {
             ))}
           </Select>
         </div>
+        {summary && summary.total > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2" aria-label="Holatlar bo‘yicha nusxalar soni">
+            <button
+              type="button"
+              onClick={() => { setHolati(''); setPage(1) }}
+              className={'rounded-full px-3 py-1 text-sm ring-1 ' + (holati === '' ? 'bg-brand-700 text-white ring-brand-700' : 'bg-paper text-slate-700 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700')}
+            >
+              Jami: <span className="font-semibold tabular-nums">{summary.total}</span>
+            </button>
+            {(Object.keys(NUSXA_HOLATI_LABELS) as NusxaHolati[])
+              .filter((key) => summary.by_status[key])
+              .map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => { setHolati(key); setPage(1) }}
+                  className={'rounded-full px-3 py-1 text-sm ring-1 ' + (holati === key ? 'bg-brand-700 text-white ring-brand-700' : 'bg-paper text-slate-700 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700')}
+                >
+                  {NUSXA_HOLATI_LABELS[key]}: <span className="font-semibold tabular-nums">{summary.by_status[key]}</span>
+                </button>
+              ))}
+          </div>
+        )}
       </Card>
 
       {isLoading && <TableSkeleton rows={6} cols={5} />}
@@ -353,10 +395,22 @@ export function Copies() {
         open={modalOpen}
         onClose={closeModal}
         title="Yangi nusxa qo'shish"
-        description="Kitobni tanlang va inventar raqamini kiriting."
+        description="Kitobni tanlang va inventar raqamini kiriting. Bir nechta nusxa bo‘lsa, sonini yozing."
       >
         <ErrorBanner message={error} />
         <form onSubmit={onSubmit}>
+          <Field>
+            <Label htmlFor="n-kitob-qidirish">Kitobni qidirish</Label>
+            <Input
+              id="n-kitob-qidirish"
+              placeholder="Kitob nomi yoki muallif..."
+              value={bookSearch}
+              onChange={(e) => {
+                setBookSearch(e.target.value)
+                setForm((old) => ({ ...old, kitob: 0 }))
+              }}
+            />
+          </Field>
           <Field>
             <Label htmlFor="n-kitob">Kitob</Label>
             {booksLoading ? (
@@ -384,6 +438,23 @@ export function Copies() {
               value={form.inventar_raqami}
               onChange={(e) => setForm({ ...form, inventar_raqami: e.target.value })}
             />
+          </Field>
+          <Field>
+            <Label htmlFor="n-count">Nechta nusxa</Label>
+            <Input
+              id="n-count"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={200}
+              value={form.count ?? 1}
+              onChange={(e) => setForm({ ...form, count: Math.max(1, Math.min(200, Number(e.target.value) || 1)) })}
+            />
+            {(form.count ?? 1) > 1 && (
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                Inventar raqamlari ketma-ket beriladi: {inventoryPreview(form.inventar_raqami, form.count ?? 1)}
+              </p>
+            )}
           </Field>
           <Field>
             <Label htmlFor="n-qabul">Qabul qilingan sana</Label>
