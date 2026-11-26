@@ -21,6 +21,10 @@ from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Uploaded files (organization logos). Served by web.views.media_logo.
+MEDIA_ROOT = Path(os.environ.get("MEDIA_ROOT", BASE_DIR / "media"))
+MEDIA_URL = "/media/"
+
 load_dotenv(BASE_DIR / ".env")
 
 # apps/ papkasidagi ilovalarni ('user', 'kitob', 'nusxa', ...) to'g'ridan-to'g'ri

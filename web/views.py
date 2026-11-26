@@ -68,6 +68,22 @@ def public_file(request, path):
     return response
 
 
+def media_logo(request, name):
+    """Serve an uploaded organization logo (always our own re-encoded WebP)."""
+    from organization.logo import LOGO_NAME, logo_root
+
+    if not LOGO_NAME.fullmatch(name):
+        raise Http404("Fayl topilmadi")
+    path = logo_root() / name
+    if not path.is_file():
+        raise Http404("Fayl topilmadi")
+    response = FileResponse(open(path, "rb"), content_type="image/webp")
+    # The name contains the content hash, so it never changes.
+    response["Cache-Control"] = "public, max-age=31536000, immutable"
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
 
 CHATBOT_SYSTEM_INSTRUCTION = (

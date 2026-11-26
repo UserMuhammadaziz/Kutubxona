@@ -1,7 +1,20 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
+from organization.models import Membership
+
 from .models import ChatXabar, User, XatolikXabari
+
+
+class UserMembershipInline(admin.TabularInline):
+    """Library and role (Egasi / Administrator / Kutubxonachi) of the account."""
+
+    model = Membership
+    fk_name = "user"
+    extra = 1
+    fields = ("organization", "rol", "faol")
+    verbose_name = "Kutubxonadagi roli"
+    verbose_name_plural = "Kutubxonalar va rollar"
 
 
 @admin.register(User)
@@ -12,6 +25,13 @@ class UserAdmin(BaseUserAdmin):
     fieldsets = BaseUserAdmin.fieldsets + (
         ("Kutubxona ma'lumotlari", {"fields": ("full_name", "rol", "telefon")}),
     )
+    # The stock add form only asks for username and password.
+    add_fieldsets = (
+        (None, {"classes": ("wide",), "fields": ("username", "password1", "password2")}),
+        ("Kutubxona ma'lumotlari", {"fields": ("full_name", "telefon", "rol")}),
+        ("Platforma", {"fields": ("is_staff",), "description": "Belgilansa, /platform bo'limiga kira oladi."}),
+    )
+    inlines = [UserMembershipInline]
 
 
 @admin.register(ChatXabar)

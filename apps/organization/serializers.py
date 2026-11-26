@@ -104,7 +104,8 @@ class OrganizationSerializer(serializers.ModelSerializer):
         return self._in_range(value, 0, 30, "Eslatma kunlari")
 
     def validate_logo_url(self, value):
-        if value and not value.lower().startswith("https://"):
+        # Uploaded logos live under /media/logos/; external ones must be https.
+        if value and not (value.lower().startswith("https://") or value.startswith("/media/logos/")):
             raise serializers.ValidationError("Logo manzili https:// bilan boshlanishi kerak.")
         return value
 

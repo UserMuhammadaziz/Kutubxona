@@ -3,7 +3,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { staffApi } from '../api/resources'
 import { errorMessage } from '../api/client'
 import { Icons } from '../components/icons'
-import type { Rol, User, UserCreatePayload } from '../types'
+import type { MembershipRole, User, UserCreatePayload } from '../types'
+import { useOrganization } from '../hooks/useOrganization'
+import { useAuthStore } from '../store/auth'
 import {
   Badge,
   Button,
@@ -37,6 +39,10 @@ export function Staff() {
   const toast = useToast()
   const [modalOpen, setModalOpen] = useState(false)
   const [form, setForm] = useState<UserCreatePayload>(emptyForm)
+  const { data: org } = useOrganization()
+  const isPlatform = useAuthStore((s) => !!s.user?.is_platform)
+  // Only an owner (or platform staff) may add another owner.
+  const canGrantOwner = isPlatform || org?.rol === 'egasi'
   const [error, setError] = useState<string | null>(null)
   const [holatiOzgartiriladigan, setHolatiOzgartiriladigan] = useState<User | null>(null)
 
@@ -251,11 +257,19 @@ export function Staff() {
             <Select
               id="x-rol"
               value={form.rol}
-              onChange={(e) => setForm({ ...form, rol: e.target.value as Rol })}
+              onChange={(e) => setForm({ ...form, rol: e.target.value as MembershipRole })}
             >
               <option value="kutubxonachi">Kutubxonachi</option>
               <option value="administrator">Administrator</option>
+              {canGrantOwner && <option value="egasi">Egasi</option>}
             </Select>
+            <p className="mt-1.5 text-xs text-slate-500">
+              {form.rol === 'egasi'
+                ? 'Egasi hamma narsani boshqaradi; uning rolini keyin o‘zgartirib bo‘lmaydi.'
+                : form.rol === 'administrator'
+                  ? 'Administrator xodimlar, sozlamalar va hisobotlarni boshqaradi.'
+                  : 'Kutubxonachi kitob beradi, qaytaradi va kitobxonlar bilan ishlaydi.'}
+            </p>
           </Field>
           <Field>
             <Label htmlFor="x-telefon">Telefon</Label>

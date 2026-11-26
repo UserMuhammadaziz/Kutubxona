@@ -3,19 +3,20 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  /* Landing bilan bir xil palitra: to'q yashil brend, iliq neytrallar, yumshoq burchaklar. */
+  /* Brand: deep ink blue (trust, knowledge) + warm amber accent, warm paper neutrals.
+     Same palette on the landing page and inside the app. */
   --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
 
-  --color-brand-50: #edf7f1;
-  --color-brand-100: #d3ecdf;
-  --color-brand-200: #a9d8c0;
-  --color-brand-300: #74bf9c;
-  --color-brand-400: #3fa877;
-  --color-brand-500: #1f9d63;
-  --color-brand-600: #17694a;
-  --color-brand-700: #0f5a3d;
-  --color-brand-800: #0f3d2e;
-  --color-brand-900: #0a2c20;
+  --color-brand-50: #eef3ff;
+  --color-brand-100: #dbe5ff;
+  --color-brand-200: #bccdfd;
+  --color-brand-300: #8eaaf8;
+  --color-brand-400: #5b80ef;
+  --color-brand-500: #3461e3;
+  --color-brand-600: #1e4fd8;
+  --color-brand-700: #1a41b4;
+  --color-brand-800: #163a9e;
+  --color-brand-900: #10296e;
 
   /* slate -> iliq (stone) neytral shkala */
   --color-slate-50: #fafaf9;
@@ -30,8 +31,13 @@
   --color-slate-900: #1c1a17;
   --color-slate-950: #12110f;
 
-  --color-canvas: #ece9de;
-  --color-paper: #faf8f2;
+  --color-canvas: #f4f2ed;
+  --color-paper: #fffefb;
+
+  /* Warm amber accent for highlights (bookmark, badges), not for actions. */
+  --color-accent-400: #f6be5f;
+  --color-accent-500: #f2a93b;
+  --color-accent-600: #d98b17;
 
   /* Ant Design uslubidagi dizayn tokenlar (custom boshqaruv elementlari uchun) */
   --radius-control: 0.5rem;      /* borderRadius: tugma, input, select */
@@ -142,22 +148,22 @@ button:disabled,
 
 /* Landing (/welcome) ranglari: yorug va qorong'i rejim uchun. */
 .landing {
-  --l-bg: #ece9de;
-  --l-sand: #e2d6c0;
-  --l-card: #faf8f2;
-  --l-green: #0f3d2e;
-  --l-green-ink: #0f3d2e;
-  --l-accent: #1f9d63;
+  --l-bg: #f4f2ed;
+  --l-sand: #e9e2d3;
+  --l-card: #fffefb;
+  --l-green: #163a9e;
+  --l-green-ink: #163a9e;
+  --l-accent: #1e4fd8;
   --l-ink: #1f1b16;
   --l-muted: #5c554b;
 }
 .dark .landing {
-  --l-bg: #121614;
-  --l-sand: #232b26;
-  --l-card: #1a201d;
-  --l-green: #17694a;
-  --l-green-ink: #6fd0a0;
-  --l-accent: #4cc38a;
+  --l-bg: #11141a;
+  --l-sand: #1f2430;
+  --l-card: #181c24;
+  --l-green: #1e4fd8;
+  --l-green-ink: #8eaaf8;
+  --l-accent: #8eaaf8;
   --l-ink: #ece9de;
   --l-muted: #a7ada6;
 }

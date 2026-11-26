@@ -258,7 +258,7 @@ export function Home() {
               Kutubxonangizni bugun ro‘yxatdan o‘tkazing
             </h2>
             <div className="flex flex-wrap gap-3">
-              <Link to="/register" className={btn} style={{ background: '#fff', color: '#0f3d2e' }}>
+              <Link to="/register" className={btn} style={{ background: '#fff', color: '#163a9e' }}>
                 Ro‘yxatdan o‘tish
               </Link>
               <Link to="/yordam" className={btn} style={{ border: '1px solid #ffffff80' }}>

@@ -1,3 +1,4 @@
+import { LogOut } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { applicationsApi, statsApi } from '../api/resources'
@@ -274,9 +275,17 @@ function UserBlock({
   onToggleTheme?: () => void
 }) {
   const { user } = useAuthStore()
-  const roleLabel = user?.is_platform ? 'Platforma' : user?.rol === 'administrator' ? 'Administrator' : 'Kutubxonachi'
+  const orgRole = useOrganization().data?.rol
+  const roleLabel = user?.is_platform
+    ? 'Platforma'
+    : orgRole === 'egasi'
+      ? 'Egasi'
+      : user?.rol === 'administrator'
+        ? 'Administrator'
+        : 'Kutubxonachi'
   return (
-    <div className="flex items-center gap-1 border-t border-slate-200 p-3 dark:border-slate-700">
+    <div className="border-t border-slate-200 p-3 dark:border-slate-700">
+    <div className="flex items-center gap-1">
       <NavLink
         to="/profile"
         onClick={onNavigate}
@@ -301,13 +310,14 @@ function UserBlock({
           {theme === 'dark' ? Icons.sun({ className: 'h-5 w-5' }) : Icons.moon({ className: 'h-5 w-5' })}
         </button>
       )}
+    </div>
       <button
+        type="button"
         onClick={onLogout}
-        aria-label="Chiqish"
-        title="Chiqish"
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-slate-400 dark:hover:bg-red-500/10 dark:hover:text-red-300"
+        className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-slate-700 dark:text-slate-300 dark:hover:border-red-500/30 dark:hover:bg-red-500/10 dark:hover:text-red-300"
       >
-        {Icons.arrowLeft({ className: 'h-5 w-5' })}
+        <LogOut className="h-4 w-4" aria-hidden="true" />
+        Chiqish
       </button>
     </div>
   )

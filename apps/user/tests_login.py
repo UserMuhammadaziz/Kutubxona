@@ -32,3 +32,42 @@ class LoginIdentifierTest(TestCase):
         res = self.login("nobody")
         self.assertEqual(res.status_code, 401)
         self.assertEqual(res.json()["error"], "login_topilmadi")
+
+
+class StaffOwnerRoleTest(TestCase):
+    def setUp(self):
+        from organization.models import Membership, Organization
+
+        cache.clear()
+        self.Membership = Membership
+        self.org = Organization.objects.create(nomi="Kutubxona", slug="lib2", status=Organization.HOLAT_ACTIVE)
+
+    def api(self, role):
+        user = User.objects.create_user(username=f"actor-{role}", password="x")
+        self.Membership.objects.create(organization=self.org, user=user, rol=role, faol=True)
+        client = APIClient()
+        client.force_authenticate(user)
+        client.credentials(HTTP_X_ORGANIZATION_ID=str(self.org.pk))
+        return client
+
+    def create(self, client, role):
+        return client.post(
+            "/api/staff/",
+            {"username": f"new-{role}", "full_name": "Ali Valiyev", "rol": role, "telefon": "", "password": "Parol12345!x"},
+            format="json",
+        )
+
+    def test_owner_can_add_co_owner(self):
+        res = self.create(self.api("egasi"), "egasi")
+        self.assertEqual(res.status_code, 201, res.data)
+        membership = self.Membership.objects.get(user__username="new-egasi")
+        self.assertEqual((membership.rol, membership.user.rol), ("egasi", "administrator"))
+
+    def test_administrator_cannot_add_owner(self):
+        self.assertEqual(self.create(self.api("administrator"), "egasi").status_code, 400)
+
+    def test_roles_still_work(self):
+        api = self.api("administrator")
+        for role in ("administrator", "kutubxonachi"):
+            self.assertEqual(self.create(api, role).status_code, 201)
+            self.assertEqual(self.Membership.objects.get(user__username=f"new-{role}").rol, role)
