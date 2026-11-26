@@ -447,7 +447,12 @@ async def ariza_fan_tanlandi(callback: CallbackQuery, state: FSMContext):
         await state.update_data(fanlar=tanlanganlar)
         await callback.answer()
         await _arizani_yuborish(
-            callback.message, state, await state.get_data(), sinf="", kasb=kasb
+            callback.message,
+            state,
+            await state.get_data(),
+            sinf="",
+            kasb=kasb,
+            telegram_id=callback.from_user.id,
         )
         return
     else:
@@ -507,8 +512,11 @@ async def _arizani_yuborish(
     data: dict,
     sinf: str = "",
     kasb: str = "",
+    telegram_id: int | None = None,
 ):
-    telegram_id = message.from_user.id
+    # From a button press `message` is the bot's own message, so its
+    # `from_user` is the bot; callers then pass the presser's id explicitly.
+    telegram_id = telegram_id or message.from_user.id
     rol = data.get("rol", ARIZA_ROL_OQUVCHI)
     fish = data.get("fish")
     telefon = data.get("telefon")

@@ -232,27 +232,31 @@ async def menyu_bolimi(callback: CallbackQuery, state: FSMContext):
         return
 
     bolim = (callback.data or "").partition(":")[2]
+    # `callback.message` is the bot's own message: its `from_user` is the bot.
+    # Handlers read the reader's id from `message.from_user`, so hand them a
+    # copy that carries the user who pressed the button.
+    message = callback.message.model_copy(update={"from_user": callback.from_user})
 
     if bolim == "yordam":
-        await _yordam_ber(callback.message, state)
+        await _yordam_ber(message, state)
         await callback.answer()
         return
 
     bolimlar = {
-        "qidiruv": qidiruv.qidiruv_boshla,
-        "kategoriya": qidiruv.kategoriyalar,
-        "kitoblarim": shaxsiy.kitoblarim,
-        "navbatlarim": shaxsiy.navbatlarim,
-        "bandlarim": shaxsiy.bandlarim,
-        "jarimalarim": shaxsiy.jarimalarim,
+        "qidiruv": lambda: qidiruv.qidiruv_boshla(message, state),
+        "kategoriya": lambda: qidiruv.kategoriyalar(message),
+        "kitoblarim": lambda: shaxsiy.kitoblarim(message),
+        "navbatlarim": lambda: shaxsiy.navbatlarim(message),
+        "bandlarim": lambda: shaxsiy.bandlarim(message),
+        "jarimalarim": lambda: shaxsiy.jarimalarim(message),
     }
     if bolim not in bolimlar:
         await callback.answer("Noma'lum bo'lim.", show_alert=True)
         return
 
-    await _arizani_tugatish(callback.message, state)
+    await _arizani_tugatish(message, state)
     await state.clear()
-    await bolimlar[bolim](callback.message, state)
+    await bolimlar[bolim]()
     await callback.answer()
 
 
