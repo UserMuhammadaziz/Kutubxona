@@ -219,9 +219,8 @@ class OquvchiViewSet(TenantViewSetMixin, viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
 
         org = joriy_kutubxonani_aniqla(request, required=False)
-        qs = Oquvchi.objects.filter(pk__in=serializer.validated_data["ids"])
-        if org is not None:
-            qs = qs.filter(organization=org)
+        # Fail closed: without a resolved library nothing is deleted (outside legacy mode).
+        qs = scope(Oquvchi.objects.filter(pk__in=serializer.validated_data["ids"]), org)
 
         ochirildi = 0
         ochirilmadi = []

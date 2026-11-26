@@ -1,40 +1,10 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { platformApi, type AuditEntry } from '../../api/resources'
+import { platformApi } from '../../api/resources'
 import { errorMessage } from '../../api/client'
 import { EmptyState, ErrorState, Pagination, ResponsiveList, Table, TableSkeleton } from '../../components/ui'
-import { formatDateTime, humanize } from '../../lib/format'
-import { bodyClass, headClass, SUBSCRIPTION_LABELS } from './shared'
-
-const ACTIONS: Record<string, string> = {
-  'organization.registration_requested': 'Yangi ariza keldi',
-  'organization.created_by_platform': 'Tashkilot yaratildi',
-  'organization.updated_by_platform': "Tashkilot ma'lumotlari o'zgartirildi",
-  'organization.deleted': "Tashkilot o'chirildi",
-  'organization.pending': "Kutish holatiga o'tkazildi",
-  'organization.active': 'Tashkilot faollashtirildi',
-  'organization.rejected': 'Ariza rad etildi',
-  'organization.suspended': "Tashkilot to'xtatildi",
-  'organization.archived': 'Tashkilot arxivlandi',
-  'organization.subscription_changed': "Obuna o'zgartirildi",
-  'plan.created': 'Tarif yaratildi',
-  'plan.updated': "Tarif o'zgartirildi",
-  'plan.deleted': "Tarif o'chirildi",
-  'staff.created': "Xodim qo'shildi",
-}
-
-const actionLabel = (code: string) => ACTIONS[code] ?? humanize(code.replace(/\./g, '_'))
-
-/** The one detail worth reading: reason, plan or the deleted name. */
-function detail(a: AuditEntry): string {
-  const m = a.metadata ?? {}
-  if (a.action === 'organization.subscription_changed') {
-    const status = SUBSCRIPTION_LABELS[m.status as keyof typeof SUBSCRIPTION_LABELS] ?? ''
-    return [m.plan_name ?? m.plan, status].filter(Boolean).join(', ')
-  }
-  const value = m.reason || m.name || (a.organization_nomi ? '' : m.nomi) || m.username
-  return value ? String(value) : ''
-}
+import { formatDateTime } from '../../lib/format'
+import { actionLabel, auditDetail as detail, bodyClass, headClass } from './shared'
 
 export function AuditTab() {
   const [page, setPage] = useState(1)

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { platformApi, type OrgStatus, type PlatformSubscription, type SubscriptionStatus } from '../../api/resources'
+import { platformApi, type AuditEntry, type OrgStatus, type PlatformSubscription, type SubscriptionStatus } from '../../api/resources'
 import { errorMessage } from '../../api/client'
-import { formatDate, formatMoney } from '../../lib/format'
+import { formatDate, formatMoney, humanize } from '../../lib/format'
 
 type Tone = 'slate' | 'green' | 'red' | 'amber' | 'blue'
 
@@ -50,3 +50,59 @@ export const usePlans = () => useQuery({ queryKey: ['platform', 'plans'], queryF
 
 /** The API prefixes field errors with the key ("nomi: ..."), which means nothing to a reader. */
 export const formError = (error: unknown) => (error ? errorMessage(error).replace(/^[a-z_]+: /, '') : null)
+
+export const SOURCE_LABELS: Record<string, string> = {
+  direct: 'To‘g‘ridan-to‘g‘ri',
+  unknown: 'Noma’lum (kuzatuvdan oldin)',
+  google: 'Google',
+  yandex: 'Yandex',
+  telegram: 'Telegram',
+  instagram: 'Instagram',
+  facebook: 'Facebook',
+  youtube: 'YouTube',
+  tiktok: 'TikTok',
+}
+export const MEDIUM_LABELS: Record<string, string> = {
+  cpc: 'reklama',
+  ppc: 'reklama',
+  paid: 'reklama',
+  organic: 'qidiruv',
+  social: 'ijtimoiy tarmoq',
+  referral: 'havola',
+  email: 'e-mail',
+  none: '',
+}
+
+export const sourceLabel = (s: string) => SOURCE_LABELS[s] ?? s
+export const mediumLabel = (m: string) => (m in MEDIUM_LABELS ? MEDIUM_LABELS[m] : m)
+
+export const AUDIT_ACTIONS: Record<string, string> = {
+  'organization.registration_requested': 'Yangi ariza keldi',
+  'organization.created_by_platform': 'Tashkilot yaratildi',
+  'organization.updated_by_platform': "Tashkilot ma'lumotlari o'zgartirildi",
+  'organization.deleted': "Tashkilot o'chirildi",
+  'organization.pending': "Kutish holatiga o'tkazildi",
+  'organization.active': 'Tashkilot faollashtirildi',
+  'organization.rejected': 'Ariza rad etildi',
+  'organization.suspended': "Tashkilot to'xtatildi",
+  'organization.archived': 'Tashkilot arxivlandi',
+  'organization.subscription_changed': "Obuna o'zgartirildi",
+  'plan.created': 'Tarif yaratildi',
+  'plan.updated': "Tarif o'zgartirildi",
+  'plan.deleted': "Tarif o'chirildi",
+  'staff.created': "Xodim qo'shildi",
+}
+
+export const actionLabel = (code: string) => AUDIT_ACTIONS[code] ?? humanize(code.replace(/\./g, '_'))
+
+/** The one detail worth reading: reason, plan or the deleted name. */
+export function auditDetail(a: Pick<AuditEntry, 'action' | 'metadata'> & { organization_nomi?: string | null }): string {
+  const m = a.metadata ?? {}
+  if (a.action === 'organization.subscription_changed') {
+    const status = SUBSCRIPTION_LABELS[m.status as keyof typeof SUBSCRIPTION_LABELS] ?? ''
+    return [m.plan_name ?? m.plan, status].filter(Boolean).join(', ')
+  }
+  const value = m.reason || m.name || (a.organization_nomi ? '' : m.nomi) || m.username
+  return value ? String(value) : ''
+}
+

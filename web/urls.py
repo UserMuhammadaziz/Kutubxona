@@ -17,6 +17,8 @@ urlpatterns = [
     # Chatbot API endpoint
     path("api/chatbot/", views.ChatbotView.as_view(), name="chatbot"),
     path("api/ai/librarian-command/", views.LibrarianCommandView.as_view(), name="librarian-command"),
+    # An unknown API path is a 404, never the SPA shell with 200.
+    re_path(r"^api/", views.api_not_found, name="api-not-found"),
     # frontend React Router (BrowserRouter) ishlatadi: /books, /login kabi
     # yo'llar serverga so'rov bilan keladi va ularni SPA shell'ga
     # yo'naltirishimiz kerak. Bu view faqat "" ga xos bo'lsa, boshqa

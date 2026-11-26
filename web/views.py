@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 
 from django.core.cache import cache
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, JsonResponse
 from django.views.generic import TemplateView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -377,6 +377,10 @@ class LibrarianCommandView(APIView):
             cache.set(kalit, natija, 600)
 
         return Response(natija)
+
+
+def api_not_found(request, *args, **kwargs):
+    return JsonResponse({"detail": "Topilmadi."}, status=404)
 
 
 class IndexView(TemplateView):

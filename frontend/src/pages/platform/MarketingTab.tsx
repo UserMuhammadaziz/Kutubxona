@@ -4,34 +4,10 @@ import { marketingApi, type MarketingReport } from '../../api/resources'
 import { errorMessage } from '../../api/client'
 import { Badge, EmptyState, ErrorState, Select, StatsSkeleton, Table } from '../../components/ui'
 import { formatDateTime } from '../../lib/format'
-import { bodyClass, headClass, ORG_STATUS } from './shared'
+import { bodyClass, headClass, mediumLabel, ORG_STATUS, sourceLabel } from './shared'
 
 const PERIODS = [7, 30, 90, 365] as const
 
-const SOURCE_LABELS: Record<string, string> = {
-  direct: 'To‘g‘ridan-to‘g‘ri',
-  unknown: 'Noma’lum (kuzatuvdan oldin)',
-  google: 'Google',
-  yandex: 'Yandex',
-  telegram: 'Telegram',
-  instagram: 'Instagram',
-  facebook: 'Facebook',
-  youtube: 'YouTube',
-  tiktok: 'TikTok',
-}
-const MEDIUM_LABELS: Record<string, string> = {
-  cpc: 'reklama',
-  ppc: 'reklama',
-  paid: 'reklama',
-  organic: 'qidiruv',
-  social: 'ijtimoiy tarmoq',
-  referral: 'havola',
-  email: 'e-mail',
-  none: '',
-}
-
-const sourceLabel = (s: string) => SOURCE_LABELS[s] ?? s
-const mediumLabel = (m: string) => (m in MEDIUM_LABELS ? MEDIUM_LABELS[m] : m)
 const num = (n: number) => n.toLocaleString('uz-UZ')
 
 function Stat({ label, value, hint }: { label: string; value: string; hint: string }) {

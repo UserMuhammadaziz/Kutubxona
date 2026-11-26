@@ -310,6 +310,14 @@ class SaaSOrganizationViewSet(viewsets.ModelViewSet):
             },
         }
 
+    @action(detail=True, methods=["get"])
+    def details(self, request, pk=None):
+        """Full card of one organization: owner, staff, usage, signup source and history."""
+        from .platform_details import organization_details
+
+        org = self.get_object()
+        return Response(organization_details(org, self._subscription_summary))
+
     @action(detail=False, methods=["get"], url_path="stats")
     def stats(self, request):
         from berish.models import Berish

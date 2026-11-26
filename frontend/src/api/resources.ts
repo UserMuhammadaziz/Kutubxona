@@ -511,6 +511,7 @@ export const platformApi = {
     api.patch<PlatformPlan>(`/saas/plans/${id}/`, payload).then((r) => r.data),
   removePlan: (id: number) => api.delete(`/saas/plans/${id}/`).then((r) => r.data),
   audit: (page = 1) => api.get<Paginated<AuditEntry>>('/saas/audit/', { params: { page } }).then((r) => r.data),
+  details: (id: number) => api.get<PlatformOrgDetails>(`/saas/organizations/${id}/details/`).then((r) => r.data),
 }
 
 export type HealthState = 'ok' | 'down' | 'stale' | 'missing'
@@ -590,4 +591,67 @@ export interface MarketingReport {
 
 export const marketingApi = {
   report: (days: number) => api.get<MarketingReport>('/marketing/report/', { params: { days } }).then((r) => r.data),
+}
+
+export interface PlatformPerson {
+  id: number
+  full_name: string
+  username: string
+  phone: string
+  email: string
+  date_joined: string
+  last_login: string | null
+}
+
+export interface MarketingTouch {
+  source: string
+  medium: string
+  campaign: string
+  term?: string
+  content?: string
+  referrer_host?: string
+  landing_path?: string
+  click_id?: string
+  at?: string | null
+}
+
+export interface MarketingVisit extends MarketingTouch {
+  created_at: string
+}
+
+export interface PlatformOrgDetails {
+  organization: {
+    id: number
+    name: string
+    slug: string
+    type: string
+    status: OrgStatus
+    status_reason: string
+    status_changed_at: string | null
+    approved_at: string | null
+    approved_by: string
+    created_at: string
+    phone: string
+    email: string
+    address: string
+    description: string
+    logo_url: string
+  }
+  owner: PlatformPerson | null
+  members: (PlatformPerson & { role: string; role_display: string; active: boolean; joined_at: string; telegram_linked: boolean })[]
+  subscription: PlatformSubscription | null
+  usage: {
+    books: number
+    copies: number
+    readers: number
+    loans: number
+    open_loans: number
+    overdue_loans: number
+    pending_applications: number
+    reservations: number
+  }
+  bot: { username: string; status: string; status_display: string; webhook_set: boolean; last_checked_at: string | null; last_error: string } | null
+  push_subscriptions: number
+  attribution: { first: MarketingTouch; last: MarketingTouch; signed_up_at: string; visits: MarketingVisit[] } | null
+  timeline: { id: number; action: string; actor: string; metadata: Record<string, unknown>; created_at: string }[]
 }
