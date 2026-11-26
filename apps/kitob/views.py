@@ -18,6 +18,7 @@ from .serializers import (
     KitobDetailSerializer,
     KitobQidiruvSerializer,
 )
+from oquvchi.search import tolerant_q
 from . import services
 
 # Faol (bekor qilinmagan / yakunlanmagan) navbat holatlari.
@@ -127,9 +128,7 @@ class KitobViewSet(viewsets.ModelViewSet):
         # `Kitob.objects` bo'yicha to'g'ridan-to'g'ri so'rov boshqa
         # kutubxonalarning kitoblarini oshkor qiladi. `get_queryset()` esa
         # allaqachon joriy kutubxonaga cheklangan.
-        qs = self.get_queryset().filter(
-            Q(nomi__icontains=q) | Q(muallif__icontains=q) | Q(isbn__icontains=q)
-        ).annotate(
+        qs = self.get_queryset().filter(tolerant_q(["nomi", "muallif", "isbn"], q)).annotate(
             mavjud_nusxalar=Count("nusxalar", filter=Q(nusxalar__holati="mavjud"), distinct=True),
             jami_nusxalar=Count("nusxalar", distinct=True),
             faol_navbatlar=Count("navbat", filter=Q(navbat__holati__in=NAVBAT_FAQOL), distinct=True),

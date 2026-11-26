@@ -208,7 +208,8 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_FILTER_BACKENDS": (
         "django_filters.rest_framework.DjangoFilterBackend",
-        "rest_framework.filters.SearchFilter",
+        # Case/apostrophe/new-alphabet tolerant `?search=` for every list.
+        "oquvchi.search.TolerantSearchFilter",
     ),
     "DEFAULT_PAGINATION_CLASS": "config.pagination.StandardPagination",
     "PAGE_SIZE": 20,

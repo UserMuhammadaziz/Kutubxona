@@ -23,6 +23,7 @@ from navbat.models import Navbat
 from organization.models import Membership, Organization
 from oquvchi.constants import FAN_LIMIT, FANLAR, FISH_RE, SINF_RE, format_xatolari
 from oquvchi.models import Ariza, Oquvchi
+from oquvchi.search import tolerant_q
 
 from .client import answer_callback_query, answer_inline_query
 from .models import TelegramSession
@@ -540,7 +541,7 @@ def _search_books(bot, q, limit, offset=0):
     """
     qs = Kitob.objects.filter(organization=bot.organization)
     if q:
-        qs = qs.filter(Q(nomi__icontains=q) | Q(muallif__icontains=q) | Q(isbn__icontains=q))
+        qs = qs.filter(tolerant_q(["nomi", "muallif", "isbn"], q))
     qs = qs.annotate(
         mavjud_soni=Count("nusxalar", filter=Q(nusxalar__holati="mavjud")),
         jami_soni=Count("nusxalar"),

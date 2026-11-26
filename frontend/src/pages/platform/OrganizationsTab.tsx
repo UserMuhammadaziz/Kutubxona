@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { matchesSearch } from '../../lib/search'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
 import { platformApi, type OrgStatus, type PlatformOrg, type PlatformOrgForm } from '../../api/resources'
@@ -97,13 +98,13 @@ export function OrganizationsTab({ plan, onPlanChange }: { plan: string; onPlanC
   }
 
   const rows = useMemo(() => {
-    const needle = q.trim().toLowerCase()
+    const needle = q.trim()
     return (stats.data?.tashkilotlar ?? [])
       .filter(
         (o) =>
           (filter === 'all' || o.status === filter) &&
           (!plan || o.subscription?.plan === plan) &&
-          (!needle || [o.nomi, o.slug, o.egasi_ismi, o.telefon].some((v) => v?.toLowerCase().includes(needle))),
+          (!needle || matchesSearch([o.nomi, o.slug, o.egasi_ismi, o.telefon].join(' '), needle)),
       )
       // New applications wait for a decision, so they come first.
       .sort((a, b) => Number(b.status === 'pending') - Number(a.status === 'pending'))
