@@ -39,22 +39,59 @@ APOSTROPHE_CLASS = "[" + "'" + "".join(APOSTROFLAR) + "]"
 DASH_CLASS = "[-" + "".join(TIREREZGARLAR) + "]"
 
 
-def search_pattern(term: str) -> str:
-    """Case-insensitive regex for `term` where every apostrophe or dash matches any variant.
+# New-alphabet letters typed in several ways: oʻ = o' = õ = ö ..., gʻ = g' = ğ ...
+_O_VARIANTS = "oOõÕöÖóÓòÒōŌŏŎ"
+_G_VARIANTS = "ğĞǵǴĝĜ"
 
-    Stored names mix several typographic marks (`ʼ`, `ʻ`, `‘` ...) and phone
-    keyboards type yet another one, so a plain substring search misses them.
-    Everything else in the term is matched literally.
+
+def _letter(ch: str) -> str:
+    """Both cases of one character, built in Python so the DB collation does not matter."""
+    variants = {ch, ch.lower(), ch.upper()}
+    if len(variants) == 1 or any(len(v) != 1 for v in variants):
+        return re.escape(ch)
+    return "[" + "".join(re.escape(v) for v in sorted(variants)) + "]"
+
+
+def search_pattern(term: str) -> str:
+    """Regex for `term` that ignores case, apostrophe and dash variants.
+
+    Stored names mix several typographic marks (`ʼ`, `ʻ`, `‘` ...), phone
+    keyboards type yet another one or none at all, and some people write the
+    new-alphabet letters as `õ` / `ğ`. So: case is matched in both forms
+    explicitly (the database may run with the C collation, where `~*` folds
+    only ASCII), apostrophes in the term are dropped and allowed after every
+    character, `o`/`g` also match `õ`/`ğ`, and any dash matches any dash.
     """
+    optional_apostrophe = APOSTROPHE_CLASS + "?"
     parts = []
     for ch in term:
         if ch == "'" or ch in APOSTROFLAR:
-            parts.append(APOSTROPHE_CLASS)
-        elif ch == "-" or ch in TIREREZGARLAR:
+            continue
+        if ch == "-" or ch in TIREREZGARLAR:
             parts.append(DASH_CLASS)
+            continue
+        if ch in _O_VARIANTS:
+            parts.append("(?:[oO]|[" + _O_VARIANTS[2:] + "])")
+        elif ch in "gG" or ch in _G_VARIANTS:
+            parts.append("(?:[gG]|[" + _G_VARIANTS + "])")
         else:
-            parts.append(re.escape(ch))
+            parts.append(_letter(ch))
+        parts.append(optional_apostrophe)
     return "".join(parts)
+
+
+def tolerant_q(fields, text: str) -> Q:
+    """Every word of `text` must match one of `fields` (see `search_pattern`)."""
+    condition = Q()
+    for word in text.split():
+        pattern = search_pattern(word)
+        if not pattern:
+            continue
+        any_field = Q()
+        for field in fields:
+            any_field |= Q(**{f"{field}__regex": pattern})
+        condition &= any_field
+    return condition
 
 
 class ChidamliQidiruvFilter(SearchFilter):
@@ -66,11 +103,12 @@ class ChidamliQidiruvFilter(SearchFilter):
         if not maydonlar or not sozlar:
             return queryset
 
-        shart = Q()
-        for qism in sozlar:
-            pattern = search_pattern(qism)
-            variant_sharti = Q()
-            for maydon in maydonlar:
-                variant_sharti |= Q(**{f"{maydon}__iregex": pattern})
-            shart &= variant_sharti
-        return queryset.filter(shart)
+        # DRF prefixes ("^", "=", "@", "$") are not used by our views.
+        fields = [f.lstrip("^=@$") for f in maydonlar]
+        query = queryset.filter(tolerant_q(fields, " ".join(sozlar)))
+        # Matching through a to-many relation can repeat rows.
+        return query.distinct() if any("__" in f for f in fields) else query
+
+
+# English name for the project-wide default backend.
+TolerantSearchFilter = ChidamliQidiruvFilter

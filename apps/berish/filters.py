@@ -3,6 +3,8 @@ from datetime import date
 import django_filters
 from django.db.models import Q
 
+from oquvchi.search import tolerant_q
+
 from .models import Berish
 
 
@@ -30,6 +32,4 @@ class LoanFilter(django_filters.FilterSet):
         value = value.strip()
         if not value:
             return queryset
-        return queryset.filter(
-            Q(oquvchi__fish__icontains=value) | Q(kitob__nomi__icontains=value)
-        )
+        return queryset.filter(tolerant_q(["oquvchi__fish", "kitob__nomi"], value))
