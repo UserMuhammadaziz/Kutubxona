@@ -118,6 +118,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", include(router.urls)),
     path("api/stats/", include("stats.urls")),
+    path("api/marketing/", include("marketing.urls")),
     path("api/health/", health),
     path("api/saas/health/", platform_health),
     path("api/auth/token/", ThrottledTokenView.as_view()),

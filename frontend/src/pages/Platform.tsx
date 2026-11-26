@@ -4,12 +4,14 @@ import clsx from 'clsx'
 import { PageHeader } from '../components/ui'
 import { AuditTab } from './platform/AuditTab'
 import { HealthTab } from './platform/HealthTab'
+import { MarketingTab } from './platform/MarketingTab'
 import { OrganizationsTab } from './platform/OrganizationsTab'
 import { PlansTab } from './platform/PlansTab'
 
 const TABS = [
   ['organizations', 'Tashkilotlar'],
   ['plans', 'Tariflar'],
+  ['marketing', 'Marketing'],
   ['health', 'Tizim holati'],
   ['audit', 'Harakatlar jurnali'],
 ] as const
@@ -42,7 +44,7 @@ export function Platform() {
 
   return (
     <div>
-      <PageHeader title="Platforma" subtitle="Tashkilotlar, tariflar va obunalar" />
+      <PageHeader title="Platforma" subtitle="Tashkilotlar, tariflar, obunalar va marketing" />
       <div
         ref={list}
         role="tablist"
@@ -74,6 +76,7 @@ export function Platform() {
       <div id="platform-panel" role="tabpanel" aria-labelledby={`platform-tab-${tab}`}>
         {tab === 'organizations' && <OrganizationsTab plan={plan} onPlanChange={(code) => go('organizations', code)} />}
         {tab === 'plans' && <PlansTab onShowOrganizations={(code) => go('organizations', code)} />}
+        {tab === 'marketing' && <MarketingTab />}
         {tab === 'health' && <HealthTab />}
         {tab === 'audit' && <AuditTab />}
       </div>

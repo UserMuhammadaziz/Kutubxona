@@ -53,6 +53,9 @@ def botni_ulash(organization, token):
         )
 
     bot = TelegramBot.objects.filter(organization=organization).first()
+    if bot is not None and bot.polling and bot.telegram_bot_id == bot_id:
+        # Same server bot again: refresh it, never move it to a webhook.
+        return link_polling_bot(organization, token)
     if bot is None:
         bot = TelegramBot(
             organization=organization,
@@ -68,6 +71,7 @@ def botni_ulash(organization, token):
             bot.webhook_secret = TelegramBot.yangi_secret()
     bot.username = info.get("username", "")
     bot.set_token(token)
+    bot.polling = False
     bot.holati = "ulanmoqda"
     bot.oxirgi_xato = ""
     bot.save()
@@ -102,8 +106,43 @@ def botni_ulash(organization, token):
             "token_encrypted",
             "webhook_path",
             "webhook_secret",
+            "polling",
         ]
     )
+    return bot
+
+
+def link_polling_bot(organization, token):
+    """Register the server's long-polling bot as this library's bot.
+
+    The token is stored (encrypted) so notifications go out through it no
+    matter how many libraries are active. No webhook is set.
+    """
+    token = (token or "").strip()
+    if not TOKEN_RE.match(token):
+        raise ValidationError({"token": "Telegram bot tokeni formati noto'g'ri."})
+    try:
+        info = get_me(token)
+    except TelegramAPIError as xato:
+        raise ValidationError({"token": f"Token tekshirilmadi: {xato.description}"})
+    bot_id = int(info["id"])
+    if TelegramBot.objects.filter(telegram_bot_id=bot_id).exclude(organization=organization).exists():
+        raise ValidationError({"token": "Bu bot boshqa kutubxonaga ulangan."})
+
+    bot = TelegramBot.objects.filter(organization=organization).first() or TelegramBot(
+        organization=organization,
+        webhook_path=TelegramBot.yangi_webhook_path(),
+        webhook_secret=TelegramBot.yangi_secret(),
+    )
+    bot.telegram_bot_id = bot_id
+    bot.username = info.get("username", "")
+    bot.set_token(token)
+    bot.polling = True
+    bot.holati = "ulangan"
+    bot.webhook_ornatilgan = False
+    bot.oxirgi_xato = ""
+    bot.oxirgi_tekshiruv = timezone.now()
+    bot.save()
     return bot
 
 
@@ -112,13 +151,17 @@ def botni_tekshirish(bot):
         info = get_me(bot.get_token())
         bot.username = info.get("username", bot.username)
         bot.telegram_bot_id = int(info["id"])
-        bot.holati = "ulangan" if bot.webhook_ornatilgan else "uzilgan"
+        bot.holati = "ulangan" if (bot.webhook_ornatilgan or bot.polling) else "uzilgan"
         bot.oxirgi_xato = ""
-        try:
-            webhook = get_webhook_info(bot.get_token())
-            bot.webhook_ornatilgan = bool(webhook.get("url"))
-        except TelegramAPIError:
-            pass
+        if bot.polling:
+            # Updates arrive by polling; a webhook URL here would be the bug.
+            bot.webhook_ornatilgan = False
+        else:
+            try:
+                webhook = get_webhook_info(bot.get_token())
+                bot.webhook_ornatilgan = bool(webhook.get("url"))
+            except TelegramAPIError:
+                pass
     except TelegramAPIError as xato:
         bot.holati = "xato"
         bot.oxirgi_xato = str(xato.description)[:255]
@@ -128,10 +171,11 @@ def botni_tekshirish(bot):
 
 
 def botni_uzish(bot):
-    try:
-        delete_webhook(bot.get_token())
-    except TelegramAPIError:
-        pass
+    if not bot.polling:
+        try:
+            delete_webhook(bot.get_token())
+        except TelegramAPIError:
+            pass
     bot.holati = "uzilgan"
     bot.webhook_ornatilgan = False
     bot.oxirgi_tekshiruv = timezone.now()
@@ -154,6 +198,9 @@ def organizatsiya_xabari(organization, chat_id, matn, reply_markup=None):
 
 
 def webhookni_qayta_ornat(bot):
+    if bot.polling:
+        # Setting a webhook would cut the polling process off from its updates.
+        return
     set_webhook(bot.get_token(), _webhook_url(bot), bot.webhook_secret)
     bot.webhook_ornatilgan = True
     bot.holati = "ulangan"

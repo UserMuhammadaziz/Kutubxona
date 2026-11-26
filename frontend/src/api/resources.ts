@@ -1,5 +1,6 @@
 import type { DashboardWidget, OrganizationType } from '../lib/organization'
 import { api } from './client'
+import { signupAttribution } from '../lib/tracking'
 import type {
   Paginated,
   Announcement,
@@ -96,7 +97,8 @@ export interface TelegramBotInfo {
   telegram_bot_id: number
   holati: string
   webhook_ornatilgan: boolean
-  webhook_url: string
+  webhook_url: string | null
+  polling?: boolean
   oxirgi_tekshiruv: string | null
   oxirgi_xato: string
   yaratilgan: string
@@ -130,7 +132,12 @@ export const authApi = {
   },
   deleteLogo: (id: number) => api.delete<OrganizationInfo>(`/organizations/${id}/logo/`).then((r) => r.data),
   register: (payload: RegisterPayload) =>
-    api.post<{ access: string; refresh: string; user: User; organization: any }>('/auth/register/', payload).then((r) => r.data),
+    api
+      .post<{ access: string; refresh: string; user: User; organization: any }>('/auth/register/', {
+        ...payload,
+        attribution: signupAttribution(),
+      })
+      .then((r) => r.data),
   changePassword: (payload: ParolAlmashtirishPayload) =>
     api.post<{ detail: string }>('/auth/change-password/', payload).then((r) => r.data),
   updateProfile: (payload: ProfilYangilashPayload) =>
@@ -505,6 +512,7 @@ export const platformApi = {
     api.patch<PlatformPlan>(`/saas/plans/${id}/`, payload).then((r) => r.data),
   removePlan: (id: number) => api.delete(`/saas/plans/${id}/`).then((r) => r.data),
   audit: (page = 1) => api.get<Paginated<AuditEntry>>('/saas/audit/', { params: { page } }).then((r) => r.data),
+  details: (id: number) => api.get<PlatformOrgDetails>(`/saas/organizations/${id}/details/`).then((r) => r.data),
 }
 
 export type HealthState = 'ok' | 'down' | 'stale' | 'missing'
@@ -534,4 +542,117 @@ export interface PlatformHealth {
 
 export const healthApi = {
   platform: () => api.get<PlatformHealth>('/saas/health/').then((r) => r.data),
+}
+
+export interface MarketingSourceRow {
+  source: string
+  medium: string
+  visits: number
+  visitors: number
+  signups: number
+  approved: number
+  conversion: number
+}
+
+export interface MarketingCampaignRow {
+  source: string
+  medium: string
+  campaign: string
+  visits: number
+  visitors: number
+  signups: number
+  conversion: number
+}
+
+export interface MarketingSignup {
+  organization_id: number
+  organization_name: string
+  status: string
+  created_at: string
+  first_seen_at: string | null
+  source: string
+  medium: string
+  campaign: string
+  term: string
+  content: string
+  referrer_host: string
+  landing_path: string
+  last_source: string
+  last_medium: string
+}
+
+export interface MarketingReport {
+  days: number
+  totals: { visits: number; visitors: number; signups: number; approved: number; conversion: number }
+  sources: MarketingSourceRow[]
+  campaigns: MarketingCampaignRow[]
+  daily: { date: string; visits: number; visitors: number; signups: number }[]
+  recent_signups: MarketingSignup[]
+}
+
+export const marketingApi = {
+  report: (days: number) => api.get<MarketingReport>('/marketing/report/', { params: { days } }).then((r) => r.data),
+}
+
+export interface PlatformPerson {
+  id: number
+  full_name: string
+  username: string
+  phone: string
+  email: string
+  date_joined: string
+  last_login: string | null
+}
+
+export interface MarketingTouch {
+  source: string
+  medium: string
+  campaign: string
+  term?: string
+  content?: string
+  referrer_host?: string
+  landing_path?: string
+  click_id?: string
+  at?: string | null
+}
+
+export interface MarketingVisit extends MarketingTouch {
+  created_at: string
+}
+
+export interface PlatformOrgDetails {
+  organization: {
+    id: number
+    name: string
+    slug: string
+    type: string
+    status: OrgStatus
+    status_reason: string
+    status_changed_at: string | null
+    approved_at: string | null
+    approved_by: string
+    created_at: string
+    phone: string
+    email: string
+    address: string
+    description: string
+    logo_url: string
+  }
+  owner: PlatformPerson | null
+  members: (PlatformPerson & { role: string; role_display: string; active: boolean; joined_at: string; telegram_linked: boolean })[]
+  subscription: PlatformSubscription | null
+  usage: {
+    books: number
+    copies: number
+    readers: number
+    loans: number
+    open_loans: number
+    overdue_loans: number
+    pending_applications: number
+    reservations: number
+  }
+  bot: { username: string; status: string; status_display: string; webhook_set: boolean; last_checked_at: string | null; last_error: string } | null
+  push_subscriptions: number
+  attribution: { first: MarketingTouch; last: MarketingTouch; signed_up_at: string; visits: MarketingVisit[] } | null
+  timeline: { id: number; action: string; actor: string; metadata: Record<string, unknown>; created_at: string }[]
 }

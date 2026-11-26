@@ -10,6 +10,7 @@ import { Badge, Button, ConfirmDialog, EmptyState, ErrorBanner, ErrorState, Fiel
 import { formatDate } from '../../lib/format'
 import { useAuthStore } from '../../store/auth'
 import { emptyOrgForm, OrganizationForm } from './OrganizationForm'
+import { OrganizationDetails } from './OrganizationDetails'
 import { SubscriptionForm } from './SubscriptionForm'
 import { bodyClass, headClass, limitText, ORG_STATUS, subscriptionSummary, usePlans } from './shared'
 
@@ -64,6 +65,7 @@ export function OrganizationsTab({ plan, onPlanChange }: { plan: string; onPlanC
   const [planOrg, setPlanOrg] = useState<PlatformOrg | null>(null)
   const [editing, setEditing] = useState<{ id: number | null; form: PlatformOrgForm } | null>(null)
   const [deleting, setDeleting] = useState<PlatformOrg | null>(null)
+  const [viewing, setViewing] = useState<PlatformOrg | null>(null)
 
   const refresh = () => void qc.invalidateQueries({ queryKey: ['platform'] })
 
@@ -175,6 +177,15 @@ export function OrganizationsTab({ plan, onPlanChange }: { plan: string; onPlanC
       <Usage label="Berish" used={o.berishlar} />
     </dl>
   )
+  const nameButton = (o: PlatformOrg) => (
+    <button
+      type="button"
+      onClick={() => setViewing(o)}
+      className="break-words text-left font-medium text-slate-900 underline-offset-2 hover:text-brand-700 hover:underline dark:text-slate-100 dark:hover:text-brand-300"
+    >
+      {o.nomi}
+    </button>
+  )
   const meta = (o: PlatformOrg) => `${o.slug} · ${formatDate(o.yaratilgan)}${o.bot_ulangan ? ' · bot ulangan' : ''}`
 
   return (
@@ -231,7 +242,7 @@ export function OrganizationsTab({ plan, onPlanChange }: { plan: string; onPlanC
           <div>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="break-words font-medium text-slate-900 dark:text-slate-100">{o.nomi}</div>
+                {nameButton(o)}
                 <div className="break-words text-xs text-slate-600 dark:text-slate-300">{meta(o)}</div>
               </div>
               <div className="shrink-0 text-right">{statusCell(o)}</div>
@@ -261,7 +272,7 @@ export function OrganizationsTab({ plan, onPlanChange }: { plan: string; onPlanC
             {rows.map((o) => (
               <tr key={o.id}>
                 <td className="px-4 py-3">
-                  <div className="font-medium text-slate-900 dark:text-slate-100">{o.nomi}</div>
+                  {nameButton(o)}
                   <div className="text-xs text-slate-600 dark:text-slate-300">{meta(o)}</div>
                 </td>
                 <td className="px-4 py-3">
@@ -327,6 +338,10 @@ export function OrganizationsTab({ plan, onPlanChange }: { plan: string; onPlanC
 
       <Modal wide open={!!editing} onClose={() => setEditing(null)} title={editing?.id ? 'Tashkilotni tahrirlash' : 'Yangi tashkilot'} description={editing?.id ? undefined : "Tashkilot darhol faol bo'ladi."}>
         {editing && <OrganizationForm id={editing.id} initial={editing.form} onClose={() => setEditing(null)} />}
+      </Modal>
+
+      <Modal wide open={!!viewing} onClose={() => setViewing(null)} title={viewing?.nomi ?? ''} description="Tashkilot haqida to'liq ma'lumot">
+        {viewing && <OrganizationDetails id={viewing.id} actions={<>{primary(viewing)}{menu(viewing)}</>} />}
       </Modal>
 
       <Modal open={!!planOrg} onClose={() => setPlanOrg(null)} title="Obuna" description={planOrg?.nomi}>

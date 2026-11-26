@@ -16,6 +16,7 @@ class TelegramBotSerializer(serializers.ModelSerializer):
             "holati",
             "webhook_ornatilgan",
             "webhook_url",
+            "polling",
             "oxirgi_tekshiruv",
             "oxirgi_xato",
             "yaratilgan",
@@ -25,6 +26,8 @@ class TelegramBotSerializer(serializers.ModelSerializer):
     def get_webhook_url(self, obj):
         from django.conf import settings
 
+        if obj.polling:
+            return None
         return (
             f"{settings.TELEGRAM_WEBHOOK_BASE_URL.rstrip('/')}"
             f"/api/telegram/webhook/{obj.webhook_path}/"

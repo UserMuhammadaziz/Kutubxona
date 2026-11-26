@@ -40,7 +40,7 @@ function Tile({
 }
 
 // Bump when the files in public/landing are retaken: nginx caches them for days.
-const SHOTS_VERSION = '2611'
+const SHOTS_VERSION = '2611b'
 
 /** App screenshot that follows the theme and swaps to a phone capture on small screens. */
 function Screenshot({
@@ -174,7 +174,7 @@ export function Home() {
               <Screenshot
                 name="loans"
                 alt="Berish va qaytarish jadvali: kitob, kitobxon, berilgan sana, muddat, Qaytarish tugmasi"
-                width={1958}
+                width={2018}
                 height={1364}
                 className="mt-5 rounded-[14px]"
                 lazy
@@ -183,7 +183,7 @@ export function Home() {
 
             <Tile bg={YASHIL} color="#fff" className="lg:col-span-2">
               <h3 className="text-xl font-bold">AI yordamchi</h3>
-              <p className="mt-2 text-base leading-relaxed" style={{ color: '#cfe5da' }}>
+              <p className="mt-2 text-base leading-relaxed" style={{ color: '#dbe5ff' }}>
                 Tizim haqida savol bersangiz, o‘zbekcha javob beradi. Ctrl+K bosib, oddiy gap bilan buyruq ham berishingiz mumkin.
               </p>
             </Tile>

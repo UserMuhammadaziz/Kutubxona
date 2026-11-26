@@ -1,15 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Kutubxona">
   <defs>
     <linearGradient id="kutubxona-icon-bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#60A5FA" />
-      <stop offset="0.55" stop-color="#2563EB" />
-      <stop offset="1" stop-color="#1E40AF" />
+      <stop offset="0" stop-color="#5B80EF" />
+      <stop offset="0.55" stop-color="#1E4FD8" />
+      <stop offset="1" stop-color="#163A9E" />
     </linearGradient>
   </defs>
   <rect width="64" height="64" fill="url(#kutubxona-icon-bg)" />
   <g transform="translate(32 32) scale(0.85) translate(-32 -32)">
     <path d="M31 22.5C27 19 20 17.5 12 18v27.5c8-.5 15 1 19 4.5z" fill="#fff" fill-opacity=".96" />
     <path d="M33 22.5c4-3.5 11-5 19-4.5v27.5c-8-.5-15 1-19 4.5z" fill="#fff" fill-opacity=".76" />
-    <path d="M40 18.2h6V32l-3-3-3 3z" fill="#FBBF24" />
+    <path d="M40 18.2h6V32l-3-3-3 3z" fill="#F2A93B" />
   </g>
 </svg>

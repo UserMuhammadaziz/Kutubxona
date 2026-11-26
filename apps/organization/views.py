@@ -58,7 +58,7 @@ class RegisterView(APIView):
     throttle_classes = [RegisterThrottle]
 
     def post(self, request):
-        serializer = RegisterSerializer(data=request.data)
+        serializer = RegisterSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         data = serializer.save()
         return Response(
@@ -309,6 +309,14 @@ class SaaSOrganizationViewSet(viewsets.ModelViewSet):
                 "max_customers": sub.plan.max_customers,
             },
         }
+
+    @action(detail=True, methods=["get"])
+    def details(self, request, pk=None):
+        """Full card of one organization: owner, staff, usage, signup source and history."""
+        from .platform_details import organization_details
+
+        org = self.get_object()
+        return Response(organization_details(org, self._subscription_summary))
 
     @action(detail=False, methods=["get"], url_path="stats")
     def stats(self, request):
