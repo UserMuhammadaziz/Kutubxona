@@ -139,7 +139,7 @@ class SaaSOrganizationViewSet(viewsets.ModelViewSet):
     serializer_class = SaaSOrganizationSerializer
     permission_classes = [IsPlatformAdmin]
     http_method_names = ["get", "post", "patch", "delete"]
-    filterset_fields = ["status", "turi", "faol"]
+    filterset_fields = ["status", "type", "faol"]
     search_fields = ["nomi", "slug", "email", "telefon"]
 
     def get_serializer_context(self):
@@ -297,7 +297,7 @@ class SaaSOrganizationViewSet(viewsets.ModelViewSet):
                     "id": org.id,
                     "nomi": org.nomi,
                     "slug": org.slug,
-                    "turi": org.turi,
+                    "type": org.type,
                     "status": org.status,
                     "faol": org.faol,
                     "kitoblar": Kitob.objects.filter(organization=org).count(),

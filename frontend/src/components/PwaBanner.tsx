@@ -1,12 +1,15 @@
+import { useLocation } from 'react-router-dom'
 import { usePwa } from '../hooks/usePwa'
 import { Button } from './ui'
+
+const PUBLIC_PATHS = ['/welcome', '/yordam', '/register', '/login']
 
 /** Offline holat, yangi versiya, «ilova sifatida o'rnatish» va kichrayish ogohlantirishi. */
 export function PwaBanner() {
   const {
     online,
-    canInstall,
-    showIosHint,
+    canInstall: canInstallRaw,
+    showIosHint: showIosHintRaw,
     install,
     dismiss,
     updateReady,
@@ -14,6 +17,12 @@ export function PwaBanner() {
     desktopMode,
     dismissDesktopMode,
   } = usePwa()
+  // The install offer belongs inside the app: visitors of the public landing,
+  // guide and sign-up pages are not librarians yet and should not get it.
+  const { pathname } = useLocation()
+  const onPublicPage = PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(path + '/'))
+  const canInstall = canInstallRaw && !onPublicPage
+  const showIosHint = showIosHintRaw && !onPublicPage
 
   return (
     <>

@@ -30,7 +30,7 @@ class ButunLoyihaSmokeTest(TestCase):
             "/api/auth/register/",
             {
                 "kutubxona_nomi": "Smoke test kutubxonasi",
-                "turi": "library",
+                "type": "school",  # exercises the class/teacher flow
                 "full_name": "Smoke Administrator",
                 "telefon": "+998901234567",
                 "password": "SmokeParol123!",

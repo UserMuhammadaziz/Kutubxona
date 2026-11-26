@@ -12,6 +12,7 @@ import { CommandBar } from './CommandBar'
 import { Icons } from './icons'
 import { canManageCompany as canManageCompanyRole, useOrganization } from '../hooks/useOrganization'
 import { useOrganizationBlock } from '../hooks/useOrganizationBlock'
+import { isSchool } from '../lib/organization'
 
 type NavItem = { to: string; label: string; icon: (p: { className?: string }) => React.ReactNode; end?: boolean; badge?: 'overdue' | 'applications' }
 
@@ -54,13 +55,24 @@ const tabItems = [
   { to: '/readers', label: "O'quvchilar", icon: Icons.graduationCap },
 ]
 
+/** Libraries have members, not students and teachers: relabel readers and drop the teachers page. */
+function forOrgType<T extends { to: string; label: string }>(items: T[], library: boolean): T[] {
+  if (!library) return items
+  return items
+    .filter((item) => item.to !== '/teachers')
+    .map((item) => (item.to === '/readers' ? { ...item, label: "A'zolar" } : item))
+}
+
 const platformTabItems = [{ to: '/platform', label: 'Platforma', icon: Icons.shield, end: true }]
 
 function BottomTabs({ onMenu }: { onMenu: () => void }) {
   const { user } = useAuthStore()
   const blocked = useOrganizationBlock()
   // Library tabs lead nowhere for a platform user without a usable library.
-  const items = user?.is_platform && (!user.kutubxonalar?.length || blocked) ? platformTabItems : tabItems
+  const org = useOrganization().data
+  const library = !!org && !isSchool(org)
+  const items =
+    user?.is_platform && (!user.kutubxonalar?.length || blocked) ? platformTabItems : forOrgType(tabItems, library)
   const tab = 'pwa-tab flex min-h-[3.25rem] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 whitespace-nowrap px-0.5 text-[0.6875rem] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500'
   return (
     <nav className="pwa-tabs fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-paper lg:hidden dark:border-slate-700 dark:bg-slate-800">
@@ -120,7 +132,9 @@ function SearchTrigger({ onNavigate }: { onNavigate?: () => void }) {
 
 function NavList({ onNavigate }: { onNavigate?: () => void }) {
   const { user } = useAuthStore()
-  const canManageCompany = canManageCompanyRole(useOrganization().data)
+  const org = useOrganization().data
+  const canManageCompany = canManageCompanyRole(org)
+  const library = !!org && !isSchool(org)
   // A platform-only master user belongs to no library: library pages would be empty for them.
   // Same when the selected library is blocked: only the platform pages stay usable.
   const blocked = useOrganizationBlock()
@@ -161,7 +175,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
     ...(!platformOnly && isAdmin(user) ? [{ to: '/staff', label: 'Xodimlar', icon: Icons.users }] : []),
   ]
   const groups = [
-    ...(platformOnly ? [] : navGroups),
+    ...(platformOnly ? [] : navGroups.map((g) => ({ ...g, items: forOrgType(g.items, library) }))),
     ...(manage.length ? [{ title: 'Boshqaruv', items: manage }] : []),
     ...(platformOnly ? [] : [{ title: 'Yordam', items: [{ to: '/guide', label: "Qo'llanma", icon: Icons.bookClosed }] as NavItem[] }]),
   ]

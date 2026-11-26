@@ -202,11 +202,25 @@ export function ReaderDetail() {
                 </dd>
               </div>
             ) : (
+              (reader.sinf || !reader.manzil) && (
+                <div>
+                  <dt className="text-slate-500 dark:text-slate-400">Sinf</dt>
+                  <dd className="font-medium text-slate-900 dark:text-slate-100">
+                    {reader.sinf ? `${reader.sinf}-sinf` : '—'}
+                  </dd>
+                </div>
+              )
+            )}
+            {reader.manzil && (
               <div>
-                <dt className="text-slate-500 dark:text-slate-400">Sinf</dt>
-                <dd className="font-medium text-slate-900 dark:text-slate-100">
-                  {reader.sinf ? `${reader.sinf}-sinf` : '—'}
-                </dd>
+                <dt className="text-slate-500 dark:text-slate-400">Yashash manzili</dt>
+                <dd className="font-medium text-slate-900 dark:text-slate-100">{reader.manzil}</dd>
+              </div>
+            )}
+            {reader.tugilgan_sana && (
+              <div>
+                <dt className="text-slate-500 dark:text-slate-400">Tug‘ilgan sana</dt>
+                <dd className="font-medium text-slate-900 dark:text-slate-100">{formatDate(reader.tugilgan_sana)}</dd>
               </div>
             )}
             <div>

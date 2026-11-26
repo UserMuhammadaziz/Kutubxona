@@ -117,3 +117,41 @@ class QidiruvBelgilariTest(TenantTestMixin, TestCase):
         javob = self.client.get("/api/applications/", {"rol": "oqituvchi"})
         self.assertEqual(javob.data["count"], 1)
         self.assertEqual(javob.data["results"][0]["fish"], "Jo‘rayeva Nargizaxon")
+
+
+class TypographicApostropheMismatchTest(TenantTestMixin, TestCase):
+    """A phone keyboard types `‘` (U+2018) while the name is stored with `ʼ` (U+02BC)."""
+
+    def setUp(self):
+        super().setUp()
+        staff = User.objects.create_user(username="searcher2", password="parol12345", full_name="S", rol="kutubxonachi")
+        self.azolik(staff)
+        self.client = APIClient()
+        self.client.force_authenticate(staff)
+        self.reader = Oquvchi.objects.create(
+            organization=self.org, rol="oqituvchi", fish="Aʼzamova Zumradxon",
+            telefon="+998904444444", karta_raqami="T-9", kasb="Ona tili",
+        )
+        self.mixed = Oquvchi.objects.create(
+            organization=self.org, rol="oquvchi", fish="Rasulova O‘gʻiloy",  # two different marks
+            telefon="+998905555555", karta_raqami="O-9", sinf="7-D",
+        )
+
+    def ids(self, query):
+        res = self.client.get("/api/readers/", {"search": query})
+        self.assertEqual(res.status_code, 200, res.data)
+        return [x["id"] for x in res.data["results"]]
+
+    def test_left_quote_finds_modifier_apostrophe(self):
+        self.assertIn(self.reader.pk, self.ids("A‘zamova Zumrad"))
+
+    def test_backtick_finds_modifier_apostrophe(self):
+        self.assertIn(self.reader.pk, self.ids("A`zamova"))
+
+    def test_name_with_two_different_marks(self):
+        self.assertIn(self.mixed.pk, self.ids("O'g'iloy"))
+        self.assertIn(self.mixed.pk, self.ids("O‘g‘iloy"))
+
+    def test_regex_characters_are_literal(self):
+        self.assertEqual(self.ids("A.zamova"), [])
+        self.assertEqual(self.ids("(+"), [])

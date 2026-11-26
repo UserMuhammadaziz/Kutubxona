@@ -21,6 +21,36 @@ from .utils import sinf_normal
 ROL_CHOICES = [("oquvchi", "Oquvchi"), ("oqituvchi", "O'qituvchi")]
 
 
+
+def is_library(organization):
+    """Library organizations ask for address and birth date instead of role/class/subject."""
+    return organization is not None and organization.type == Organization.TYPE_LIBRARY
+
+
+def validate_birth_date(value):
+    if value and value > date.today():
+        raise serializers.ValidationError("Tug'ilgan sana kelajakda bo'lishi mumkin emas.")
+    if value and value.year < 1900:
+        raise serializers.ValidationError("Tug'ilgan sana noto'g'ri.")
+    return value
+
+
+def library_reader_fields(attrs):
+    """Library reader: address and birth date are required; role/class/subject are cleared."""
+    address = (attrs.get("manzil") or "").strip()
+    errors = {}
+    if not address:
+        errors["manzil"] = "Yashash manzilini kiriting."
+    if not attrs.get("tugilgan_sana"):
+        errors["tugilgan_sana"] = "Tug'ilgan sanani kiriting."
+    if errors:
+        raise serializers.ValidationError(errors)
+    attrs["manzil"] = address
+    attrs["rol"] = "oquvchi"
+    attrs["sinf"] = ""
+    attrs["kasb"] = ""
+    return attrs
+
 class FanSerializer(serializers.ModelSerializer):
     class Meta:
         model = Fan
@@ -126,11 +156,19 @@ class OquvchiYaratishSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Oquvchi
-        # Faqat ism-familiya, telefon va rolga qarab sinf/fan so'raladi.
-        fields = ["id", "rol", "fish", "telefon", "sinf", "kasb", "karta_raqami"]
+        # School: name, phone, then class or subject by role.
+        # Library: name, phone, address and birth date; no role/class/subject.
+        fields = [
+            "id", "rol", "fish", "telefon", "sinf", "kasb", "manzil", "tugilgan_sana", "karta_raqami",
+        ]
         read_only_fields = ["id", "karta_raqami"]
 
+    def validate_tugilgan_sana(self, value):
+        return validate_birth_date(value)
+
     def validate(self, attrs):
+        if is_library(self.context.get("organization")):
+            return library_reader_fields(attrs)
         if attrs.get("rol") == "oqituvchi":
             kasb = (attrs.get("kasb") or "").strip()
             if not kasb:
@@ -264,11 +302,7 @@ class ArizaYaratishSerializer(serializers.ModelSerializer):
         ]
 
     def validate_tugilgan_sana(self, value):
-        if value and value > date.today():
-            raise serializers.ValidationError(
-                "Tug'ilgan sana kelajakda bo'lishi mumkin emas."
-            )
-        return value
+        return validate_birth_date(value)
 
     def validate_fish(self, value):
         """Ism-familiya — kamida ikki so'z, faqat harflar."""
@@ -319,6 +353,12 @@ class ArizaYaratishSerializer(serializers.ModelSerializer):
         return ariza
 
     def validate(self, attrs):
+        org = ariza_kutubxonasi(self.context.get("request"))
+        if is_library(org):
+            attrs = library_reader_fields(attrs)
+            attrs["sinf"] = None
+            return self._check_duplicates(attrs, org)
+
         rol = attrs.get("rol") or "oquvchi"
         attrs["rol"] = rol
 
@@ -346,12 +386,13 @@ class ArizaYaratishSerializer(serializers.ModelSerializer):
                 )
             attrs["sinf"] = sinf
             attrs["kasb"] = ""
+        return self._check_duplicates(attrs, org)
 
+    def _check_duplicates(self, attrs, org):
         telegram_id = attrs["telegram_id"]
         # Barcha tekshiruvlar va tozalash faqat joriy kutubxona doirasida:
         # aks holda boshqa tenant'ning o'quvchisi/arizasi sabab noto'g'ri
         # xato beriladi yoki uning arizasi o'chirib yuboriladi.
-        org = ariza_kutubxonasi(self.context.get("request"))
         oquvchilar = scope(Oquvchi.objects, org)
         arizalar = scope(Ariza.objects, org)
         # Eski formatda ariza yuborgan (qabul qilingan ham) foydalanuvchilarga

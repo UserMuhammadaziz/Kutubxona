@@ -4,6 +4,7 @@ from django.utils.text import slugify
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from .dashboard import WIDGETS, available_widgets, dashboard_widgets
 from .models import (
     AuditLog,
     IssueReport,
@@ -21,6 +22,7 @@ User = get_user_model()
 class OrganizationSerializer(serializers.ModelSerializer):
     rol = serializers.SerializerMethodField()
     obuna = serializers.SerializerMethodField()
+    available_dashboard_widgets = serializers.SerializerMethodField()
 
     class Meta:
         model = Organization
@@ -28,7 +30,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "id",
             "nomi",
             "slug",
-            "turi",
+            "type",
             "tavsif",
             "telefon",
             "email",
@@ -46,6 +48,8 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "eslatma_kunlar_oldin",
             "kitob_xabarlari_yoqilgan",
             "capabilities",
+            "dashboard_widgets",
+            "available_dashboard_widgets",
             "yaratilgan",
             "rol",
             "obuna",
@@ -102,6 +106,40 @@ class OrganizationSerializer(serializers.ModelSerializer):
     def validate_logo_url(self, value):
         if value and not value.lower().startswith("https://"):
             raise serializers.ValidationError("Logo manzili https:// bilan boshlanishi kerak.")
+        return value
+
+    def get_available_dashboard_widgets(self, obj):
+        return available_widgets(obj.type)
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if "dashboard_widgets" in data:
+            # Clients always get the effective list, never `null`.
+            data["dashboard_widgets"] = dashboard_widgets(instance)
+        return data
+
+    def validate_type(self, value):
+        """Only the owner may switch between library and school (it changes the reader forms)."""
+        if self.instance is None or value == self.instance.type:
+            return value
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if user is not None and not user.is_superuser:
+            membership = foydalanuvchi_azoligi(user, self.instance)
+            if not membership or membership.rol != "egasi":
+                raise serializers.ValidationError("Tashkilot turini faqat egasi o'zgartira oladi.")
+        return value
+
+    def validate_dashboard_widgets(self, value):
+        if value is None:
+            return value
+        if not isinstance(value, list) or any(not isinstance(key, str) for key in value):
+            raise serializers.ValidationError("Widgetlar ro'yxat ko'rinishida bo'lishi kerak.")
+        unknown = [key for key in value if key not in WIDGETS]
+        if unknown:
+            raise serializers.ValidationError(f"Noma'lum widget: {', '.join(unknown)}")
+        if len(set(value)) != len(value):
+            raise serializers.ValidationError("Widgetlar takrorlanmasligi kerak.")
         return value
 
     def validate_capabilities(self, value):
@@ -181,6 +219,10 @@ class SaaSOrganizationSerializer(OrganizationSerializer):
         ]
         # Platform admin may set the slug; status changes go through the action endpoints.
         read_only_fields = [f for f in OrganizationSerializer.Meta.read_only_fields if f != "slug"]
+
+    def validate_type(self, value):
+        # The platform console (staff or superuser) may set any organization's type.
+        return value
 
     def validate_slug(self, value):
         value = super().validate_slug(value)
@@ -329,8 +371,8 @@ class RegisterSerializer(serializers.Serializer):
 
     kutubxona_nomi = serializers.CharField(max_length=160)
     slug = serializers.SlugField(max_length=80, required=False, allow_blank=True)
-    turi = serializers.ChoiceField(
-        choices=Organization.TURI_CHOICES, required=False, default="library"
+    type = serializers.ChoiceField(
+        choices=Organization.TYPE_CHOICES, required=False, default=Organization.TYPE_LIBRARY
     )
     tavsif = serializers.CharField(required=False, allow_blank=True, max_length=2000)
     full_name = serializers.CharField(max_length=120)
@@ -385,7 +427,7 @@ class RegisterSerializer(serializers.Serializer):
         organization = Organization.objects.create(
             nomi=validated_data["kutubxona_nomi"],
             slug=self._slug(validated_data["kutubxona_nomi"], validated_data.get("slug")),
-            turi=validated_data.get("turi", "library"),
+            type=validated_data.get("type", Organization.TYPE_LIBRARY),
             tavsif=validated_data.get("tavsif", ""),
             telefon=validated_data.get("telefon", ""),
             email=validated_data.get("email", ""),
@@ -416,7 +458,7 @@ class RegisterSerializer(serializers.Serializer):
             target_id=organization.pk,
             metadata={
                 "nomi": organization.nomi,
-                "turi": organization.turi,
+                "type": organization.type,
                 "email": organization.email,
             },
         )

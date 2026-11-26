@@ -13,10 +13,11 @@ from jarima.models import Jarima
 from kitob.models import Kitob
 from navbat.models import Navbat
 from nusxa.models import Nusxa
+from organization.dashboard import available_widgets, dashboard_widgets
 from organization.models import Organization
 from organization.permissions import IsPlatformAdmin
 from organization.tenancy import joriy_kutubxonani_aniqla, scope
-from oquvchi.models import Oquvchi
+from oquvchi.models import Ariza, Oquvchi
 from oquvchi.utils import sinf_kaliti, sinf_normal
 from config.cache import stats_versiyasi
 from user.permissions import IsLibrarian
@@ -157,7 +158,7 @@ def dashboard(request):
     org = joriy_kutubxonani_aniqla(request, required=False)
     kalit = f"stats:dashboard:{stats_versiyasi()}:{org.pk if org else 0}:{now().date()}"
     if (kesh := cache.get(kalit)) is not None:
-        return Response(kesh)
+        return Response(_with_widgets(kesh, org))
     jami_nusxalar = scope(Nusxa.objects, org).count()
     mavjud_nusxalar = scope(Nusxa.objects, org).filter(holati="mavjud").count()
     berilgan_nusxalar = scope(Nusxa.objects, org).filter(holati="berilgan").count()
@@ -184,9 +185,30 @@ def dashboard(request):
         "umumiy_qarz": umumiy_qarz,
         "oquvchi_soni": oquvchi_soni,
         "oqituvchi_soni": oqituvchi_soni,
+        "members_count": Oquvchi.objects.filter(organization=org, faol=True).count(),
+        "pending_applications": Ariza.objects.filter(organization=org, holati="kutmoqda").count(),
+        "approved_applications": Ariza.objects.filter(organization=org, holati="tasdiqlandi").count(),
+        "readers_by_class": _readers_by_class(org),
     }
     cache.set(kalit, data, STATS_TTL)
-    return Response(data)
+    return Response(_with_widgets(data, org))
+
+
+def _readers_by_class(org):
+    """Active students per class; spellings like `7a`, `7-A sinf` count as one class."""
+    counts = defaultdict(int)
+    rows = Oquvchi.objects.filter(organization=org, rol="oquvchi", faol=True).values_list("sinf", flat=True)
+    for raw in rows:
+        counts[sinf_normal(raw) or ""] += 1
+    return [
+        {"class_name": name, "count": counts[name]}
+        for name in sorted(counts, key=lambda n: sinf_kaliti(n) if n else (1000, ""))
+    ]
+
+
+def _with_widgets(data, org):
+    # Not cached with the numbers: a settings change must show up at once.
+    return {**data, "widgets": dashboard_widgets(org) if org else available_widgets(None)}
 
 
 @api_view(["GET"])

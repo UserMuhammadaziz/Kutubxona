@@ -7,6 +7,7 @@ qayta tekshiriladi — boshqa kutubxona obyektiga murojaat qilib bo'lmaydi.
 
 import hashlib
 import re
+from datetime import date
 
 from django.conf import settings
 from django.core.cache import cache
@@ -19,7 +20,7 @@ from config.telegram import telegram_escape
 from jarima.models import Jarima
 from kitob.models import BandQilish, Kitob
 from navbat.models import Navbat
-from organization.models import Membership
+from organization.models import Membership, Organization
 from oquvchi.constants import FAN_LIMIT, FANLAR, FISH_RE, SINF_RE, format_xatolari
 from oquvchi.models import Ariza, Oquvchi
 
@@ -82,12 +83,40 @@ ARIZA_SAVOL_KASB = (
     "(masalan: Matematika, Fizika)."
 )
 ARIZA_SAVOL_SINF = "Sinfingizni kiriting (masalan: 7-A):"
+QUESTION_ADDRESS = (
+    "Yashash manzilingizni kiriting (masalan: Toshkent sh., Chilonzor tumani, 5-kvartal, 12-uy):"
+)
+QUESTION_BIRTH_DATE = "Tug'ilgan sanangizni KK.OO.YYYY formatida kiriting (masalan: 15.03.2001):"
+# Library organizations ask these two after the phone instead of class/subject.
+STEP_ADDRESS = "application_address"
+STEP_BIRTH_DATE = "application_birth_date"
+APPLICATION_STEP_PREFIXES = ("ariza_", "application_")
 ARIZA_SAVOLLARI = {
     "ariza_fish": ARIZA_SAVOL_FISH,
     "ariza_telefon": ARIZA_SAVOL_TELEFON,
     "ariza_kasb": ARIZA_SAVOL_KASB,
     "ariza_sinf": ARIZA_SAVOL_SINF,
+    STEP_ADDRESS: QUESTION_ADDRESS,
+    STEP_BIRTH_DATE: QUESTION_BIRTH_DATE,
 }
+BIRTH_DATE_RE = re.compile(r"^(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})$")
+
+
+def _parse_birth_date(text):
+    """'15.03.2001' (also with '-' or '/') -> date, or None if it is not a plausible birth date."""
+    match = BIRTH_DATE_RE.fullmatch((text or "").strip())
+    if not match:
+        return None
+    day, month, year = (int(part) for part in match.groups())
+    try:
+        value = date(year, month, day)
+    except ValueError:
+        return None
+    return value if date(1900, 1, 1) <= value <= date.today() else None
+
+
+def _is_library(bot):
+    return bot.organization.type == Organization.TYPE_LIBRARY
 
 # Xizmatlar `ValidationError({"error": kod, "detail": ...})` ko'taradi.
 # Kodlarni foydalanuvchiga tushunarli matn bilan almashtiramiz.
@@ -226,7 +255,25 @@ FORMAT_XATO_XABARI = (
 )
 
 
+# A library has no roles: the same restart messages end with a single "join" button.
+LIBRARY_TEXTS = {
+    QAYTA_ARIZA_XABARI: (
+        "⚠️ Oldingi arizangiz belgilangan formatda to'ldirilmagan.\n\n"
+        "Arizani boshidan, aynan ko'rsatilgan formatda qaytadan yuboring:"
+    ),
+    FORMAT_XATO_XABARI: (
+        "❌ Ma'lumot belgilangan formatda yozilmadi.\n\n"
+        "Ism-familiya «Ali Valiyev», telefon «+998901234567» ko'rinishida bo'lishi kerak.\n\n"
+        "Arizani boshidan qayta to'ldiring:"
+    ),
+}
+JOIN_BUTTON = [[{"text": "📝 A'zo bo'lish", "callback_data": "rol:oquvchi"}]]
+
+
 def _rol_tanlash(bot, chat_id, matn):
+    if _is_library(bot):
+        _send(bot, chat_id, LIBRARY_TEXTS.get(matn, matn), _inline(JOIN_BUTTON))
+        return
     _send(
         bot,
         chat_id,
@@ -297,6 +344,16 @@ def _start(bot, message):
         ).delete()
         _rol_tanlash(bot, chat_id, QAYTA_ARIZA_XABARI)
         return
+    if _is_library(bot):
+        _send(
+            bot,
+            chat_id,
+            "◈ <b>KUTUBXONA</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "A'zo bo'lish uchun tugmani bosing:",
+            _inline(JOIN_BUTTON),
+        )
+        return
     _send(
         bot,
         chat_id,
@@ -315,7 +372,7 @@ def _start(bot, message):
 
 
 def _ariza_rol(bot, chat_id, telegram_id, rol):
-    if rol not in ("oquvchi", "oqituvchi"):
+    if rol not in ("oquvchi", "oqituvchi") or (_is_library(bot) and rol != "oquvchi"):
         return
     qayta_ariza = _qayta_ariza_kerak(bot, telegram_id)
     bandlangan = _reader(bot, telegram_id) and not qayta_ariza
@@ -335,6 +392,28 @@ def _ariza_rol(bot, chat_id, telegram_id, rol):
         ).delete()
     _set_session(bot, telegram_id, chat_id, "ariza_fish", {"rol": rol})
     _send(bot, chat_id, ARIZA_SAVOL_FISH, {"remove_keyboard": True})
+
+
+def _submit_application(bot, chat_id, telegram_id, **fields):
+    """Replace the user's old applications with a new pending one and confirm it."""
+    if Ariza.objects.filter(
+        organization=bot.organization,
+        telegram_id=telegram_id,
+        holati="kutmoqda",
+        qayta_ariza_kerak=False,
+    ).exists():
+        _send(bot, chat_id, "Arizangiz allaqachon ko'rib chiqilmoqda.")
+        _clear_session(bot, telegram_id)
+        return
+    Ariza.objects.filter(organization=bot.organization, telegram_id=telegram_id).delete()
+    Ariza.objects.create(organization=bot.organization, telegram_id=telegram_id, **fields)
+    _clear_session(bot, telegram_id)
+    _send(
+        bot,
+        chat_id,
+        "✅ Arizangiz qabul qilindi. Kutubxonachi tasdiqlagach xabar beramiz.",
+        {"remove_keyboard": True},
+    )
 
 
 def _ariza_text(bot, message, sessiya):
@@ -373,12 +452,42 @@ def _ariza_text(bot, message, sessiya):
             )
             return
         data["telefon"] = telefon
-        if data.get("rol") == "oqituvchi":
+        if _is_library(bot):
+            _set_session(bot, telegram_id, chat_id, STEP_ADDRESS, data)
+            _send(bot, chat_id, QUESTION_ADDRESS)
+        elif data.get("rol") == "oqituvchi":
             _set_session(bot, telegram_id, chat_id, "ariza_kasb", data)
             _send(bot, chat_id, ARIZA_SAVOL_KASB)
         else:
             _set_session(bot, telegram_id, chat_id, "ariza_sinf", data)
             _send(bot, chat_id, ARIZA_SAVOL_SINF)
+        return
+    if step == STEP_ADDRESS:
+        if not 5 <= len(matn) <= 255:
+            _send(bot, chat_id, f"Manzil 5 dan 255 belgigacha bo'lishi kerak.\n\n{QUESTION_ADDRESS}")
+            return
+        data["manzil"] = matn
+        _set_session(bot, telegram_id, chat_id, STEP_BIRTH_DATE, data)
+        _send(bot, chat_id, QUESTION_BIRTH_DATE)
+        return
+    if step == STEP_BIRTH_DATE:
+        birth_date = _parse_birth_date(matn)
+        if not birth_date:
+            _send(bot, chat_id, f"Sana noto'g'ri.\n\n{QUESTION_BIRTH_DATE}")
+            return
+        # Name and phone were validated at their own steps.
+        _submit_application(
+            bot,
+            chat_id,
+            telegram_id,
+            fish=data["fish"],
+            telefon=data["telefon"],
+            rol="oquvchi",
+            sinf=None,
+            kasb="",
+            manzil=data.get("manzil", ""),
+            tugilgan_sana=birth_date,
+        )
         return
     if step in ("ariza_sinf", "ariza_kasb"):
         rol = data.get("rol", "oquvchi")
@@ -403,33 +512,15 @@ def _ariza_text(bot, message, sessiya):
             _clear_session(bot, telegram_id)
             _rol_tanlash(bot, chat_id, FORMAT_XATO_XABARI)
             return
-        if Ariza.objects.filter(
-            organization=bot.organization,
-            telegram_id=telegram_id,
-            holati="kutmoqda",
-            qayta_ariza_kerak=False,
-        ).exists():
-            _send(bot, chat_id, "Arizangiz allaqachon ko'rib chiqilmoqda.")
-            _clear_session(bot, telegram_id)
-            return
-        Ariza.objects.filter(
-            organization=bot.organization, telegram_id=telegram_id
-        ).delete()
-        Ariza.objects.create(
-            organization=bot.organization,
-            telegram_id=telegram_id,
+        _submit_application(
+            bot,
+            chat_id,
+            telegram_id,
             fish=data["fish"],
             telefon=data["telefon"],
             rol=rol,
             sinf=data.get("sinf") if rol == "oquvchi" else None,
             kasb=data.get("kasb", "") if rol == "oqituvchi" else "",
-        )
-        _clear_session(bot, telegram_id)
-        _send(
-            bot,
-            chat_id,
-            "✅ Arizangiz qabul qilindi. Kutubxonachi tasdiqlagach xabar beramiz.",
-            {"remove_keyboard": True},
         )
         return
     if step == "qidiruv":
@@ -910,7 +1001,7 @@ def _text(bot, message):
                 if savol:
                     _send(bot, chat_id, savol)
                 return
-            if sessiya.step.startswith("ariza_"):
+            if sessiya.step.startswith(APPLICATION_STEP_PREFIXES):
                 savol = ARIZA_SAVOLLARI.get(sessiya.step)
                 if savol:
                     _send(

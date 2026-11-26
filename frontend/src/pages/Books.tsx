@@ -382,7 +382,7 @@ setError(null)
                 },
                 {
                   id: 'nusxalar',
-                  label: 'Nusxalar',
+                  label: 'Javonda / jami',
                   numeric: true,
                   sortBy: (b) => b.mavjud_nusxalar,
                   render: (b) => (
@@ -392,13 +392,14 @@ setError(null)
                   ),
                 },
                 {
+                  // Counts the waiting queue (Navbatlar), not holds (Bandlar).
                   id: 'band',
-                  label: 'Band',
+                  label: 'Navbatda',
                   numeric: true,
                   sortBy: (b) => b.faol_navbatlar,
                   render: (b) => (
                     <Badge tone={b.faol_navbatlar > 0 ? 'amber' : 'slate'}>
-                      {b.faol_navbatlar > 0 ? `${b.faol_navbatlar} ta` : '—'}
+                      {b.faol_navbatlar > 0 ? `${b.faol_navbatlar} kishi` : '—'}
                     </Badge>
                   ),
                 },

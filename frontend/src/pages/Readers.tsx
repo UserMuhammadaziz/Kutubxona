@@ -27,6 +27,8 @@ import DataTable, { type DataTableColumn } from '../components/DataTable'
 import { useToast } from '../components/Toast'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { usePageSize } from '../hooks/usePageSize'
+import { useOrganization } from '../hooks/useOrganization'
+import { isSchool } from '../lib/organization'
 
 const emptyForm: OquvchiCreatePayload = {
   rol: 'oquvchi',
@@ -34,6 +36,8 @@ const emptyForm: OquvchiCreatePayload = {
   telefon: '+998',
   sinf: '',
   kasb: '',
+  manzil: '',
+  tugilgan_sana: '',
 }
 
 interface ReadersProps {
@@ -64,6 +68,9 @@ export function Readers({ rol = 'oquvchi' }: ReadersProps = {}) {
   const [error, setError] = useState<string | null>(null)
 
   const oqituvchilar = rol === 'oqituvchi'
+  const { data: org } = useOrganization()
+  // Libraries ask readers for address and birth date instead of a class or subject.
+  const library = !!org && !isSchool(org)
   const [filters, setFilters] = useState<{ telegram: TriState; debt: TriState; active: TriState }>({
     telegram: '',
     debt: '',
@@ -122,7 +129,8 @@ export function Readers({ rol = 'oquvchi' }: ReadersProps = {}) {
 
   function onSubmit(e: FormEvent) {
     e.preventDefault()
-    createMut.mutate(form)
+    const { manzil, tugilgan_sana, ...base } = form
+    createMut.mutate(library ? { ...base, sinf: '', kasb: '', manzil, tugilgan_sana } : base)
   }
 
   const qidirilmoqda = search.trim().length > 0
@@ -249,9 +257,11 @@ export function Readers({ rol = 'oquvchi' }: ReadersProps = {}) {
                     {r.fish}
                   </Link>
                   <div className="text-xs text-slate-500 dark:text-slate-400">
-                    {oqituvchilar
-                      ? r.kasb || 'Fan ko‘rsatilmagan'
-                      : r.sinf || 'Sinf ko‘rsatilmagan'}
+                    {library
+                      ? r.manzil || 'Manzil ko‘rsatilmagan'
+                      : oqituvchilar
+                        ? r.kasb || 'Fan ko‘rsatilmagan'
+                        : r.sinf || 'Sinf ko‘rsatilmagan'}
                   </div>
                 </div>
                 <Badge tone={r.faol ? 'green' : 'red'}>{r.faol ? 'Faol' : 'Bloklangan'}</Badge>
@@ -299,12 +309,19 @@ export function Readers({ rol = 'oquvchi' }: ReadersProps = {}) {
                     </Link>
                   ),
                 },
-                {
-                  id: 'sinf',
-                  label: oqituvchilar ? 'Fan' : 'Sinf',
-                  sortBy: (r) => (oqituvchilar ? r.kasb : r.sinf),
-                  render: (r) => (oqituvchilar ? r.kasb || '—' : r.sinf || '—'),
-                },
+                library
+                  ? {
+                      id: 'manzil',
+                      label: 'Manzil',
+                      sortBy: (r) => r.manzil ?? '',
+                      render: (r) => r.manzil || '—',
+                    }
+                  : {
+                      id: 'sinf',
+                      label: oqituvchilar ? 'Fan' : 'Sinf',
+                      sortBy: (r) => (oqituvchilar ? r.kasb : r.sinf),
+                      render: (r) => (oqituvchilar ? r.kasb || '—' : r.sinf || '—'),
+                    },
                 { id: 'telefon', label: 'Telefon', sortBy: (r) => r.telefon },
                 { id: 'karta_raqami', label: 'Karta raqami', sortBy: (r) => r.karta_raqami },
                 {
@@ -346,7 +363,7 @@ export function Readers({ rol = 'oquvchi' }: ReadersProps = {}) {
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={oqituvchilar ? "Yangi o'qituvchi qo'shish" : "Yangi o'quvchi qo'shish"}
+        title={oqituvchilar ? "Yangi o'qituvchi qo'shish" : library ? "Yangi kitobxon qo'shish" : "Yangi o'quvchi qo'shish"}
       >
         <ErrorBanner message={error} />
         <form onSubmit={onSubmit}>
@@ -368,24 +385,53 @@ export function Readers({ rol = 'oquvchi' }: ReadersProps = {}) {
               required
             />
           </Field>
-          <Field>
-            <Label htmlFor={oqituvchilar ? 'y-kasb' : 'y-sinf'}>
-              {oqituvchilar ? "O'qitayotgan fan" : 'Sinf'}
-            </Label>
-            <Input
-              id={oqituvchilar ? 'y-kasb' : 'y-sinf'}
-              required={oqituvchilar}
-              placeholder={oqituvchilar ? 'Matematika' : '7-A'}
-              value={oqituvchilar ? (form.kasb ?? '') : form.sinf}
-              onChange={(e) =>
-                setForm(
-                  oqituvchilar
-                    ? { ...form, kasb: e.target.value }
-                    : { ...form, sinf: e.target.value },
-                )
-              }
-            />
-          </Field>
+          {library ? (
+            <>
+              <Field>
+                <Label htmlFor="y-manzil">Yashash manzili</Label>
+                <Input
+                  id="y-manzil"
+                  required
+                  minLength={5}
+                  maxLength={255}
+                  placeholder="Toshkent sh., Chilonzor tumani"
+                  value={form.manzil ?? ''}
+                  onChange={(e) => setForm({ ...form, manzil: e.target.value })}
+                />
+              </Field>
+              <Field>
+                <Label htmlFor="y-tugilgan">Tug‘ilgan sana</Label>
+                <Input
+                  id="y-tugilgan"
+                  type="date"
+                  required
+                  min="1900-01-01"
+                  max={new Date().toISOString().slice(0, 10)}
+                  value={form.tugilgan_sana ?? ''}
+                  onChange={(e) => setForm({ ...form, tugilgan_sana: e.target.value })}
+                />
+              </Field>
+            </>
+          ) : (
+            <Field>
+              <Label htmlFor={oqituvchilar ? 'y-kasb' : 'y-sinf'}>
+                {oqituvchilar ? "O'qitayotgan fan" : 'Sinf'}
+              </Label>
+              <Input
+                id={oqituvchilar ? 'y-kasb' : 'y-sinf'}
+                required={oqituvchilar}
+                placeholder={oqituvchilar ? 'Matematika' : '7-A'}
+                value={oqituvchilar ? (form.kasb ?? '') : form.sinf}
+                onChange={(e) =>
+                  setForm(
+                    oqituvchilar
+                      ? { ...form, kasb: e.target.value }
+                      : { ...form, sinf: e.target.value },
+                  )
+                }
+              />
+            </Field>
+          )}
           <div className="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>
               Bekor qilish

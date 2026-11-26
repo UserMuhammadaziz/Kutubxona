@@ -14,7 +14,8 @@ class StatsConfig(AppConfig):
         from kitob.models import Kitob
         from navbat.models import Navbat
         from nusxa.models import Nusxa
+        from oquvchi.models import Ariza, Oquvchi
 
-        for model in (Berish, Jarima, Kitob, Navbat, Nusxa):
+        for model in (Berish, Jarima, Kitob, Navbat, Nusxa, Oquvchi, Ariza):
             post_save.connect(lambda **kw: stats_keshini_tozala(), sender=model, weak=False, dispatch_uid=f"stats-{model.__name__}-s")
             post_delete.connect(lambda **kw: stats_keshini_tozala(), sender=model, weak=False, dispatch_uid=f"stats-{model.__name__}-d")

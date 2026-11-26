@@ -142,6 +142,12 @@ export function Loans() {
     enabled: modalOpen,
   })
 
+  // On a phone the search box and the select are far apart: a search that
+  // narrows to a single reader counts as choosing that reader.
+  const readerResults = readers?.results ?? []
+  const onlyReaderId = readerSearch.trim() && readerResults.length === 1 ? readerResults[0].id : 0
+  const selectedReaderId = form.oquvchi || onlyReaderId
+
   const { data: books, isLoading: booksLoading } = useQuery({
     queryKey: ['books', 'search', kechikkanBookSearch],
     queryFn: () => booksApi.search(kechikkanBookSearch),
@@ -227,8 +233,12 @@ function openCreate() {
 
 function onSubmit(e: FormEvent) {
   e.preventDefault()
-  if (!form.oquvchi) {
-    setError("O'quvchini tanlang")
+  if (!selectedReaderId) {
+    setError(
+      readerSearch.trim() && readerResults.length === 0
+        ? 'Qidiruv bo‘yicha kitobxon topilmadi. Ismning bir qismini yoki telefonni yozib ko‘ring'
+        : 'Ro‘yxatdan kitobxonni tanlang',
+    )
     return
   }
   setError(null)
@@ -243,14 +253,14 @@ function onSubmit(e: FormEvent) {
       setError('Nusxani tanlang yoki "Aniq nusxani tanlash" belgisini o‘chiring')
       return
     }
-    createMut.mutate({ oquvchi: form.oquvchi, nusxa })
+    createMut.mutate({ oquvchi: selectedReaderId, nusxa })
     return
   }
   if (!form.kitob) {
     setError('Kitobni tanlang')
     return
   }
-  createMut.mutate({ oquvchi: form.oquvchi, kitob: form.kitob })
+  createMut.mutate({ oquvchi: selectedReaderId, kitob: form.kitob })
 }
 
   const filtrBor = holati !== '' || !!loanQuery || !!issuedFrom || !!issuedTo
@@ -484,7 +494,10 @@ function onSubmit(e: FormEvent) {
               id="l-qidirish"
               placeholder="Ism, sinf yoki telefon..."
               value={readerSearch}
-              onChange={(e) => setReaderSearch(e.target.value)}
+              onChange={(e) => {
+                setReaderSearch(e.target.value)
+                setForm((old) => ({ ...old, oquvchi: 0 }))
+              }}
             />
           </Field>
           <Field>
@@ -509,7 +522,7 @@ function onSubmit(e: FormEvent) {
             ) : (
               <Select
                 id="l-oquvchi"
-                value={form.oquvchi}
+                value={selectedReaderId}
                 onChange={(e) => setForm({ ...form, oquvchi: Number(e.target.value) })}
               >
                 <option value={0}>Tanlang...</option>

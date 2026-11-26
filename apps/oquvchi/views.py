@@ -138,7 +138,7 @@ class OquvchiViewSet(TenantViewSetMixin, viewsets.ModelViewSet):
 
     permission_classes = [IsLibrarian]
     queryset = Oquvchi.objects.all().order_by("-royxat_sanasi", "-id")
-    search_fields = ["fish", "telefon", "karta_raqami"]
+    search_fields = ["fish", "telefon", "karta_raqami", "sinf", "kasb"]
     # Typed apostrophe must match typographic ones stored in names.
     filter_backends = [DjangoFilterBackend, ChidamliQidiruvFilter]
     filterset_class = ReaderFilter
