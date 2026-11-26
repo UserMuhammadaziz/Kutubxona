@@ -2,7 +2,7 @@ import os
 
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -15,6 +15,7 @@ from .permissions import IsAdmin
 from .serializers import (
     ParolniAlmashtirishSerializer,
     ProfilniYangilashSerializer,
+    StaffSerializer,
     UserCreateSerializer,
     UserSerializer,
 )
@@ -37,14 +38,13 @@ class UserViewSet(viewsets.ModelViewSet):
             if legacy_rejimmi():
                 return User.objects.all().order_by("-id")
             return User.objects.none()
-        return User.objects.filter(
-            a_zoliklar__organization=org, a_zoliklar__faol=True
-        ).distinct().order_by("-id")
+        # Blocked members (`faol=False`) stay listed so they can be reactivated.
+        return User.objects.filter(a_zoliklar__organization=org).distinct().order_by("-id")
 
     def get_serializer_class(self):
         if self.action == "create":
             return UserCreateSerializer
-        return UserSerializer
+        return StaffSerializer
 
     def get_serializer_context(self):
         return {**super().get_serializer_context(), "organization": self._org()}
@@ -73,11 +73,30 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         user = serializer.save()
+        log_action(
+            "staff.updated",
+            actor=self.request.user,
+            organization=self._org(),
+            target_type="user",
+            target_id=user.pk,
+            metadata={"fields": sorted(self.request.data.keys())},
+            request=self.request,
+        )
+
+    def get_object(self):
+        user = super().get_object()
         org = self._org()
-        if org is not None and "rol" in getattr(serializer, "validated_data", {}):
-            Membership.objects.filter(organization=org, user=user).update(
-                rol=serializer.validated_data["rol"]
-            )
+        requester = self.request.user
+        if (
+            self.request.method == "PATCH"
+            and user != requester
+            and not requester.is_superuser
+            and Membership.objects.filter(
+                organization=org, user=user, rol="egasi"
+            ).exists()
+        ):
+            raise PermissionDenied("Kutubxona egasini faqat o'zi tahrirlay oladi.")
+        return user
 
 
 class ProfilniYangilashView(APIView):
@@ -242,4 +261,7 @@ class ParolniAlmashtirishView(APIView):
 @permission_classes([permissions.IsAuthenticated])
 def me(request):
     """GET /api/auth/me/ — joriy foydalanuvchi va kutubxonalari."""
-    return Response(UserSerializer(request.user, context={"request": request}).data)
+    data = dict(UserSerializer(request.user, context={"request": request}).data)
+    # Lets the client show the status screen without probing tenant endpoints first.
+    data["no_organization"] = not data["kutubxonalar"] and not legacy_rejimmi()
+    return Response(data)

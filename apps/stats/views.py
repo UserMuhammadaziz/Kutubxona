@@ -14,6 +14,7 @@ from kitob.models import Kitob
 from navbat.models import Navbat
 from nusxa.models import Nusxa
 from organization.models import Organization
+from organization.permissions import IsPlatformAdmin
 from organization.tenancy import joriy_kutubxonani_aniqla, scope
 from oquvchi.models import Oquvchi
 from oquvchi.utils import sinf_kaliti, sinf_normal
@@ -439,8 +440,9 @@ def faollik_reytingi(request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsPlatformAdmin])
 def umummiy_bellashuv(request):
+    """Compares every library, so only the platform administrator may see it."""
     natija = []
     for org in Organization.objects.filter(faol=True):
         reyting = _faollik_hisobla(org)

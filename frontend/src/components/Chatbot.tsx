@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
 import { api } from '../api/client'
 import clsx from 'clsx'
+import { useLocation } from 'react-router-dom'
 import { Icons } from './icons'
+
+const SUGGESTIONS = ['Muddati o‘tgan kitoblar nechta?', 'Kitobni qanday qaytaraman?', 'Jarima qanday hisoblanadi?']
 
 interface Message {
   role: 'user' | 'assistant'
@@ -18,6 +21,7 @@ function LoadingDot() {
 }
 
 export function Chatbot() {
+  const location = useLocation()
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -36,11 +40,10 @@ export function Chatbot() {
     }
   }, [isOpen])
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!input.trim() || isLoading) return
+  const sendText = async (text: string) => {
+    if (!text.trim() || isLoading) return
 
-    const userMessage = input.trim()
+    const userMessage = text.trim()
     setInput('')
     setIsLoading(true)
 
@@ -49,7 +52,7 @@ export function Chatbot() {
     try {
       const response = await api.post<{ response: string; history: Array<{ role: string; parts: string[] }> }>(
         '/chatbot/',
-        { message: userMessage, history }
+        { message: userMessage, history, page: location.pathname }
       )
 
       setMessages((prev) => [...prev, { role: 'assistant', content: response.data.response }])
@@ -62,20 +65,10 @@ export function Chatbot() {
     }
   }
 
-  // Saqlangan suhbatni bir marta yuklaymiz (ochilganda).
-  const yuklandi = useRef(false)
-  useEffect(() => {
-    if (!isOpen || yuklandi.current) return
-    yuklandi.current = true
-    api
-      .get<Array<{ role: 'user' | 'model'; content: string }>>('/chatbot/')
-      .then((r) => {
-        if (!r.data.length) return
-        setMessages(r.data.map((m) => ({ role: m.role === 'model' ? 'assistant' : 'user', content: m.content })))
-        setHistory(r.data.map((m) => ({ role: m.role, parts: [m.content] })))
-      })
-      .catch(() => {})
-  }, [isOpen])
+  const handleSend = (e: React.FormEvent) => {
+    e.preventDefault()
+    void sendText(input)
+  }
 
   const toggleChat = () => {
     setIsOpen((prev) => !prev)
@@ -90,7 +83,6 @@ export function Chatbot() {
   }
 
   const clearChat = () => {
-    api.delete('/chatbot/').catch(() => {})
     setMessages([])
     setHistory([])
   }
@@ -108,8 +100,8 @@ export function Chatbot() {
       )}
 
       {isOpen && (
-        <div className="fixed inset-x-4 bottom-[calc(var(--pwa-bottom-bar)_+_1rem_+_env(safe-area-inset-bottom,0px))] z-50 sm:left-auto sm:w-96 lg:bottom-6 lg:right-6">
-          <div className="flex flex-col rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden dark:border-slate-700 dark:bg-slate-800">
+        <div className="fixed inset-x-4 bottom-[calc(var(--pwa-bottom-bar)_+_1rem_+_env(safe-area-inset-bottom,0px))] z-50 sm:left-auto sm:w-[30rem] lg:bottom-6 lg:right-6 lg:w-[36rem]">
+          <div className="flex flex-col rounded-2xl border border-slate-200 bg-paper shadow-xl overflow-hidden dark:border-slate-700 dark:bg-slate-800">
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700">
               <div className="flex items-center gap-2">
                 <span className="rounded-full bg-brand-100 p-2 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400">
@@ -136,7 +128,7 @@ export function Chatbot() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[min(400px,55dvh)]">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 h-[min(560px,62dvh)]">
               {messages.map((msg, idx) => (
                 <div
                   key={idx}
@@ -157,7 +149,7 @@ export function Chatbot() {
                   </div>
                   <div
                     className={clsx(
-                      'max-w-[75%] rounded-2xl px-4 py-2 text-sm',
+                      'max-w-[75%] whitespace-pre-wrap rounded-2xl px-4 py-2 text-sm',
                       msg.role === 'user'
                         ? 'bg-brand-600 text-white rounded-tr-sm'
                         : 'bg-slate-100 text-slate-900 rounded-tl-sm dark:bg-slate-700 dark:text-slate-100'
@@ -175,10 +167,24 @@ export function Chatbot() {
                   <div className="bg-slate-100 rounded-2xl rounded-tl-sm px-4 py-2 text-sm dark:bg-slate-700">
                     <div className="flex gap-1">
                       <LoadingDot />
-                      <span style={{ animationDelay: '0.1s' }}><LoadingDot /></span>
+                      <span style={{ animationDelay: "0.1s" }}><LoadingDot /></span>
                       <span style={{ animationDelay: '0.2s' }}><LoadingDot /></span>
                     </div>
                   </div>
+                </div>
+              )}
+              {messages.length <= 1 && !isLoading && (
+                <div className="flex flex-wrap gap-2 pl-11">
+                  {SUGGESTIONS.map((q) => (
+                    <button
+                      key={q}
+                      type="button"
+                      onClick={() => void sendText(q)}
+                      className="rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs text-brand-700 hover:bg-brand-100 dark:border-brand-800 dark:bg-brand-900/20 dark:text-brand-300"
+                    >
+                      {q}
+                    </button>
+                  ))}
                 </div>
               )}
               <div ref={messagesEndRef} />
@@ -199,7 +205,7 @@ export function Chatbot() {
                     }
                   }}
                   disabled={isLoading}
-                  className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-base resize-none focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent sm:text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                  className="flex-1 rounded-lg border border-slate-300 bg-paper px-3 py-2 text-base resize-none focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent sm:text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                   aria-label="Xabar matni"
                 />
                 <button

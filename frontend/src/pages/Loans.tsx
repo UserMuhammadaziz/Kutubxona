@@ -1,3 +1,4 @@
+import { DatePicker } from '../components/DatePicker'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -30,11 +31,19 @@ import DataTable, { type DataTableColumn } from '../components/DataTable'
 import { useToast } from '../components/Toast'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { formatDate, formatMoney } from '../lib/format'
+import { usePageSize } from '../hooks/usePageSize'
 
 const TONE: Record<BerishHolati, 'blue' | 'green' | 'red'> = {
   faol: 'blue',
   qaytarilgan: 'green',
   yoqolgan: 'red',
+}
+
+/** Active loan past its due date is shown as overdue (red) instead of plain "Faol". */
+function StatusBadge({ loan }: { loan: Berish }) {
+  const overdue = loan.holati === 'faol' && loan.qaytarish_muddati < new Date().toISOString().slice(0, 10)
+  if (overdue) return <Badge tone="red">Muddati o‘tgan</Badge>
+  return <Badge tone={TONE[loan.holati]}>{BERISH_HOLATI_LABELS[loan.holati]}</Badge>
 }
 
 /** Berish ro'yxatida nusxa o'rniga ko'rsatiladigan matn. */
@@ -78,6 +87,7 @@ export function Loans() {
   const qc = useQueryClient()
   const toast = useToast()
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = usePageSize()
   // AI buyruq paneli (Ctrl+K) shu parametrlar orqali sahifani tayyorlab beradi.
   const [params, setParams] = useSearchParams()
   const kechikkanRejim = params.get('kechikkan') === '1'
@@ -87,6 +97,10 @@ export function Loans() {
     // Havola holat bermasa, standart bo'yicha faol (qaytarilmagan) berishlar ko'rsatiladi.
     return 'faol'
   })
+  const [loanQuery, setLoanQuery] = useState('')
+  const debouncedLoanQuery = useDebouncedValue(loanQuery)
+  const [issuedFrom, setIssuedFrom] = useState('')
+  const [issuedTo, setIssuedTo] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [readerSearch, setReaderSearch] = useState('')
   const kechikkanReaderSearch = useDebouncedValue(readerSearch)
@@ -102,13 +116,19 @@ export function Loans() {
   const [qaytariladigan, setQaytariladigan] = useState<Berish | null>(null)
 
   const { data, isLoading, isError, error: listError, refetch, isFetching } = useQuery({
-    queryKey: ['loans', page, holati, kechikkanRejim],
+    queryKey: ['loans', page, pageSize, holati, kechikkanRejim, debouncedLoanQuery, issuedFrom, issuedTo],
     queryFn: async () => {
       if (kechikkanRejim) {
         const results = await loansApi.overdue()
         return { count: results.length, next: null, previous: null, results }
       }
-      return loansApi.list({ page, holati: holati || undefined })
+      return loansApi.list({
+        page, page_size: pageSize,
+        holati: holati || undefined,
+        q: debouncedLoanQuery || undefined,
+        issued_from: issuedFrom || undefined,
+        issued_to: issuedTo || undefined,
+      })
     },
   })
 
@@ -233,7 +253,7 @@ function onSubmit(e: FormEvent) {
   createMut.mutate({ oquvchi: form.oquvchi, kitob: form.kitob })
 }
 
-  const filtrBor = holati !== ''
+  const filtrBor = holati !== '' || !!loanQuery || !!issuedFrom || !!issuedTo
   const tanlanganKitob: Kitob | null =
     books?.find((k) => k.id === form.kitob) ?? null
   const reja = berishRejasi(tanlanganKitob)
@@ -244,14 +264,39 @@ function onSubmit(e: FormEvent) {
         title="Berish / Qaytarish"
         subtitle={kechikkanRejim ? 'Muddati o‘tgan kitoblar' : 'Kitob berish va qaytarish jarayonlari'}
         actions={
-          <Button onClick={openCreate} className="w-full sm:w-auto">
+          <Button onClick={openCreate}>
             + Kitob berish
           </Button>
         }
       />
 
       <Card className="mb-4 p-3 sm:p-4">
-        <div className="sm:w-64">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
+          <Input
+            placeholder="O‘quvchi yoki kitob nomi..."
+            value={loanQuery}
+            onChange={(e) => {
+              setLoanQuery(e.target.value)
+              setPage(1)
+            }}
+            aria-label="Berishlarni qidirish"
+          />
+          <DatePicker
+            value={issuedFrom}
+            onChange={(v) => {
+              setIssuedFrom(v)
+              setPage(1)
+            }}
+            aria-label="Berilgan sana: dan"
+          />
+          <DatePicker
+            value={issuedTo}
+            onChange={(v) => {
+              setIssuedTo(v)
+              setPage(1)
+            }}
+            aria-label="Berilgan sana: gacha"
+          />
           <Select
             value={holati}
             onChange={(e) => {
@@ -319,7 +364,7 @@ function onSubmit(e: FormEvent) {
                     <div className="text-xs text-slate-400">{l.inventar_raqami}</div>
                   )}
                 </div>
-                <Badge tone={TONE[l.holati]}>{BERISH_HOLATI_LABELS[l.holati]}</Badge>
+                <StatusBadge loan={l} />
               </div>
               <div className="text-sm text-slate-600 dark:text-slate-300">
                 {l.oquvchi_fish}
@@ -345,7 +390,11 @@ function onSubmit(e: FormEvent) {
                 ? {
                     count: data.count,
                     page: page - 1,
-                    rowsPerPage: 20,
+                    rowsPerPage: pageSize,
+              onRowsPerPageChange: (n) => {
+                setPageSize(n)
+                setPage(1)
+              },
                     onPageChange: (p) => setPage(p + 1),
                   }
                 : undefined
@@ -394,7 +443,7 @@ function onSubmit(e: FormEvent) {
                   id: 'holati',
                   label: 'Holati',
                   sortBy: (l) => l.holati,
-                  render: (l) => <Badge tone={TONE[l.holati]}>{BERISH_HOLATI_LABELS[l.holati as BerishHolati]}</Badge>,
+                  render: (l) => <StatusBadge loan={l} />,
                 },
                 {
                   id: 'amallar',
@@ -417,7 +466,7 @@ function onSubmit(e: FormEvent) {
       {/* Mobilda jadvaldagi MUI pagination ko'rinmaydi */}
       {data && !kechikkanRejim && (
         <div className="md:hidden">
-          <Pagination count={data.count} page={page} onChange={setPage} />
+          <Pagination count={data.count} page={page} pageSize={pageSize} onChange={setPage} />
         </div>
       )}
 
@@ -518,7 +567,7 @@ function onSubmit(e: FormEvent) {
             )}
           </Field>
 
-          {tanlanganKitob && !aniqNusxa && (
+          {tanlanganKitob && !aniqNusxa && !reja.aside && (
             <p
               className={`-mt-2 mb-4 rounded-lg border px-3 py-2 text-sm ${
                 reja.aside

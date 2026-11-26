@@ -76,6 +76,7 @@ INSTALLED_APPS = [
     'berish',
     'navbat',
     'jarima',
+    'announcement',
     'oquvchi',
     'stats',
     'web',
@@ -209,8 +210,12 @@ REST_FRAMEWORK = {
         "django_filters.rest_framework.DjangoFilterBackend",
         "rest_framework.filters.SearchFilter",
     ),
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "DEFAULT_PAGINATION_CLASS": "config.pagination.StandardPagination",
     "PAGE_SIZE": 20,
+    "DEFAULT_RENDERER_CLASSES": (
+        "config.renderers.StatusJSONRenderer",
+        "rest_framework.renderers.BrowsableAPIRenderer",
+    ),
     "EXCEPTION_HANDLER": "config.exceptions.xato_handler",
     "DEFAULT_THROTTLE_CLASSES": (
         "rest_framework.throttling.AnonRateThrottle",
@@ -274,6 +279,10 @@ CELERY_TASK_IGNORE_RESULT = True
 # Eski bitta-kutubxonali bot uchun fallback. Yangi SaaS rejimida har bir
 # kutubxona o'z bot tokenini panel orqali ulaydi (organization.TelegramBot).
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+if "test" in sys.argv:
+    # Tests must never message real chats with the token from a local .env.
+    TELEGRAM_BOT_TOKEN = ""
+    os.environ["BOT_ADMIN_CHAT_IDS"] = ""
 BOT_API_BASE_URL = os.environ.get("BOT_API_BASE_URL", "http://127.0.0.1:8000/api")
 # Bot tokenlarini bazada shifrlash uchun kalit. Productionda majburiy.
 BOT_TOKEN_ENCRYPTION_KEY = os.environ.get("BOT_TOKEN_ENCRYPTION_KEY", "")
@@ -283,6 +292,16 @@ TELEGRAM_WEBHOOK_BASE_URL = os.environ.get(
 TELEGRAM_WEBHOOK_SECRET = os.environ.get("TELEGRAM_WEBHOOK_SECRET", "")
 BOT_SERVICE_USERNAME = os.environ.get("BOT_SERVICE_USERNAME", "")
 BOT_SERVICE_PASSWORD = os.environ.get("BOT_SERVICE_PASSWORD", "")
+
+# --- Web Push (VAPID). Kalitlarni `npx web-push generate-vapid-keys` yoki
+# pywebpush `vapid --gen` bilan yarating. Bo'sh bo'lsa push o'chiq.
+VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")
+VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
+VAPID_CLAIMS_EMAIL = os.environ.get("VAPID_CLAIMS_EMAIL", "admin@kutubxona.local")
+
+# Platform contacts shown to blocked/pending organizations (both optional).
+SUPPORT_PHONE = os.environ.get("SUPPORT_PHONE", "").strip()
+SUPPORT_TELEGRAM = os.environ.get("SUPPORT_TELEGRAM", "").strip().lstrip("@")
 
 # Frontend manzili (parolni tiklash havolasi va CORS uchun).
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")

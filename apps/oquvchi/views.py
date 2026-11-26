@@ -1,29 +1,128 @@
+from datetime import date
+
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import F, Q, Sum
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import viewsets, status
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
+from berish.models import Berish
 from berish.serializers import BerishMeniSerializer
+from config.telegram import telegram_escape
+from telegrambot.services import organizatsiya_xabari
 from jarima.models import Jarima
 from jarima.serializers import JarimaMeniSerializer
-from organization.tenancy import TenantViewSetMixin, joriy_kutubxonani_aniqla, scope
+from organization.tenancy import (
+    TenantViewSetMixin,
+    joriy_kutubxonani_aniqla,
+    legacy_rejimmi,
+    scope,
+)
 from user.permissions import IsLibrarian
 from . import services
-from .models import Ariza, Oquvchi
+from .filters import ReaderFilter
+from .models import Ariza, Fan, Oquvchi
 from .search import ChidamliQidiruvFilter
 from .serializers import (
     ArizaSerializer,
     ArizaStatusSerializer,
     ArizaYaratishSerializer,
+    FanSerializer,
     OquvchiSerializer,
     OquvchiYaratishSerializer,
     OquvchiBindSerializer,
     OquvchilarniOchirishSerializer,
     ariza_kutubxonasi,
 )
+
+
+def trust_score(*, late_days, overdue_loans, lost, unpaid_fines, paid_fines):
+    """Reader reliability in percent (0-100).
+
+    Everyone starts at 100 and loses points gradually:
+    0.5 per day a loan was late (max 10 per loan), 2 per late return, 3 more per loan still overdue,
+    5 per unpaid fine, 2 per paid fine, 25 per lost book.
+    `late_days` is a list with the number of late days of each late loan (returned or still overdue).
+    """
+    penalty = sum(min(d * 0.5, 10) for d in late_days) + 2 * len(late_days)
+    penalty += 3 * overdue_loans + 5 * unpaid_fines + 2 * paid_fines + 25 * lost
+    return max(0, round(100 - penalty))
+
+
+def trust_level(score, total_loans=1):
+    if not total_loans:
+        return "new"
+    return "high" if score >= 80 else "medium" if score >= 50 else "low"
+
+
+def _reader_stats(reader):
+    """Aggregate numbers for the reader profile header."""
+    today = date.today()
+    loans = Berish.objects.filter(oquvchi=reader)
+    fines = Jarima.objects.filter(berish__oquvchi=reader)
+    unpaid = fines.filter(tolandimi=False).aggregate(s=Sum("summa"))["s"] or 0
+    paid = fines.filter(tolandimi=True).aggregate(s=Sum("summa"))["s"] or 0
+    total = loans.count()
+    overdue = loans.filter(qaytarilgan_sana__isnull=True, qaytarish_muddati__lt=today).count()
+    returned_late = loans.filter(qaytarilgan_sana__gt=F("qaytarish_muddati")).count()
+    late_days = [
+        ((returned or today) - due).days
+        for returned, due in loans.values_list("qaytarilgan_sana", "qaytarish_muddati")
+        if (returned or today) > due
+    ]
+    score = trust_score(
+        late_days=late_days,
+        overdue_loans=overdue,
+        lost=loans.filter(holati="yoqolgan").count(),
+        unpaid_fines=fines.filter(tolandimi=False).count(),
+        paid_fines=fines.filter(tolandimi=True).count(),
+    )
+    return {
+        "total_loans": total,
+        "active_loans": loans.filter(qaytarilgan_sana__isnull=True).count(),
+        "overdue_loans": overdue,
+        "returned_late": returned_late,
+        "unpaid_fines_total": unpaid,
+        "paid_fines_total": paid,
+        "trust_score": score,
+        "trust_level": trust_level(score, total),
+    }
+
+
+def _reader_history(reader, limit=30):
+    """Latest loans (active and returned), newest first."""
+    today = date.today()
+    loans = (
+        Berish.objects.filter(oquvchi=reader)
+        .select_related("kitob", "nusxa")
+        .prefetch_related("jarima")
+        .order_by("-berilgan_sana", "-id")[:limit]
+    )
+    rows = []
+    for loan in loans:
+        returned = loan.qaytarilgan_sana
+        if returned:
+            status_ = "returned"
+        elif loan.qaytarish_muddati < today:
+            status_ = "overdue"
+        else:
+            status_ = "active"
+        fine = getattr(loan, "jarima", None)
+        rows.append(
+            {
+                "id": loan.id,
+                "book_title": loan.kitob.nomi,
+                "issued_at": loan.berilgan_sana,
+                "due_date": loan.qaytarish_muddati,
+                "returned_at": returned,
+                "status": status_,
+                "fine_amount": fine.summa if fine else None,
+                "fine_paid": fine.tolandimi if fine else None,
+            }
+        )
+    return rows
 
 
 class OquvchiViewSet(TenantViewSetMixin, viewsets.ModelViewSet):
@@ -40,9 +139,9 @@ class OquvchiViewSet(TenantViewSetMixin, viewsets.ModelViewSet):
     permission_classes = [IsLibrarian]
     queryset = Oquvchi.objects.all().order_by("-royxat_sanasi", "-id")
     search_fields = ["fish", "telefon", "karta_raqami"]
-    # Telefondan yozilgan `'` bilan bazadagi `‘`/`ʻ` ham mos tushishi kerak.
+    # Typed apostrophe must match typographic ones stored in names.
     filter_backends = [DjangoFilterBackend, ChidamliQidiruvFilter]
-    filterset_fields = ["rol", "faol", "sinf"]
+    filterset_class = ReaderFilter
     http_method_names = ["get", "post", "patch"]
 
     def get_serializer_class(self):
@@ -68,7 +167,27 @@ class OquvchiViewSet(TenantViewSetMixin, viewsets.ModelViewSet):
         jarimalar = Jarima.objects.filter(berish__oquvchi=oquvchi, tolandimi=False)
         data["jarimalari"] = JarimaMeniSerializer(jarimalar, many=True).data
 
+        # New English keys (profile page): statistics + loan history.
+        data["stats"] = _reader_stats(oquvchi)
+        data["history"] = _reader_history(oquvchi)
+
         return Response(data)
+
+    @action(detail=True, methods=["post"], url_path="message")
+    def message(self, request, pk=None):
+        """POST /api/readers/{id}/message/ {"text": "..."} -> Telegram message to this reader."""
+        reader = self.get_object()
+        text = str(request.data.get("text", "")).strip()
+        if not text:
+            raise ValidationError({"text": "Xabar matni bo‘sh bo‘lmasligi kerak."})
+        if len(text) > 1000:
+            raise ValidationError({"text": "Xabar 1000 belgidan oshmasligi kerak."})
+        if not reader.telegram_id:
+            raise ValidationError({"detail": "O‘quvchi Telegram botga ulanmagan."})
+        sent = organizatsiya_xabari(reader.organization, reader.telegram_id, telegram_escape(text))
+        if not sent:
+            raise ValidationError({"detail": "Xabar yuborilmadi. Bot ulanganini tekshiring."})
+        return Response({"sent": True})
 
     @action(detail=False, methods=["post"], url_path="bind")
     def bind(self, request):
@@ -197,12 +316,19 @@ class ArizaViewSet(viewsets.ModelViewSet):
         return qs
 
     def create(self, request, *args, **kwargs):
+        # An application without a library is invisible to every librarian, so
+        # it is refused instead of being stored as an orphan.
+        organization = ariza_kutubxonasi(request)
+        if organization is None and not legacy_rejimmi():
+            raise ValidationError(
+                {
+                    "error": "kutubxona_aniqlanmadi",
+                    "detail": "Kutubxona aniqlanmadi. Kutubxonangiz botidan foydalaning.",
+                }
+            )
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        # Endpoint ochiq (bot JWT'siz chaqiradi), lekin kutubxona aniqlansa
-        # ariza shu kutubxonaga bog'lanadi — aks holda tasdiqlovchi xodim
-        # uni ro'yxatda ko'rmaydi va boshqa tenant'ga "oqib ketadi".
-        ariza = serializer.save(organization=ariza_kutubxonasi(request))
+        ariza = serializer.save(organization=organization)
         return Response(ArizaSerializer(ariza).data, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=["get"], url_path="status")
@@ -288,3 +414,12 @@ class ArizaViewSet(viewsets.ModelViewSet):
             services.ariza_holatini_yubor(ariza, services.rad_etilgan_xabari(ariza, ariza.izoh))
 
         return Response(ArizaSerializer(ariza).data)
+
+
+class FanViewSet(viewsets.ReadOnlyModelViewSet):
+    """GET /api/subjects/ — o'qituvchi ariza berayotganda tanlaydigan fanlar ro'yxati."""
+
+    serializer_class = FanSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = None
+    queryset = Fan.objects.filter(faol=True)

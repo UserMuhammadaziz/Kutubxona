@@ -1,6 +1,9 @@
 # apps/user/serializers.py
 from django.contrib.auth.password_validation import validate_password
+from django.db import transaction
 from rest_framework import serializers
+
+from organization.services import check_limit
 
 from .models import User
 
@@ -10,6 +13,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     kutubxonalar = serializers.SerializerMethodField()
     joriy_rol = serializers.SerializerMethodField()
+    is_platform = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -22,8 +26,13 @@ class UserSerializer(serializers.ModelSerializer):
             "is_active",
             "kutubxonalar",
             "joriy_rol",
+            "is_platform",
         ]
         read_only_fields = ["id"]
+
+    def get_is_platform(self, obj):
+        # Platform (master) users manage all organizations from /platform.
+        return bool(obj.is_superuser or obj.is_staff)
 
     def get_kutubxonalar(self, obj):
         from organization.models import Membership
@@ -35,6 +44,8 @@ class UserSerializer(serializers.ModelSerializer):
                 "nomi": a.organization.nomi,
                 "slug": a.organization.slug,
                 "rol": a.rol,
+                # The client shows the blocking status screen before any tenant request.
+                "status": a.organization.status,
             }
             for a in qs
         ]
@@ -57,6 +68,103 @@ class UserSerializer(serializers.ModelSerializer):
 
         azolik = foydalanuvchi_azoligi(obj, org)
         return azolik.rol if azolik else None
+
+
+class StaffSerializer(UserSerializer):
+    """A staff member as seen and edited by one library (`/api/staff/`).
+
+    `rol` and `is_active` describe the membership in the current library, so
+    changing them never affects the person's access to another library.
+    Personal fields are global and editable only while the account belongs to
+    this library alone.
+    """
+
+    PERSONAL_FIELDS = ("username", "full_name", "telefon")
+
+    def _organization(self):
+        return self.context.get("organization")
+
+    def _membership(self, obj):
+        org = self._organization()
+        if org is None:
+            return None
+        return obj.a_zoliklar.filter(organization=org).select_related("organization").first()
+
+    def _is_shared(self, obj):
+        return (
+            obj.is_superuser
+            or obj.is_staff
+            or obj.a_zoliklar.exclude(organization=self._organization()).exists()
+        )
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        membership = self._membership(instance)
+        if membership is not None:
+            data["rol"] = (
+                "administrator" if membership.rol == "egasi" else membership.rol
+            )
+            data["joriy_rol"] = membership.rol
+            data["is_active"] = instance.is_active and membership.faol
+        return data
+
+    def get_kutubxonalar(self, obj):
+        org = self._organization()
+        rows = super().get_kutubxonalar(obj)
+        return rows if org is None else [r for r in rows if r["id"] == org.pk]
+
+    def validate(self, attrs):
+        obj = self.instance
+        membership = self._membership(obj)
+        if membership is None:
+            return attrs
+        if membership.rol == "egasi":
+            for name in ("rol", "is_active"):
+                if name in attrs:
+                    raise serializers.ValidationError(
+                        {name: "Kutubxona egasining roli va holatini o'zgartirib bo'lmaydi."}
+                    )
+        if self._is_shared(obj):
+            for name in self.PERSONAL_FIELDS:
+                if name in attrs and attrs[name] != getattr(obj, name):
+                    raise serializers.ValidationError(
+                        {
+                            name: "Bu xodim boshqa joyda ham ishlaydi — shaxsiy "
+                            "ma'lumotlarini faqat o'zi o'zgartira oladi."
+                        }
+                    )
+            if attrs.get("is_active") and not obj.is_active:
+                raise serializers.ValidationError(
+                    {"is_active": "Bu akkaunt platforma tomonidan bloklangan."}
+                )
+        return attrs
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        membership = self._membership(instance)
+        if membership is None:
+            return super().update(instance, validated_data)
+        is_active = validated_data.pop("is_active", None)
+        role = validated_data.pop("rol", None)
+        shared = self._is_shared(instance)
+        if role is not None:
+            membership.rol = role
+            if not shared:
+                # The global role mirrors the only membership.
+                validated_data["rol"] = role
+        if is_active is not None:
+            if is_active and not membership.faol:
+                check_limit(
+                    membership.organization,
+                    "max_staff",
+                    membership.organization.a_zolar.filter(faol=True).count(),
+                )
+            membership.faol = is_active
+            if is_active and not shared:
+                # Accounts blocked before blocking became per-library.
+                validated_data["is_active"] = True
+        membership.save(update_fields=["rol", "faol"])
+        return super().update(instance, validated_data)
 
 
 class UserCreateSerializer(serializers.ModelSerializer):

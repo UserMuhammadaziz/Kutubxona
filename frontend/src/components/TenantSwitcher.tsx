@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/auth'
 import type { Azolik, JoriyKutubxona, UserKutubxona } from '../types'
 import { Icons } from './icons'
 import { Badge, Button, Spinner } from './ui'
+import { ORG_STATUS_LABELS } from '../hooks/useOrganizationBlock'
 
 interface TenantOption extends UserKutubxona {
   holat?: string
@@ -59,7 +60,7 @@ export function TenantSwitcher() {
   })
 
   const options: TenantOption[] = kutubxonalar?.length
-    ? kutubxonalar.map((k) => ({ ...k }))
+    ? kutubxonalar.map((k) => ({ ...k, holat: k.status }))
     : (membershipsQuery.data ?? [])
         .filter((a) => a.faol !== false)
         .map((a) => ({
@@ -165,7 +166,7 @@ export function TenantSwitcher() {
                   <span className="min-w-0 flex-1 truncate font-medium text-slate-900 dark:text-slate-100">
                     {k.nomi}
                   </span>
-                  {k.holat && k.holat !== 'active' && <Badge tone="amber">{k.holat}</Badge>}
+                  {k.holat && k.holat !== 'active' && <Badge tone="amber">{ORG_STATUS_LABELS[k.holat] ?? k.holat}</Badge>}
                   {k.rol && <Badge tone="slate">{ROL_LABELS[k.rol] ?? k.rol}</Badge>}
                   {k.id === organizationId && (
                     <Icons.check className="h-5 w-5 shrink-0 text-brand-600 dark:text-brand-400" />

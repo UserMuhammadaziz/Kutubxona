@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { useId, useState } from 'react'
 
 interface LogoMarkProps {
   className?: string
@@ -11,9 +11,9 @@ export function LogoMark({ className = 'h-7 w-7' }: LogoMarkProps) {
     <svg viewBox="0 0 64 64" className={className} role="img" aria-label="Kutubxona">
       <defs>
         <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#60A5FA" />
-          <stop offset="0.55" stopColor="#2563EB" />
-          <stop offset="1" stopColor="#1E40AF" />
+          <stop offset="0" stopColor="#3FA877" />
+          <stop offset="0.55" stopColor="#17694A" />
+          <stop offset="1" stopColor="#0F3D2E" />
         </linearGradient>
       </defs>
       <rect width="64" height="64" rx="15" fill={`url(#${gid})`} />
@@ -37,21 +37,43 @@ interface LogoProps {
   withWordmark?: boolean
   markClassName?: string
   className?: string
+  /** Kutubxona nomi (bo'sh bo'lsa standart yozuv). */
+  subtitle?: string
+  /** Kutubxonaning o'z logotipi (https URL); yuklanmasa standart belgi ko'rsatiladi. */
+  logoUrl?: string
 }
 
 /** Yagona brend lockup: belgi + «Kutubxona» matni. */
-export function Logo({ withWordmark = true, markClassName, className }: LogoProps) {
-  if (!withWordmark) return <LogoMark className={markClassName} />
+export function Logo({ withWordmark = true, markClassName, className, subtitle, logoUrl }: LogoProps) {
+  const [broken, setBroken] = useState<string | null>(null)
+  const mark =
+    logoUrl && broken !== logoUrl ? (
+      <img
+        src={logoUrl}
+        alt=""
+        onError={() => setBroken(logoUrl)}
+        className={`${markClassName ?? 'h-7 w-7'} rounded-md object-contain`}
+      />
+    ) : (
+      <LogoMark className={markClassName ?? 'h-7 w-7'} />
+    )
+  if (!withWordmark) return mark
   return (
     <span className={`flex items-center gap-2 ${className ?? ''}`}>
-      <LogoMark className={markClassName ?? 'h-7 w-7'} />
+      {mark}
       <span className="flex flex-col leading-none">
         <span className="text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-100">
           Kutubxona
         </span>
-        <span className="mt-0.5 text-[9.5px] font-medium tracking-[0.16em] text-slate-500 uppercase dark:text-slate-400">
-          Tuman kutubxonasi
-        </span>
+        {subtitle ? (
+          <span className="mt-1 max-w-44 truncate text-sm font-medium text-slate-600 dark:text-slate-300">
+            {subtitle}
+          </span>
+        ) : (
+          <span className="mt-0.5 text-[9.5px] font-medium tracking-[0.16em] text-slate-500 uppercase dark:text-slate-400">
+            Tuman kutubxonasi
+          </span>
+        )}
       </span>
     </span>
   )

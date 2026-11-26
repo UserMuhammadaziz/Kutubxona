@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { finesApi, loansApi, readersApi } from '../api/resources'
 import { errorMessage } from '../api/client'
 import { Icons } from '../components/icons'
-import type { BerishMeni, JarimaMeni } from '../types'
+import type { BerishMeni, JarimaMeni, ReaderStats } from '../types'
 import {
   Badge,
   Button,
@@ -13,11 +13,46 @@ import {
   ErrorState,
   PageHeader,
   ResponsiveList,
-  Spinner,
+  PageSkeleton,
   Table,
+  Textarea,
+  Modal,
 } from '../components/ui'
 import { useToast } from '../components/Toast'
 import { formatDate, formatMoney } from '../lib/format'
+
+const TRUST_STYLE = {
+  new: { label: 'Yangi', bar: 'bg-brand-600', text: 'text-brand-700 dark:text-brand-400' },
+  high: { label: 'Yuqori', bar: 'bg-brand-600', text: 'text-brand-700 dark:text-brand-400' },
+  medium: { label: 'O‘rta', bar: 'bg-amber-500', text: 'text-amber-600 dark:text-amber-400' },
+  low: { label: 'Past', bar: 'bg-red-500', text: 'text-red-600 dark:text-red-400' },
+} as const
+
+function TrustCard({ score, level }: { score: number; level: ReaderStats['trust_level'] }) {
+  const st = TRUST_STYLE[level]
+  return (
+    <Card
+      className="col-span-2 p-4 lg:col-span-1"
+      title="100% dan boshlanadi; kechikkan kunlar, jarimalar va yo‘qotilgan kitoblar uchun asta-sekin kamayadi"
+    >
+      <div className="text-sm font-medium text-slate-600 dark:text-slate-300">Ishonch darajasi</div>
+      <div className={'mt-1 text-2xl font-bold tabular-nums ' + st.text}>
+        {score}%
+        <span className="ml-2 text-sm font-medium">{st.label}</span>
+      </div>
+      <div
+        className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"
+        role="progressbar"
+        aria-label="Ishonch darajasi"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={score}
+      >
+        <div className={'h-full rounded-full transition-all ' + st.bar} style={{ width: `${score}%` }} />
+      </div>
+    </Card>
+  )
+}
 
 export function ReaderDetail() {
   const { id } = useParams()
@@ -27,6 +62,8 @@ export function ReaderDetail() {
   const readerId = Number(id)
   const [qaytariladigan, setQaytariladigan] = useState<BerishMeni | null>(null)
   const [tolanadigan, setTolanadigan] = useState<JarimaMeni | null>(null)
+  const [messageOpen, setMessageOpen] = useState(false)
+  const [messageText, setMessageText] = useState('')
 
   const { data: reader, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['readers', readerId],
@@ -68,7 +105,17 @@ export function ReaderDetail() {
     onError: (err) => toast.error(errorMessage(err)),
   })
 
-  if (isLoading) return <Spinner label="O‘quvchi ma’lumotlari yuklanmoqda..." />
+  const messageMut = useMutation({
+    mutationFn: (text: string) => readersApi.sendMessage(readerId, text),
+    onSuccess: () => {
+      setMessageOpen(false)
+      setMessageText('')
+      toast.success('Xabar Telegram orqali yuborildi.')
+    },
+    onError: (err) => toast.error(errorMessage(err)),
+  })
+
+  if (isLoading) return <PageSkeleton stats={3} />
 
   if (isError || !reader) {
     return (
@@ -104,11 +151,45 @@ export function ReaderDetail() {
         subtitle={`${reader.karta_raqami} · ${reader.telefon}`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={!reader.telegram_id}
+              title={reader.telegram_id ? undefined : 'O‘quvchi Telegram botga ulanmagan'}
+              onClick={() => setMessageOpen(true)}
+            >
+              Xabar yuborish
+            </Button>
             {reader.rol === 'oqituvchi' && <Badge tone="blue">O‘qituvchi</Badge>}
             <Badge tone={reader.faol ? 'green' : 'red'}>{reader.faol ? 'Faol' : 'Faol emas'}</Badge>
           </div>
         }
       />
+
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <TrustCard score={reader.stats.trust_score} level={reader.stats.trust_level} />
+        {[
+          { label: 'Jami berilgan', value: reader.stats.total_loans, tone: '' },
+          { label: 'Hozir qo‘lida', value: reader.stats.active_loans, tone: '' },
+          {
+            label: 'Muddati o‘tgan',
+            value: reader.stats.overdue_loans,
+            tone: reader.stats.overdue_loans ? 'text-red-600 dark:text-red-400' : '',
+          },
+          {
+            label: 'To‘lanmagan jarima',
+            value: formatMoney(reader.stats.unpaid_fines_total),
+            tone: Number(reader.stats.unpaid_fines_total) ? 'text-amber-600 dark:text-amber-400' : '',
+          },
+        ].map((st) => (
+          <Card key={st.label} className="p-4">
+            <div className="text-sm font-medium text-slate-600 dark:text-slate-300">{st.label}</div>
+            <div className={'mt-1 text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100 ' + st.tone}>
+              {st.value}
+            </div>
+          </Card>
+        ))}
+      </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="p-5 lg:col-span-1">
@@ -294,8 +375,68 @@ export function ReaderDetail() {
               </p>
             )}
           </div>
+
+          <div>
+            <h2 className="mb-3 text-lg font-semibold text-slate-900 dark:text-slate-100">
+              Berish tarixi ({reader.history.length})
+            </h2>
+            {reader.history.length ? (
+              <Card className="divide-y divide-slate-100 dark:divide-slate-700">
+                {reader.history.map((h) => (
+                  <div key={h.id} className="flex items-start justify-between gap-3 px-4 py-3 text-sm">
+                    <div className="min-w-0">
+                      <div className="font-medium text-slate-900 dark:text-slate-100">{h.book_title}</div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400">
+                        {formatDate(h.issued_at)} → {h.returned_at ? formatDate(h.returned_at) : `muddat ${formatDate(h.due_date)}`}
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <Badge tone={h.status === 'overdue' ? 'red' : h.status === 'active' ? 'blue' : 'green'}>
+                        {h.status === 'overdue' ? 'Muddati o‘tgan' : h.status === 'active' ? 'Qo‘lida' : 'Qaytarilgan'}
+                      </Badge>
+                      {h.fine_amount != null && (
+                        <span className={'text-xs ' + (h.fine_paid ? 'text-slate-500' : 'text-red-600 dark:text-red-400')}>
+                          Jarima {formatMoney(h.fine_amount)}{h.fine_paid ? ' (to‘langan)' : ''}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </Card>
+            ) : (
+              <p className="rounded-lg border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                Hali kitob berilmagan
+              </p>
+            )}
+          </div>
         </div>
       </div>
+
+      <Modal
+        open={messageOpen}
+        onClose={() => setMessageOpen(false)}
+        title="Xabar yuborish"
+        description={`${reader.fish} ga Telegram orqali xabar`}
+      >
+        <Textarea
+          rows={4}
+          maxLength={1000}
+          value={messageText}
+          onChange={(e) => setMessageText(e.target.value)}
+          placeholder="Xabar matni"
+        />
+        <div className="mt-3 flex justify-end gap-2">
+          <Button variant="secondary" onClick={() => setMessageOpen(false)}>
+            Bekor qilish
+          </Button>
+          <Button
+            disabled={!messageText.trim() || messageMut.isPending}
+            onClick={() => messageMut.mutate(messageText.trim())}
+          >
+            Yuborish
+          </Button>
+        </div>
+      </Modal>
 
       <ConfirmDialog
         open={!!qaytariladigan}

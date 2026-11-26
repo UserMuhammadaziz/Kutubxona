@@ -30,6 +30,7 @@ import {
 import DataTable, { type DataTableColumn } from '../components/DataTable'
 import { useToast } from '../components/Toast'
 import { useAuthStore } from '../store/auth'
+import { usePageSize } from '../hooks/usePageSize'
 
 const KITOB_HOLATI_TONE: Record<KitobHolati, 'slate' | 'green' | 'red' | 'amber' | 'blue'> = {
   mavjud: 'green',
@@ -57,6 +58,7 @@ export function Books() {
   const user = useAuthStore((s) => s.user)
   const canEdit = user?.rol === 'kutubxonachi' || user?.rol === 'administrator'
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = usePageSize()
   const [janr, setJanr] = useState('')
   const [search, setSearch] = useState('')
   const kechikkanSearch = useDebouncedValue(search)
@@ -76,8 +78,8 @@ export function Books() {
   const searching = kechikkanSearch.trim().length > 0
 
   const listQuery = useQuery({
-    queryKey: ['books', page, janr],
-    queryFn: () => booksApi.list({ page, janr: janr || undefined }),
+    queryKey: ['books', page, pageSize, janr],
+    queryFn: () => booksApi.list({ page, page_size: pageSize, janr: janr || undefined }),
     enabled: !searching,
   })
 
@@ -322,7 +324,11 @@ setError(null)
                 ? {
                     count: listQuery.data.count,
                     page: page - 1,
-                    rowsPerPage: 20,
+                    rowsPerPage: pageSize,
+              onRowsPerPageChange: (n) => {
+                setPageSize(n)
+                setPage(1)
+              },
                     onPageChange: (p) => setPage(p + 1),
                   }
                 : undefined
@@ -430,7 +436,7 @@ setError(null)
       {/* Mobilda jadvaldagi MUI pagination ko'rinmaydi — karta ro'yxati uchun alohida */}
       {!searching && listQuery.data && (
         <div className="md:hidden">
-          <Pagination count={listQuery.data.count} page={page} onChange={setPage} />
+          <Pagination count={listQuery.data.count} page={page} pageSize={pageSize} onChange={setPage} />
         </div>
       )}
 

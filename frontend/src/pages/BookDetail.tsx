@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { booksApi, holdsApi } from '../api/resources'
 import { Icons } from '../components/icons'
-import { Badge, Button, Card, PageHeader, Spinner, Table } from '../components/ui'
+import { Badge, Button, Card, PageHeader, PageSkeleton, Table } from '../components/ui'
 import { BAND_HOLATI_LABELS, JANR_LABELS, NAVBAT_HOLATI_LABELS, NUSXA_HOLATI_LABELS, TIL_LABELS, HOLAT_LABELS, type Janr, type NavbatHolati, type NusxaHolati, type BandHolati } from '../types'
 import { formatDate, formatMoney, humanize } from '../lib/format'
 
@@ -27,7 +27,7 @@ export function BookDetail() {
   const { data: queue } = useQuery({ queryKey: ['books', bookId, 'queue'], queryFn: () => booksApi.queue(bookId) })
   const { data: holds } = useQuery({ queryKey: ['books', bookId, 'holds'], queryFn: () => holdsApi.list({ kitob: bookId, holati: 'kutmoqda' }) })
 
-  if (isLoading || !book) return <Spinner />
+  if (isLoading || !book) return <PageSkeleton stats={3} />
 
   return (
     <div>

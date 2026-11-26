@@ -17,13 +17,16 @@ import {
   Label,
   Modal,
   PageHeader,
+  Select,
   Pagination,
   ResponsiveList,
   TableSkeleton,
+  PhoneInput,
 } from '../components/ui'
 import DataTable, { type DataTableColumn } from '../components/DataTable'
 import { useToast } from '../components/Toast'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
+import { usePageSize } from '../hooks/usePageSize'
 
 const emptyForm: OquvchiCreatePayload = {
   rol: 'oquvchi',
@@ -40,10 +43,14 @@ interface ReadersProps {
   rol?: OquvchiRol
 }
 
+type TriState = '' | 'yes' | 'no'
+const toBool = (v: TriState) => (v === '' ? undefined : v === 'yes')
+
 export function Readers({ rol = 'oquvchi' }: ReadersProps = {}) {
   const qc = useQueryClient()
   const toast = useToast()
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = usePageSize()
   const [search, setSearch] = useState('')
   const kechikkanQidiruv = useDebouncedValue(search)
   // AI buyruq paneli (Ctrl+K) qidiruvni `?q=` orqali to'ldiradi.
@@ -57,6 +64,16 @@ export function Readers({ rol = 'oquvchi' }: ReadersProps = {}) {
   const [error, setError] = useState<string | null>(null)
 
   const oqituvchilar = rol === 'oqituvchi'
+  const [filters, setFilters] = useState<{ telegram: TriState; debt: TriState; active: TriState }>({
+    telegram: '',
+    debt: '',
+    active: '',
+  })
+  const filterCount = Object.values(filters).filter(Boolean).length
+  const setFilter = (key: keyof typeof filters, value: TriState) => {
+    setFilters((f) => ({ ...f, [key]: value }))
+    setPage(1)
+  }
 
   const {
     data,
@@ -66,9 +83,16 @@ export function Readers({ rol = 'oquvchi' }: ReadersProps = {}) {
     refetch: refetchList,
     isFetching,
   } = useQuery({
-    queryKey: ['readers', page, kechikkanQidiruv, rol ?? null],
+    queryKey: ['readers', page, pageSize, kechikkanQidiruv, rol ?? null, filters],
     queryFn: () =>
-      readersApi.list({ page, search: kechikkanQidiruv || undefined, rol: rol ?? undefined }),
+      readersApi.list({
+        page, page_size: pageSize,
+        search: kechikkanQidiruv || undefined,
+        rol: rol ?? undefined,
+        has_telegram: toBool(filters.telegram),
+        has_debt: toBool(filters.debt),
+        has_active_loans: toBool(filters.active),
+      }),
   })
 
   const createMut = useMutation({
@@ -131,6 +155,35 @@ export function Readers({ rol = 'oquvchi' }: ReadersProps = {}) {
           }}
           aria-label="O'quvchilarni qidirish"
         />
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-4">
+          <Select value={filters.telegram} onChange={(e) => setFilter('telegram', e.target.value as TriState)} aria-label="Telegram holati">
+            <option value="">Telegram: hammasi</option>
+            <option value="yes">Telegramga ulangan</option>
+            <option value="no">Ulanmagan</option>
+          </Select>
+          <Select value={filters.debt} onChange={(e) => setFilter('debt', e.target.value as TriState)} aria-label="Qarz holati">
+            <option value="">Qarz: hammasi</option>
+            <option value="yes">Jarimasi bor</option>
+            <option value="no">Jarimasi yo‘q</option>
+          </Select>
+          <Select value={filters.active} onChange={(e) => setFilter('active', e.target.value as TriState)} aria-label="Qo'lidagi kitoblar">
+            <option value="">Kitob: hammasi</option>
+            <option value="yes">Qo‘lida kitob bor</option>
+            <option value="no">Qo‘lida kitob yo‘q</option>
+          </Select>
+          {filterCount > 0 && (
+            <button
+              type="button"
+              className="text-left text-sm text-brand-700 hover:underline dark:text-brand-400 sm:text-center"
+              onClick={() => {
+                setFilters({ telegram: '', debt: '', active: '' })
+                setPage(1)
+              }}
+            >
+              Filtrlarni tozalash ({filterCount})
+            </button>
+          )}
+        </div>
       </Card>
       {isLoading && <TableSkeleton rows={6} cols={5} />}
 
@@ -227,7 +280,11 @@ export function Readers({ rol = 'oquvchi' }: ReadersProps = {}) {
             pagination={{
               count: data.count,
               page: page - 1,
-              rowsPerPage: 20,
+              rowsPerPage: pageSize,
+              onRowsPerPageChange: (n) => {
+                setPageSize(n)
+                setPage(1)
+              },
               onPageChange: (p) => setPage(p + 1),
             }}
             columns={
@@ -281,7 +338,7 @@ export function Readers({ rol = 'oquvchi' }: ReadersProps = {}) {
       {/* Mobilda jadvaldagi MUI pagination ko'rinmaydi */}
       {data && (
         <div className="md:hidden">
-          <Pagination count={data.count} page={page} onChange={setPage} />
+          <Pagination count={data.count} page={page} pageSize={pageSize} onChange={setPage} />
         </div>
       )}
 
@@ -304,12 +361,11 @@ export function Readers({ rol = 'oquvchi' }: ReadersProps = {}) {
           </Field>
           <Field>
             <Label htmlFor="y-telefon">Telefon raqami</Label>
-            <Input
+            <PhoneInput
               id="y-telefon"
-              required
-              placeholder="+998901234567"
               value={form.telefon}
-              onChange={(e) => setForm({ ...form, telefon: e.target.value })}
+              onValueChange={(v) => setForm({ ...form, telefon: v })}
+              required
             />
           </Field>
           <Field>

@@ -26,6 +26,7 @@ import { useToast } from '../components/Toast'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { formatDateTime } from '../lib/format'
 import DataTable, { type DataTableColumn } from '../components/DataTable'
+import { usePageSize } from '../hooks/usePageSize'
 
 const TONE: Record<BandHolati, 'blue' | 'green' | 'red' | 'slate'> = {
   kutmoqda: 'blue',
@@ -34,7 +35,6 @@ const TONE: Record<BandHolati, 'blue' | 'green' | 'red' | 'slate'> = {
   bekor_qilindi: 'slate',
 }
 
-const PAGE_SIZE = 20
 
 /**
  * «Tasdiqlash» va «Rad etish» tugmalari.
@@ -121,6 +121,7 @@ export function Bandlar() {
   const qc = useQueryClient()
   const toast = useToast()
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = usePageSize()
   const [holati, setHolati] = useState<BandHolati | ''>('kutmoqda')
   const [search, setSearch] = useState('')
   const kechikkanQidiruv = useDebouncedValue(search)
@@ -138,9 +139,9 @@ export function Bandlar() {
     : undefined
 
   const { data, isLoading, isError, error: listError, refetch } = useQuery({
-    queryKey: ['holds', page, holati, kitobId],
+    queryKey: ['holds', page, pageSize, holati, kitobId],
     queryFn: () =>
-      holdsApi.list({ page, holati: holati || undefined, kitob: kitobId }),
+      holdsApi.list({ page, page_size: pageSize, holati: holati || undefined, kitob: kitobId }),
   })
 
   const approveMut = useMutation({
@@ -333,7 +334,11 @@ export function Bandlar() {
                 pagination={{
                   count: data?.count ?? 0,
                   page: page - 1,
-                  rowsPerPage: PAGE_SIZE,
+                  rowsPerPage: pageSize,
+              onRowsPerPageChange: (n) => {
+                setPageSize(n)
+                setPage(1)
+              },
                   onPageChange: (p) => setPage(p + 1),
                 }}
                 columns={
@@ -433,7 +438,7 @@ export function Bandlar() {
               <Pagination
                 count={data?.count ?? 0}
                 page={page}
-                pageSize={PAGE_SIZE}
+                pageSize={pageSize}
                 onChange={setPage}
               />
             </div>

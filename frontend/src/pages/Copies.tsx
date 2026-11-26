@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { booksApi, copiesApi } from '../api/resources'
 import { errorMessage } from '../api/client'
@@ -23,10 +24,18 @@ import {
   Spinner,
   TableSkeleton,
 } from '../components/ui'
+import { DatePicker, toISO } from '../components/DatePicker'
 import { useToast } from '../components/Toast'
 import DataTable, { type DataTableColumn } from '../components/DataTable'
+import { usePageSize } from '../hooks/usePageSize'
 
-const emptyForm: NusxaCreatePayload = { kitob: 0, inventar_raqami: '', javon: '', izoh: '' }
+const makeEmptyForm = (): NusxaCreatePayload => ({
+  kitob: 0,
+  inventar_raqami: '',
+  javon: '',
+  izoh: '',
+  qabul_sana: toISO(new Date()),
+})
 
 const TONE: Record<NusxaHolati, 'green' | 'blue' | 'amber' | 'red'> = {
   mavjud: 'green',
@@ -40,15 +49,18 @@ export function Copies() {
   const qc = useQueryClient()
   const toast = useToast()
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = usePageSize()
   const [holati, setHolati] = useState<NusxaHolati | ''>('')
+  const [search, setSearch] = useState('')
+  const debouncedSearch = useDebouncedValue(search)
   const [modalOpen, setModalOpen] = useState(false)
-  const [form, setForm] = useState<NusxaCreatePayload>(emptyForm)
+  const [form, setForm] = useState<NusxaCreatePayload>(makeEmptyForm)
   const [error, setError] = useState<string | null>(null)
   const [ochiriladigan, setOchiriladigan] = useState<Nusxa | null>(null)
 
   const { data, isLoading, isError, error: listError, refetch, isFetching } = useQuery({
-    queryKey: ['copies', page, holati],
-    queryFn: () => copiesApi.list({ page, holati: holati || undefined }),
+    queryKey: ['copies', page, pageSize, holati, debouncedSearch],
+    queryFn: () => copiesApi.list({ page, page_size: pageSize, holati: holati || undefined, search: debouncedSearch || undefined }),
   })
 
   const { data: books, isLoading: booksLoading } = useQuery({
@@ -90,7 +102,7 @@ export function Copies() {
   })
 
   function openCreate() {
-    setForm(emptyForm)
+    setForm(makeEmptyForm())
     setError(null)
     setModalOpen(true)
   }
@@ -105,6 +117,10 @@ export function Copies() {
       setError('Kitobni tanlang')
       return
     }
+    if (!form.qabul_sana) {
+      setError('Qabul qilingan sanani kiriting')
+      return
+    }
     setError(null)
     createMut.mutate(form)
   }
@@ -117,14 +133,23 @@ export function Copies() {
         title="Nusxalar"
         subtitle="Har bir kitobning jismoniy nusxalari"
         actions={
-          <Button onClick={openCreate} className="w-full sm:w-auto">
+          <Button onClick={openCreate}>
             + Yangi nusxa
           </Button>
         }
       />
 
       <Card className="mb-4 p-3 sm:p-4">
-        <div className="sm:w-64">
+        <div className="grid gap-3 sm:grid-cols-[1fr_16rem]">
+          <Input
+            placeholder="Inventar raqam, kitob yoki javon bo'yicha qidirish..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setPage(1)
+            }}
+            aria-label="Qidirish"
+          />
           <Select
             value={holati}
             onChange={(e) => {
@@ -235,7 +260,11 @@ export function Copies() {
             pagination={{
               count: data.count,
               page: page - 1,
-              rowsPerPage: 20,
+              rowsPerPage: pageSize,
+              onRowsPerPageChange: (n) => {
+                setPageSize(n)
+                setPage(1)
+              },
               onPageChange: (p) => setPage(p + 1),
             }}
             columns={
@@ -316,7 +345,7 @@ export function Copies() {
       {/* Mobilda jadvaldagi MUI pagination ko'rinmaydi */}
       {data && (
         <div className="md:hidden">
-          <Pagination count={data.count} page={page} onChange={setPage} />
+          <Pagination count={data.count} page={page} pageSize={pageSize} onChange={setPage} />
         </div>
       )}
 
@@ -354,6 +383,15 @@ export function Copies() {
               required
               value={form.inventar_raqami}
               onChange={(e) => setForm({ ...form, inventar_raqami: e.target.value })}
+            />
+          </Field>
+          <Field>
+            <Label htmlFor="n-qabul">Qabul qilingan sana</Label>
+            <DatePicker
+              id="n-qabul"
+              allowClear={false}
+              value={form.qabul_sana ?? ''}
+              onChange={(v) => setForm({ ...form, qabul_sana: v })}
             />
           </Field>
           <Field>

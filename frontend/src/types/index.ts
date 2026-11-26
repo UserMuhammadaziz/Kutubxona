@@ -21,6 +21,7 @@ export interface UserKutubxona {
   nomi: string
   slug: string
   rol: string
+  status?: string
 }
 
 /** GET /api/auth/organization/ — to'liq OrganizationSerializer yoki null. */
@@ -56,6 +57,9 @@ export interface User {
   rol: Rol
   telefon: string
   is_active: boolean
+  is_platform?: boolean
+  /** True when the user is a member of no library (only in /auth/me/). */
+  no_organization?: boolean
   kutubxonalar?: UserKutubxona[]
   joriy_rol?: string | null
 }
@@ -214,9 +218,36 @@ export interface Oquvchi {
   faol: boolean
 }
 
+export interface ReaderStats {
+  total_loans: number
+  active_loans: number
+  overdue_loans: number
+  returned_late: number
+  unpaid_fines_total: string | number
+  paid_fines_total: string | number
+  /** Reliability in percent; starts at 100 and decreases with lateness, fines and losses. */
+  trust_score: number
+  trust_level: 'new' | 'high' | 'medium' | 'low'
+}
+
+export type ReaderHistoryStatus = 'active' | 'overdue' | 'returned'
+
+export interface ReaderHistoryItem {
+  id: number
+  book_title: string
+  issued_at: string
+  due_date: string
+  returned_at: string | null
+  status: ReaderHistoryStatus
+  fine_amount: string | number | null
+  fine_paid: boolean | null
+}
+
 export interface OquvchiDetail extends Oquvchi {
   joriy_kitoblari: BerishMeni[]
   jarimalari: JarimaMeni[]
+  stats: ReaderStats
+  history: ReaderHistoryItem[]
 }
 
 export interface OquvchiCreatePayload {
@@ -480,6 +511,35 @@ export interface DashboardStats {
   umumiy_qarz: string
   oquvchi_soni?: number
   oqituvchi_soni?: number
+}
+
+// ---- Announcements (bulk Telegram messages) ----
+
+export type AnnouncementAudience = 'all' | 'students' | 'teachers' | 'overdue' | 'debtors'
+
+export const ANNOUNCEMENT_AUDIENCE_LABELS: Record<AnnouncementAudience, string> = {
+  all: 'Barcha o‘quvchilar',
+  students: 'Faqat o‘quvchilar',
+  teachers: 'Faqat o‘qituvchilar',
+  overdue: 'Muddati o‘tgan kitobi borlar',
+  debtors: 'Jarimasi borlar',
+}
+
+export interface Announcement {
+  id: number
+  text: string
+  audience: AnnouncementAudience
+  grade: string
+  created_at: string
+  recipients_count: number
+  sent_count: number
+  failed_count: number
+}
+
+export interface AnnouncementPreview {
+  recipients: number
+  sent_today: number
+  daily_limit: number
 }
 
 /** Sinflar va o'qituvchilar bo'yicha kitobxonlar reytingi. */

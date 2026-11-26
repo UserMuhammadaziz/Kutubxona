@@ -3,19 +3,52 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-brand-50: #eff6ff;
-  --color-brand-100: #dbeafe;
-  --color-brand-200: #bfdbfe;
-  --color-brand-300: #93c5fd;
-  --color-brand-400: #60a5fa;
-  --color-brand-500: #3b82f6;
-  --color-brand-600: #2563eb;
-  --color-brand-700: #1d4ed8;
-  --color-brand-800: #1e40af;
-  --color-brand-900: #1e3a8a;
+  /* Landing bilan bir xil palitra: to'q yashil brend, iliq neytrallar, yumshoq burchaklar. */
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
 
-  --color-canvas: #f4f1ec;
-  --color-paper: #fbf9f5;
+  --color-brand-50: #edf7f1;
+  --color-brand-100: #d3ecdf;
+  --color-brand-200: #a9d8c0;
+  --color-brand-300: #74bf9c;
+  --color-brand-400: #3fa877;
+  --color-brand-500: #1f9d63;
+  --color-brand-600: #17694a;
+  --color-brand-700: #0f5a3d;
+  --color-brand-800: #0f3d2e;
+  --color-brand-900: #0a2c20;
+
+  /* slate -> iliq (stone) neytral shkala */
+  --color-slate-50: #fafaf9;
+  --color-slate-100: #f5f4f0;
+  --color-slate-200: #e7e4dc;
+  --color-slate-300: #d6d2c7;
+  --color-slate-400: #a8a398;
+  --color-slate-500: #78736a;
+  --color-slate-600: #5c554b;
+  --color-slate-700: #44403a;
+  --color-slate-800: #292622;
+  --color-slate-900: #1c1a17;
+  --color-slate-950: #12110f;
+
+  --color-canvas: #ece9de;
+  --color-paper: #faf8f2;
+
+  /* Ant Design uslubidagi dizayn tokenlar (custom boshqaruv elementlari uchun) */
+  --radius-control: 0.5rem;      /* borderRadius: tugma, input, select */
+  --radius-popup: 0.75rem;       /* borderRadiusLG: popover, dropdown */
+  --radius-sm: 0.25rem;          /* borderRadiusSM: katak, belgi */
+  --shadow-pop: 0 6px 16px 0 rgb(0 0 0 / 0.08), 0 3px 6px -4px rgb(0 0 0 / 0.12), 0 9px 28px 8px rgb(0 0 0 / 0.05);
+  --shadow-control: 0 1px 2px 0 rgb(0 0 0 / 0.03);
+  --color-primary: var(--color-brand-700);
+  --color-primary-hover: var(--color-brand-600);
+  --color-primary-bg: var(--color-brand-50);
+  --color-primary-bg-hover: var(--color-brand-100);
+  --color-error: #d92d20;
+  --ease-out-ant: cubic-bezier(0.08, 0.82, 0.17, 1);
+
+  --radius-lg: 0.75rem;
+  --radius-xl: 1.125rem;
+  --radius-2xl: 1.5rem;
 }
 
 :root {
@@ -32,6 +65,7 @@ html, body, #root {
    sahifa ~15px sakrardi. Joy doim zaxiralanadi. */
 html {
   scrollbar-gutter: stable;
+  /* Shrift o'lchami Profil sahifasidan tanlanadi (store/fontSize.ts). */
 }
 
 body {
@@ -69,6 +103,63 @@ button:disabled,
   --color-slate-800: #1e2840;
   --color-slate-900: #151c2e;
   --color-slate-950: #0e1424;
+}
+
+
+/* Popup animatsiyasi (Ant "slide-up" ga o'xshash). */
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.animate-pop { animation: pop-in 160ms var(--ease-out-ant); }
+@media (prefers-reduced-motion: reduce) { .animate-pop { animation: none; } }
+
+/* Auth sahifalari aside animatsiyalari. */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+@keyframes spine-rise {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+@keyframes ring-pulse {
+  0% { box-shadow: 0 0 0 0 rgb(255 255 255 / 0.35); }
+  70%, 100% { box-shadow: 0 0 0 10px rgb(255 255 255 / 0); }
+}
+.animate-fade-up { opacity: 0; animation: fade-up 600ms var(--ease-out-ant) forwards; }
+.animate-float { animation: float-y 6s ease-in-out infinite; }
+.animate-spine { transform-origin: bottom; animation: spine-rise 900ms var(--ease-out-ant) both; }
+.animate-ring { animation: ring-pulse 2.4s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up { opacity: 1; animation: none; }
+  .animate-float, .animate-spine, .animate-ring { animation: none; }
+}
+
+/* Landing (/welcome) ranglari: yorug va qorong'i rejim uchun. */
+.landing {
+  --l-bg: #ece9de;
+  --l-sand: #e2d6c0;
+  --l-card: #faf8f2;
+  --l-green: #0f3d2e;
+  --l-green-ink: #0f3d2e;
+  --l-accent: #1f9d63;
+  --l-ink: #1f1b16;
+  --l-muted: #5c554b;
+}
+.dark .landing {
+  --l-bg: #121614;
+  --l-sand: #232b26;
+  --l-card: #1a201d;
+  --l-green: #17694a;
+  --l-green-ink: #6fd0a0;
+  --l-accent: #4cc38a;
+  --l-ink: #ece9de;
+  --l-muted: #a7ada6;
 }
 
 /* --- PWA (ilova sifatida ochilganda) -----------------------------------

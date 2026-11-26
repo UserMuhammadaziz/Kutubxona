@@ -4,6 +4,47 @@ from django.core.validators import RegexValidator
 from organization.models import TenantModel
 
 
+KASB_MAX_LENGTH = 200
+
+
+def kasb_from_fans(fanlar):
+    """Join subject names for the denormalised `kasb` column without exceeding its max_length.
+
+    The M2M relation keeps the full list; `kasb` is only a display string, so it is cut at a
+    name boundary and marked with an ellipsis instead of failing with DataError."""
+    names = [f.nomi for f in fanlar]
+    text = ", ".join(names)
+    if len(text) <= KASB_MAX_LENGTH:
+        return text
+    kept = []
+    for i, name in enumerate(names):
+        # reserve room for the " +N" tail that reports how many names were cut
+        if len(", ".join(kept + [name])) + len(f" +{len(names) - i}") > KASB_MAX_LENGTH:
+            break
+        kept.append(name)
+    return ", ".join(kept) + f" +{len(names) - len(kept)}"
+
+
+class Fan(models.Model):
+    """O'qituvchi dars beradigan fan (oldindan ro'yxatga olingan).
+
+    Hamma kutubxonalar uchun umumiy ro'yxat: o'qituvchi arizada shu
+    ro'yxatdan tanlaydi. Yangi fanlarni platforma administratori
+    Django admin orqali qo'shadi."""
+
+    nomi = models.CharField(max_length=80, unique=True)
+    faol = models.BooleanField(default=True)
+    tartib = models.PositiveSmallIntegerField(default=100)
+
+    class Meta:
+        ordering = ["tartib", "nomi"]
+        verbose_name = "Fan"
+        verbose_name_plural = "Fanlar"
+
+    def __str__(self):
+        return self.nomi
+
+
 class Oquvchi(TenantModel):
     # O'quvchi yoki o'qituvchi. Ariza tasdiqlanganda arizadagi roldan olinadi
     # ("O'qituvchilar" bo'limi shu maydon orqali ajratiladi).
@@ -27,7 +68,8 @@ class Oquvchi(TenantModel):
     karta_raqami = models.CharField(max_length=20)
     sinf = models.CharField(max_length=30, blank=True)
     # Faqat o'qituvchilar uchun: o'qitayotgan fani (arizadagi `kasb`).
-    kasb = models.CharField(max_length=60, blank=True)
+    kasb = models.CharField(max_length=200, blank=True)
+    fanlar = models.ManyToManyField(Fan, blank=True, related_name="oqituvchilar")
     tugilgan_sana = models.DateField(null=True, blank=True)
     manzil = models.CharField(max_length=255, blank=True)
     royxat_sanasi = models.DateField(auto_now_add=True)
@@ -88,7 +130,8 @@ class Ariza(TenantModel):
     sinf = models.CharField(max_length=30, null=True)
     # O'qituvchilar uchun: o'qitayotgan fani (masalan "Matematika").
     # Oquvchi arizalarida bo'sh qoladi.
-    kasb = models.CharField(max_length=60, blank=True)
+    kasb = models.CharField(max_length=200, blank=True)
+    fanlar = models.ManyToManyField(Fan, blank=True, related_name="ariza_oqituvchilari")
     # Kim ariza yuborgani: oquvchi yoki o'qituvchi. Eski arizalar "oquvchi"
     # deb hisoblanadi (default qiymat).
     rol = models.CharField(max_length=20, choices=ROL_CHOICES, default="oquvchi")

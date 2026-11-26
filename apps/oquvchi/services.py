@@ -212,6 +212,8 @@ def arizani_tasdiqla(ariza: Ariza, organization=None):
             if ariza.kasb and oquvchi.kasb != ariza.kasb:
                 oquvchi.kasb = ariza.kasb
                 yangilangan.append("kasb")
+            if ariza.fanlar.exists():
+                oquvchi.fanlar.set(ariza.fanlar.all())
             if oquvchi.sinf:
                 oquvchi.sinf = ""
                 yangilangan.append("sinf")
@@ -246,9 +248,20 @@ def arizani_tasdiqla(ariza: Ariza, organization=None):
             manzil=ariza.manzil,
         )
 
+    if ariza.rol == "oqituvchi" and ariza.fanlar.exists():
+        oquvchi.fanlar.set(ariza.fanlar.all())
+
+    # Link an application that came without a library, unless this library
+    # already holds another one from the same account (unique constraint).
+    if ariza.organization_id is None and org is not None:
+        if not Ariza.objects.filter(
+            organization=org, telegram_id=ariza.telegram_id
+        ).exists():
+            ariza.organization = org
+
     ariza.holati = "tasdiqlandi"
     ariza.tasdiqlangan_sana = now()
-    ariza.save(update_fields=["holati", "tasdiqlangan_sana"])
+    ariza.save(update_fields=["holati", "tasdiqlangan_sana", "organization"])
     return ariza, oquvchi, yangi_karta
 
 

@@ -19,6 +19,7 @@ import {
 } from '../lib/xatolikXabari'
 import { useAuthStore } from '../store/auth'
 import { Icons } from '../components/icons'
+import { ProfilePreferences } from '../components/ProfilePreferences'
 import {
   Badge,
   Button,
@@ -773,6 +774,8 @@ export function Profile() {
           )}
         </div>
       </Card>
+
+      <ProfilePreferences />
 
       <ConfirmDialog
         open={ochirishTasdiq}

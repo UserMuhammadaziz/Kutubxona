@@ -62,7 +62,7 @@ class XabarYuborishTest(TenantTestMixin, TestCase):
         self.assertEqual(javob.status_code, 200)
         self.assertEqual(
             javob.json(),
-            {"jami": 1, "yuborildi": 1, "telegramsiz": 0, "xatolik": 0},
+            {"status": True, "jami": 1, "yuborildi": 1, "telegramsiz": 0, "xatolik": 0},
         )
         self.assertEqual(yuborish.call_count, 1)
         self.assertEqual(yuborish.call_args.args[0], 111)

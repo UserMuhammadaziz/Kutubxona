@@ -2,7 +2,9 @@ import { useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuthStore } from './store/auth'
 import { Layout } from './components/Layout'
-import { RequireAdmin, RequireAuth } from './components/RequireAuth'
+import { Company } from './pages/Company'
+import { Profile } from './pages/Profile'
+import { RequireAdmin, RequireAuth, RequirePlatform } from './components/RequireAuth'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
 import { Books } from './pages/Books'
@@ -15,12 +17,14 @@ import { Applications } from './pages/Applications'
 import { Loans } from './pages/Loans'
 import { Bandlar } from './pages/Bandlar'
 import { Reservations } from './pages/Reservations'
+import { Announcements } from './pages/Announcements'
 import { Fines } from './pages/Fines'
 import { Staff } from './pages/Staff'
 import { Guide, PublicGuide } from './pages/Guide'
 import { Register } from './pages/Register'
 import { Home } from './pages/Home'
-import { Profile } from './pages/Profile'
+import { Overview } from './pages/Overview'
+import { Platform } from './pages/Platform'
 import { PwaBanner } from './components/PwaBanner'
 import { TenantSwitcher } from './components/TenantSwitcher'
 
@@ -45,7 +49,7 @@ function App() {
 
         <Route element={<RequireAuth />}>
           <Route element={<Layout />}>
-            <Route path="/" element={<Home />} />
+            <Route path="/" element={<Overview />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/books" element={<Books />} />
             <Route path="/books/:id" element={<BookDetail />} />
@@ -58,10 +62,13 @@ function App() {
             <Route path="/loans" element={<Loans />} />
             <Route path="/bandlar" element={<Bandlar />} />
             <Route path="/reservations" element={<Reservations />} />
+            <Route path="/announcements" element={<Announcements />} />
             <Route path="/fines" element={<Fines />} />
             <Route path="/guide" element={<Guide />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/company" element={<Company />} />
 
+            <Route path="/platform" element={<RequirePlatform><Platform /></RequirePlatform>} />
             <Route element={<RequireAdmin />}>
               <Route path="/staff" element={<Staff />} />
             </Route>

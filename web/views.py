@@ -35,7 +35,7 @@ def service_worker(request):
 
 
 # --- Sozlamalar va Promptlar ---
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
 
 CHATBOT_SYSTEM_INSTRUCTION = (
     "Siz — «Kutubxona» tuman kutubxonasi boshqaruv tizimining yordamchisiz. "
@@ -76,11 +76,11 @@ MAX_COMMAND_LEN = 300
 MAX_HISTORY = 20
 
 
-MAX_SAQLANGAN = 100
-
-
 def _chat_saqlash(user, savol: str, javob: str) -> None:
-    """Savol-javobni bazaga yozadi; xato chatni buzmasin."""
+    """Savol-javobni faqat statistika va AI'ni yaxshilash uchun yozadi.
+
+    Foydalanuvchiga qaytarilmaydi (GET yo'q); xato chatni buzmasin.
+    """
     from user.models import ChatXabar
 
     try:
@@ -90,16 +90,73 @@ def _chat_saqlash(user, savol: str, javob: str) -> None:
                 ChatXabar(user=user, rol="model", matn=javob),
             ]
         )
-        # Eskilarini tozalaymiz: har foydalanuvchida oxirgi MAX_SAQLANGAN ta.
-        chegara = (
-            ChatXabar.objects.filter(user=user)
-            .order_by("-id")
-            .values_list("id", flat=True)[MAX_SAQLANGAN : MAX_SAQLANGAN + 1]
-        )
-        if chegara:
-            ChatXabar.objects.filter(user=user, id__lte=chegara[0]).delete()
     except Exception:
         logger.exception("Chat tarixini saqlab bo'lmadi")
+
+
+PAGE_HINTS = {
+    "/loans": "Berish / Qaytarish sahifasi",
+    "/readers": "O'quvchilar ro'yxati",
+    "/books": "Kitoblar katalogi",
+    "/fines": "Jarimalar sahifasi",
+    "/announcements": "E'lonlar (ommaviy Telegram xabar) sahifasi",
+}
+
+
+def build_context(request, message: str, page: str = "") -> str:
+    """Looks up facts in the user's own library that the message mentions.
+
+    Simple keyword search (no embeddings): books by title/author/ISBN, readers
+    by name, plus headline numbers. Everything is scoped to the user's
+    organization, so one library never sees another's data.
+    """
+    from datetime import date
+
+    from django.db.models import Q
+
+    from berish.models import Berish
+    from kitob.models import Kitob
+    from nusxa.models import Nusxa
+    from organization.tenancy import joriy_kutubxonani_aniqla, scope
+    from oquvchi.models import Oquvchi
+
+    try:
+        org = joriy_kutubxonani_aniqla(request, required=False)
+    except Exception:
+        return ""
+    if org is None:
+        return ""
+
+    lines = []
+    hint = next((v for k, v in PAGE_HINTS.items() if page.startswith(k)), "")
+    if hint:
+        lines.append(f"Foydalanuvchi hozir: {hint}.")
+
+    words = [w for w in message.replace("?", " ").replace(",", " ").split() if len(w) >= 4][:6]
+    if words:
+        q = Q()
+        for w in words:
+            q |= Q(nomi__icontains=w) | Q(muallif__icontains=w) | Q(isbn__icontains=w)
+        for book in scope(Kitob.objects.all(), org).filter(q)[:5]:
+            free = Nusxa.objects.filter(kitob=book, holati="mavjud").count()
+            total = Nusxa.objects.filter(kitob=book).count()
+            lines.append(f"Kitob: «{book.nomi}», muallif {book.muallif}, javonda {free}/{total} nusxa.")
+        rq = Q()
+        for w in words:
+            rq |= Q(fish__icontains=w)
+        for reader in scope(Oquvchi.objects.all(), org).filter(rq)[:3]:
+            active = Berish.objects.filter(oquvchi=reader, qaytarilgan_sana__isnull=True)
+            overdue = active.filter(qaytarish_muddati__lt=date.today()).count()
+            lines.append(
+                f"O'quvchi: {reader.fish} ({reader.karta_raqami}), qo'lida {active.count()} kitob, "
+                f"shundan muddati o'tgan {overdue}."
+            )
+
+    overdue_all = scope(Berish.objects.all(), org).filter(
+        qaytarilgan_sana__isnull=True, qaytarish_muddati__lt=date.today()
+    ).count()
+    lines.append(f"Kutubxonada muddati o'tgan berishlar: {overdue_all} ta.")
+    return "Tizimdagi haqiqiy ma'lumotlar (faqat shularga tayan):\n" + "\n".join(lines)
 
 
 class ChatbotThrottle(UserRateThrottle):
@@ -176,9 +233,13 @@ class ChatbotView(APIView):
 
         history = _clean_history(request.data.get("history"))
         kalit = None
+        page = request.data.get("page")
+        page = page[:100] if isinstance(page, str) else ""
+        context = build_context(request, message, page)
 
-        # Tarixsiz (yangi suhbat) bir xil savol — kvotani tejash uchun keshlanadi
-        if not history:
+        # Tarixsiz (yangi suhbat) bir xil savol — kvotani tejash uchun keshlanadi.
+        # Kontekst kutubxonaga xos, shuning uchun u bilan javob keshlanmaydi.
+        if not history and not context:
             kalit = "chatbot:" + hashlib.sha256(message.lower().encode()).hexdigest()
             if (kesh := cache.get(kalit)) is not None:
                 _chat_saqlash(request.user, message, kesh)
@@ -194,7 +255,7 @@ class ChatbotView(APIView):
             genai.configure(api_key=api_key)
             model = genai.GenerativeModel(
                 model_name=GEMINI_MODEL,
-                system_instruction=CHATBOT_SYSTEM_INSTRUCTION,
+                system_instruction=CHATBOT_SYSTEM_INSTRUCTION + ("\n\n" + context if context else ""),
             )
             chat = model.start_chat(history=history)
             response = chat.send_message(message)
@@ -219,26 +280,6 @@ class ChatbotView(APIView):
 
         _chat_saqlash(request.user, message, text)
         return Response({"response": text, "history": updated_history})
-
-    def get(self, request):
-        """Foydalanuvchining oxirgi suhbati (eskidan yangiga)."""
-        from user.models import ChatXabar
-
-        oxirgilar = list(
-            ChatXabar.objects.filter(user=request.user).order_by("-id")[:MAX_SAQLANGAN]
-        )[::-1]
-        return Response(
-            [
-                {"role": x.rol, "content": x.matn, "sana": x.yaratilgan}
-                for x in oxirgilar
-            ]
-        )
-
-    def delete(self, request):
-        from user.models import ChatXabar
-
-        ChatXabar.objects.filter(user=request.user).delete()
-        return Response(status=204)
 
 
 class LibrarianCommandView(APIView):

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { finesApi } from '../api/resources'
@@ -10,6 +11,7 @@ import {
   Button,
   Card,
   ConfirmDialog,
+  Input,
   EmptyState,
   ErrorState,
   PageHeader,
@@ -21,18 +23,26 @@ import {
 import DataTable, { type DataTableColumn } from '../components/DataTable'
 import { useToast } from '../components/Toast'
 import { formatDate, formatMoney } from '../lib/format'
+import { usePageSize } from '../hooks/usePageSize'
 
 export function Fines() {
   const qc = useQueryClient()
   const toast = useToast()
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = usePageSize()
   const [tolandimi, setTolandimi] = useState('')
+  const [search, setSearch] = useState('')
+  const debouncedSearch = useDebouncedValue(search)
   const [tasdiqlanadigan, setTasdiqlanadigan] = useState<Jarima | null>(null)
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ['fines', page, tolandimi],
+    queryKey: ['fines', page, pageSize, tolandimi, debouncedSearch],
     queryFn: () =>
-      finesApi.list({ page, tolandimi: tolandimi === '' ? undefined : tolandimi === 'true' }),
+      finesApi.list({
+        page, page_size: pageSize,
+        tolandimi: tolandimi === '' ? undefined : tolandimi === 'true',
+        search: debouncedSearch || undefined,
+      }),
   })
 
   const payMut = useMutation({
@@ -45,14 +55,23 @@ export function Fines() {
     onError: (err) => toast.error(errorMessage(err)),
   })
 
-  const filtrBor = tolandimi !== ''
+  const filtrBor = tolandimi !== '' || debouncedSearch !== ''
 
   return (
     <div>
       <PageHeader title="Jarimalar" subtitle="Kechiktirib qaytarilgan kitoblar uchun jarimalar" />
 
       <Card className="mb-4 p-3 sm:p-4">
-        <div className="sm:w-64">
+        <div className="grid gap-3 sm:grid-cols-[1fr_16rem]">
+          <Input
+            placeholder="O'quvchi yoki kitob nomi bo'yicha qidirish..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setPage(1)
+            }}
+            aria-label="Qidirish"
+          />
           <Select
             value={tolandimi}
             onChange={(e) => {
@@ -151,7 +170,11 @@ export function Fines() {
             pagination={{
               count: data.count,
               page: page - 1,
-              rowsPerPage: 20,
+              rowsPerPage: pageSize,
+              onRowsPerPageChange: (n) => {
+                setPageSize(n)
+                setPage(1)
+              },
               onPageChange: (p) => setPage(p + 1),
             }}
             columns={
@@ -207,7 +230,7 @@ export function Fines() {
       {/* Mobilda jadvaldagi MUI pagination ko'rinmaydi */}
       {data && (
         <div className="md:hidden">
-          <Pagination count={data.count} page={page} onChange={setPage} />
+          <Pagination count={data.count} page={page} pageSize={pageSize} onChange={setPage} />
         </div>
       )}
 

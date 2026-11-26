@@ -19,6 +19,7 @@ import {
   ResponsiveList,
   Select,
   TableSkeleton,
+  PhoneInput,
 } from '../components/ui'
 import { useToast } from '../components/Toast'
 import DataTable, { type DataTableColumn } from '../components/DataTable'
@@ -83,7 +84,7 @@ export function Staff() {
         title="Xodimlar"
         subtitle="Kutubxonachi va administrator hisoblari"
         actions={
-          <Button onClick={openCreate} className="w-full sm:w-auto">
+          <Button onClick={openCreate}>
             + Yangi xodim
           </Button>
         }
@@ -127,18 +128,20 @@ export function Staff() {
               <div className="text-sm text-slate-600 dark:text-slate-300">@{u.username}</div>
               <div className="flex flex-wrap gap-1.5">
                 <Badge tone={u.rol === 'administrator' ? 'blue' : 'slate'}>
-                  {u.rol === 'administrator' ? 'Administrator' : 'Kutubxonachi'}
+                  {u.joriy_rol === 'egasi' ? 'Egasi' : u.rol === 'administrator' ? 'Administrator' : 'Kutubxonachi'}
                 </Badge>
                 {u.telefon && <span className="text-xs text-slate-500 dark:text-slate-400">{u.telefon}</span>}
               </div>
-              <Button
-                size="sm"
-                variant="secondary"
-                className="w-full"
-                onClick={() => setHolatiOzgartiriladigan(u)}
-              >
-                {u.is_active ? 'Bloklash' : 'Faollashtirish'}
-              </Button>
+              {u.joriy_rol !== 'egasi' && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="w-full"
+                  onClick={() => setHolatiOzgartiriladigan(u)}
+                >
+                  {u.is_active ? 'Bloklash' : 'Faollashtirish'}
+                </Button>
+              )}
             </div>
           )}
         >
@@ -163,7 +166,7 @@ export function Staff() {
                   sortBy: (u) => u.rol,
                   render: (u) => (
                     <Badge tone={u.rol === 'administrator' ? 'blue' : 'slate'}>
-                      {u.rol === 'administrator' ? 'Administrator' : 'Kutubxonachi'}
+                      {u.joriy_rol === 'egasi' ? 'Egasi' : u.rol === 'administrator' ? 'Administrator' : 'Kutubxonachi'}
                     </Badge>
                   ),
                 },
@@ -188,16 +191,18 @@ export function Staff() {
                   label: '',
                   sortable: false,
                   align: 'right',
-                  render: (u) => (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => setHolatiOzgartiriladigan(u)}
-                      disabled={toggleActiveMut.isPending}
-                    >
-                      {u.is_active ? 'Bloklash' : 'Faollashtirish'}
-                    </Button>
-                  ),
+                  // The server refuses to block a library owner.
+                  render: (u) =>
+                    u.joriy_rol === 'egasi' ? null : (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setHolatiOzgartiriladigan(u)}
+                        disabled={toggleActiveMut.isPending}
+                      >
+                        {u.is_active ? 'Bloklash' : 'Faollashtirish'}
+                      </Button>
+                    ),
                 },
               ] as DataTableColumn<User>[]
             }
@@ -254,11 +259,10 @@ export function Staff() {
           </Field>
           <Field>
             <Label htmlFor="x-telefon">Telefon</Label>
-            <Input
+            <PhoneInput
               id="x-telefon"
-              placeholder="+998 ..."
               value={form.telefon}
-              onChange={(e) => setForm({ ...form, telefon: e.target.value })}
+              onValueChange={(v) => setForm({ ...form, telefon: v })}
             />
           </Field>
           <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

@@ -32,7 +32,7 @@ class ButunLoyihaSmokeTest(TestCase):
                 "kutubxona_nomi": "Smoke test kutubxonasi",
                 "turi": "library",
                 "full_name": "Smoke Administrator",
-                "username": "smoke_admin",
+                "telefon": "+998901234567",
                 "password": "SmokeParol123!",
                 "password_confirm": "SmokeParol123!",
             },
@@ -74,7 +74,7 @@ class ButunLoyihaSmokeTest(TestCase):
         login = self.api(
             "post",
             "/api/auth/token/",
-            {"username": "smoke_admin", "password": "SmokeParol123!"},
+            {"username": "+998901234567", "password": "SmokeParol123!"},
         )
         self.assertIn("access", login)
         self.api(

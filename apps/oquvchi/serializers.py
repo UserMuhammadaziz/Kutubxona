@@ -3,16 +3,15 @@ from datetime import date
 
 from rest_framework import serializers
 
-from organization.models import Organization
+from organization.models import Membership, Organization
 from organization.tenancy import (
     joriy_kutubxonani_aniqla,
-    legacy_rejimmi,
     organization_from_value,
     scope,
 )
 
 from .constants import FAN_LIMIT, FANLAR, FISH_RE, SINF_RE
-from .models import Ariza, Oquvchi
+from .models import Ariza, Fan, Oquvchi
 from .services import oquvchi_yarat
 from .utils import sinf_normal
 
@@ -20,6 +19,18 @@ from .utils import sinf_normal
 # qarab qo'lda yoziladi, chunki serializer import paytida model sinflariga
 # murojaat qilmasligimiz kerak).
 ROL_CHOICES = [("oquvchi", "Oquvchi"), ("oqituvchi", "O'qituvchi")]
+
+
+class FanSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Fan
+        fields = ["id", "nomi"]
+
+
+def only_active_library():
+    """The single active library, or None when there are none or several."""
+    active = list(Organization.objects.filter(status=Organization.HOLAT_ACTIVE)[:2])
+    return active[0] if len(active) == 1 else None
 
 
 def ariza_kutubxonasi(request):
@@ -49,7 +60,12 @@ def ariza_kutubxonasi(request):
     # ishonib, boshqa kutubxonaga yozishga yo'l qo'ymaymiz.
     foydalanuvchi = getattr(request, "user", None)
     if getattr(foydalanuvchi, "is_authenticated", False):
-        return None
+        # An account (such as a bot's) may belong to no library at all. It may
+        # use the only active one; anyone with a membership (even a disabled or
+        # inactive one) is never moved to another library.
+        if Membership.objects.filter(user=foydalanuvchi).exists():
+            return None
+        return only_active_library()
 
     sozlamalar = getattr(request, "query_params", None)
     if sozlamalar is None:
@@ -61,16 +77,13 @@ def ariza_kutubxonasi(request):
     if org is not None:
         return org
 
-    if legacy_rejimmi():
-        return None
-    faollar = Organization.objects.filter(status=Organization.HOLAT_ACTIVE)
-    if faollar.count() == 1:
-        return faollar.first()
-    return None
+    return only_active_library()
 
 
 class OquvchiSerializer(serializers.ModelSerializer):
     """O'quvchilar ro'yxati / kartochkasi uchun asosiy serializer."""
+
+    fanlar = FanSerializer(many=True, read_only=True)
 
     class Meta:
         model = Oquvchi
@@ -83,6 +96,7 @@ class OquvchiSerializer(serializers.ModelSerializer):
             "karta_raqami",
             "sinf",
             "kasb",
+            "fanlar",
             "tugilgan_sana",
             "manzil",
             "royxat_sanasi",
@@ -182,6 +196,8 @@ class OquvchiBindSerializer(serializers.Serializer):
 class ArizaSerializer(serializers.ModelSerializer):
     """Arizalar ro'yxati / tasdiqlash uchun (kutubxonachi)."""
 
+    fanlar = FanSerializer(many=True, read_only=True)
+
     class Meta:
         model = Ariza
         fields = [
@@ -192,6 +208,7 @@ class ArizaSerializer(serializers.ModelSerializer):
             "rol",
             "sinf",
             "kasb",
+            "fanlar",
             "tugilgan_sana",
             "manzil",
             "holati",
@@ -292,6 +309,14 @@ class ArizaYaratishSerializer(serializers.ModelSerializer):
                 + ", ".join(notogri)
             )
         return ", ".join(fanlar)
+
+    def create(self, validated_data):
+        ariza = super().create(validated_data)
+        # `kasb` is the source of truth; mirror it to the `fanlar` relation for known subjects.
+        names = [name for name in (ariza.kasb or "").split(", ") if name]
+        if names:
+            ariza.fanlar.set(Fan.objects.filter(nomi__in=names))
+        return ariza
 
     def validate(self, attrs):
         rol = attrs.get("rol") or "oquvchi"

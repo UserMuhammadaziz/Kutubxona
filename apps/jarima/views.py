@@ -1,5 +1,5 @@
 from django.utils.timezone import now
-from rest_framework import viewsets, status
+from rest_framework import mixins, viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -12,16 +12,21 @@ from .models import Jarima
 from .serializers import JarimaSerializer, JarimaTolashSerializer, JarimaMeniSerializer
 
 
-class JarimaViewSet(viewsets.ModelViewSet):
+class JarimaViewSet(
+    mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
+):
     """
     GET  /api/fines/          -> ro'yxat (filter: tolandimi, oquvchi)
     GET  /api/fines/my/       -> o'quvchining to'lanmagan jarimalari va umumiy qarzi
     POST /api/fines/{id}/pay/ -> jarimani to'langan deb belgilash
+
+    Fines are created only by `jarima.services`, never through the API.
     """
 
     queryset = Jarima.objects.select_related("berish__oquvchi", "berish__kitob").order_by("-id")
     serializer_class = JarimaSerializer
     filterset_fields = ["tolandimi", "berish__oquvchi"]
+    search_fields = ["berish__oquvchi__fish", "berish__kitob__nomi"]
     http_method_names = ["get", "post"]
 
     def get_permissions(self):

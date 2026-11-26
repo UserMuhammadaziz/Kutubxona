@@ -51,7 +51,7 @@ class OquvchilarniOchirishTest(TenantTestMixin, TestCase):
 
         self.assertEqual(javob.status_code, 200)
         self.assertEqual(
-            javob.json(), {"ochirildi": 2, "ochirilmadi": []}
+            javob.json(), {"status": True, "ochirildi": 2, "ochirilmadi": []}
         )
         self.assertFalse(Oquvchi.objects.filter(pk__in=[ali.pk, vali.pk]).exists())
         self.assertTrue(Oquvchi.objects.filter(pk=qolgan.pk).exists())
@@ -82,7 +82,7 @@ class OquvchilarniOchirishTest(TenantTestMixin, TestCase):
         javob = self.client.post(URL, {"ids": [ali.pk]}, format="json")
 
         self.assertEqual(javob.status_code, 200)
-        self.assertEqual(javob.json(), {"ochirildi": 1, "ochirilmadi": []})
+        self.assertEqual(javob.json(), {"status": True, "ochirildi": 1, "ochirilmadi": []})
         self.assertFalse(Oquvchi.objects.filter(pk=ali.pk).exists())
         self.assertFalse(BandQilish.objects.filter(oquvchi_id=ali.pk).exists())
         self.assertFalse(Berish.objects.filter(oquvchi_id=ali.pk).exists())
@@ -189,7 +189,7 @@ class OquvchilarniOchirishTest(TenantTestMixin, TestCase):
             sinf="9-B",
         )
         javob = self.client.post(URL, {"ids": [begona.pk]}, format="json")
-        self.assertEqual(javob.json(), {"ochirildi": 0, "ochirilmadi": []})
+        self.assertEqual(javob.json(), {"status": True, "ochirildi": 0, "ochirilmadi": []})
         self.assertTrue(Oquvchi.objects.filter(pk=begona.pk).exists())
 
     def test_bosh_kutubxonachi_rad_etiladi(self):

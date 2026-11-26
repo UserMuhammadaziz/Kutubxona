@@ -82,6 +82,46 @@ def _birinchi_qiymat(qiymat):
     return str(qiymat)
 
 
+# DRF/Django default (English) messages and field names shown to the user in Uzbek.
+# Keys of existing fields stay recognisable (tests and clients match on them).
+_MAYDON_NOMI = {
+    "kutubxona_nomi": "kutubxona nomi",
+    "full_name": "to'liq ism",
+    "password": "parol",
+    "password_confirm": "parolni tasdiqlash",
+    "username": "login",
+}
+_XABAR = {
+    "This field is required.": "Majburiy maydon.",
+    "This field may not be blank.": "Bo'sh bo'lishi mumkin emas.",
+    "This field may not be null.": "Bo'sh bo'lishi mumkin emas.",
+    "Enter a valid email address.": "Email manzili noto'g'ri.",
+    "Not a valid string.": "Noto'g'ri qiymat.",
+    "A valid integer is required.": "Butun son kiriting.",
+    "A valid number is required.": "Son kiriting.",
+    "Invalid password.": "Parol noto'g'ri.",
+}
+
+
+_DETAIL_XABAR = {
+    "Authentication credentials were not provided.": "Tizimga kirmagansiz. Qaytadan kiring",
+    "Given token not valid for any token type": "Sessiya muddati tugagan. Qaytadan kiring",
+    "Token is invalid or expired": "Sessiya muddati tugagan. Qaytadan kiring",
+    "You do not have permission to perform this action.": "Bu amal uchun ruxsatingiz yo'q",
+    "Not found.": "Topilmadi",
+    "Method \"GET\" not allowed.": "Bu so'rov turi qo'llab-quvvatlanmaydi",
+}
+
+
+def _uzbekcha(maydon, xabar):
+    xabar = str(xabar)
+    if xabar.startswith("Ensure this field has no more than"):
+        xabar = "Qiymat juda uzun."
+    elif xabar.startswith("Ensure this field has at least"):
+        xabar = "Qiymat juda qisqa."
+    return _MAYDON_NOMI.get(maydon, maydon), _XABAR.get(xabar, xabar)
+
+
 def xato_handler(exc, context):
     response = drf_exception_handler(exc, context)
     if response is None:
@@ -105,7 +145,7 @@ def xato_handler(exc, context):
         if ichkisi:
             response.data = ichkisi
             return response
-        response.data = {"error": "xato", "detail": str(data["detail"])}
+        response.data = {"error": "xato", "detail": _DETAIL_XABAR.get(str(data["detail"]), str(data["detail"]))}
         return response
 
     if isinstance(data, dict):
@@ -120,7 +160,8 @@ def xato_handler(exc, context):
         xabar = data[birinchi_maydon]
         if isinstance(xabar, list):
             xabar = xabar[0] if xabar else "Noto'g'ri so'rov"
-        response.data = {"error": "validatsiya_xatosi", "detail": f"{birinchi_maydon}: {xabar}"}
+        nom, xabar = _uzbekcha(birinchi_maydon, xabar)
+        response.data = {"error": "validatsiya_xatosi", "detail": f"{nom}: {xabar}"}
         return response
 
     if isinstance(data, list) and data:

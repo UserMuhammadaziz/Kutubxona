@@ -1,4 +1,6 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
+import { recordFailedRequest } from '../lib/diagnostics'
+import { isRequestRefused, lockSignal } from '../lib/requestLock'
 import { avtomatikXatolikniYubor } from '../lib/xatolikXabari'
 
 const ACCESS_KEY = 'kutubxona_access'
@@ -91,6 +93,25 @@ function notifyTenantRequired(): void {
   tenantRequiredListeners.forEach((listener) => listener())
 }
 
+type OrganizationBlockedListener = (status: string, organizationId: number | null) => void
+const organizationBlockedListeners = new Set<OrganizationBlockedListener>()
+
+/** Fires on 403 {"error": "organization_<status>"}: the library was frozen, archived, etc. */
+export function onOrganizationBlocked(listener: OrganizationBlockedListener): () => void {
+  organizationBlockedListeners.add(listener)
+  return () => {
+    organizationBlockedListeners.delete(listener)
+  }
+}
+
+const BLOCKED_CODE = /^organization_(pending|suspended|rejected|archived|none)$/
+
+function blockedStatus(error: AxiosError): string | null {
+  if (error.response?.status !== 403) return null
+  const code = (error.response.data as { error?: unknown } | undefined)?.error
+  return typeof code === 'string' ? (BLOCKED_CODE.exec(code)?.[1] ?? null) : null
+}
+
 function hasOrganizationError(data: unknown): boolean {
   return !!data && typeof data === 'object' && 'organization' in data
 }
@@ -100,6 +121,11 @@ export const api = axios.create({
 })
 
 api.interceptors.request.use((config) => {
+  const path = config.url ?? ''
+  if (isRequestRefused(path)) {
+    throw new axios.CanceledError('Kutubxona hozir faol emas.', undefined, config)
+  }
+  if ((config.method ?? 'get').toLowerCase() === 'get') config.signal ??= lockSignal(path)
   const token = tokenStore.getAccess()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
@@ -143,6 +169,9 @@ function redirectToLogin(): void {
 api.interceptors.response.use(
   (res) => res,
   async (error: AxiosError) => {
+    // Never sent, or stopped because the library was blocked.
+    if (axios.isCancel(error)) return Promise.reject(error)
+
     const original = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined
 
     if (error.response?.status === 401 && original && !original._retry && tokenStore.getRefresh()) {
@@ -163,6 +192,25 @@ api.interceptors.response.use(
         redirectToLogin()
         return Promise.reject(error)
       }
+    }
+
+    // The status screen takes over, so this is not a failure worth reporting.
+    const blocked = blockedStatus(error)
+    if (blocked) {
+      const header = Number(original?.headers?.['X-Organization-Id'])
+      const organizationId = Number.isInteger(header) && header > 0 ? header : null
+      organizationBlockedListeners.forEach((listener) => listener(blocked, organizationId))
+      return Promise.reject(error)
+    }
+
+    // Feed diagnostics for problem reports (skip 401: handled by refresh above).
+    if (original && error.response?.status !== 401) {
+      recordFailedRequest({
+        method: (original.method ?? 'get').toUpperCase(),
+        url: `${original.baseURL ?? ''}${original.url ?? ''}`,
+        status: error.response?.status ?? null,
+        detail: errorMessage(error).slice(0, 300),
+      })
     }
 
     // Kutubxona tanlanmagan: backend 400 {"organization": "..."} qaytaradi.

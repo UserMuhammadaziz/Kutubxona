@@ -299,9 +299,9 @@ class ArizaTasdiqlashTest(ArizaTestMixin, TestCase):
         oquvchi = Oquvchi.objects.get(telefon="+998901234567")
         self.assertEqual(oquvchi.organization_id, self.org.pk)
 
-        # Arizaorganizatsiyasi o'zgarmaydi — xabar global tokendan ketadi.
+        # The application is linked too; delivery falls back to the global bot.
         self.ariza.refresh_from_db()
-        self.assertIsNone(self.ariza.organization_id)
+        self.assertEqual(self.ariza.organization_id, self.org.pk)
 
         # O'quvchi kutubxonachining ro'yxatida ko'rinadi.
         royxat = self.client.get("/api/readers/")
@@ -466,6 +466,11 @@ class OqituvchiArizaTest(ArizaTestMixin, TestCase):
         ma_lumot.update(qoshimcha)
         return APIClient().post(self.url(), ma_lumot, format="json")
 
+    def _fan(self, nomi):
+        from oquvchi.models import Fan
+
+        return Fan.objects.get_or_create(nomi=nomi)[0]
+
     def test_kasb_bilan_ariza_qabul_qilinadi(self):
         javob = self.yubor(kasb="Matematika")
         self.assertEqual(javob.status_code, 201, javob.data)
@@ -475,6 +480,14 @@ class OqituvchiArizaTest(ArizaTestMixin, TestCase):
         self.assertEqual(ariza.kasb, "Matematika")
         self.assertIsNone(ariza.sinf)
         self.assertEqual(ariza.holati, "kutmoqda")
+
+    def test_kasb_fanlar_boglanishiga_kochiriladi(self):
+        self._fan("Matematika"), self._fan("Ona tili")
+        javob = self.yubor(kasb="Matematika, Ona tili")
+        self.assertEqual(javob.status_code, 201, javob.data)
+
+        ariza = Ariza.objects.get()
+        self.assertEqual(set(ariza.fanlar.values_list("nomi", flat=True)), {"Matematika", "Ona tili"})
 
     def test_kasb_majburiy(self):
         javob = self.yubor()
@@ -494,6 +507,21 @@ class OqituvchiArizaTest(ArizaTestMixin, TestCase):
         javob = self.yubor(kasb="x" * 61)
         self.assertEqual(javob.status_code, 400)
         self.assertIn("kasb", javob.data["detail"])
+
+    def test_tasdiqlashda_fanlar_oqituvchiga_koshadi(self):
+        from oquvchi import services
+
+        self._fan("Matematika")
+        self.assertEqual(self.yubor(kasb="Matematika").status_code, 201)
+        _, oquvchi, _ = services.arizani_tasdiqla(Ariza.objects.get())
+        self.assertEqual(list(oquvchi.fanlar.values_list("nomi", flat=True)), ["Matematika"])
+        self.assertEqual(oquvchi.kasb, "Matematika")
+
+    def test_fanlar_royxati_endpointi(self):
+        self._fan("Fizika")
+        javob = self.client.get("/api/subjects/")
+        self.assertEqual(javob.status_code, 200)
+        self.assertIn("Fizika", [f["nomi"] for f in javob.data])
 
     def test_tasdiqlashda_karta_ochiladi_va_kasb_xabarida_korishi(self):
         ariza = Ariza.objects.create(
@@ -721,6 +749,95 @@ class OquvchiRolTest(ArizaTestMixin, TestCase):
         )
         self.assertEqual(javob.status_code, 201, javob.data)
         self.assertEqual(javob.data["rol"], "oquvchi")
+
+
+class ReaderProfileTests(ArizaTestMixin, TestCase):
+    """Reader profile: stats + history in retrieve, and the message action."""
+
+    def setUp(self):
+        super().setUp()
+        self.reader = Oquvchi.objects.create(fish="Ali Valiyev", telefon="+998901112233")
+
+    def test_profile_has_stats_and_history(self):
+        res = self.client.get(f"/api/readers/{self.reader.id}/")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.data["stats"]["total_loans"], 0)
+        self.assertEqual(res.data["history"], [])
+
+    @patch("oquvchi.views.organizatsiya_xabari", return_value=True)
+    def test_message_sent(self, send):
+        self.reader.telegram_id = 555
+        self.reader.save()
+        res = self.client.post(f"/api/readers/{self.reader.id}/message/", {"text": "Salom"}, format="json")
+        self.assertEqual(res.status_code, 200)
+        send.assert_called_once()
+
+    def test_message_without_telegram_rejected(self):
+        res = self.client.post(f"/api/readers/{self.reader.id}/message/", {"text": "Salom"}, format="json")
+        self.assertEqual(res.status_code, 400)
+
+
+class ReaderFilterTests(ArizaTestMixin, TestCase):
+    def test_has_telegram_filter(self):
+        Oquvchi.objects.create(fish="A", telefon="+998900000001", telegram_id=7, karta_raqami="K1")
+        Oquvchi.objects.create(fish="B", telefon="+998900000002", karta_raqami="K2")
+        res = self.client.get("/api/readers/?has_telegram=true")
+        self.assertEqual([r["fish"] for r in res.data["results"]], ["A"])
+        res = self.client.get("/api/readers/?has_telegram=false&has_debt=false")
+        self.assertEqual([r["fish"] for r in res.data["results"]], ["B"])
+
+    def test_loan_filters_accepted(self):
+        res = self.client.get("/api/loans/?overdue=true&issued_from=2026-01-01&q=x&grade=5")
+        self.assertEqual(res.status_code, 200)
+
+
+class ReaderTenantIsolationTests(TestCase):
+    """Readers list/create must be scoped to the caller's organization."""
+
+    def setUp(self):
+        from organization.models import Membership, Organization
+
+        self.org_a = Organization.objects.create(
+            nomi="A", slug="org-a", status=Organization.HOLAT_ACTIVE
+        )
+        self.org_b = Organization.objects.create(
+            nomi="B", slug="org-b", status=Organization.HOLAT_ACTIVE
+        )
+        self.user = User.objects.create_user(username="lib_a", password="x")
+        Membership.objects.create(
+            user=self.user, organization=self.org_a, rol="kutubxonachi"
+        )
+        self.own = Oquvchi.objects.create(
+            organization=self.org_a, fish="Own", telefon="+998900000001", karta_raqami="LIB-1"
+        )
+        self.foreign = Oquvchi.objects.create(
+            organization=self.org_b, fish="Foreign", telefon="+998900000002", karta_raqami="LIB-1"
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(self.user)
+
+    def test_list_hides_other_organization(self):
+        res = self.client.get("/api/readers/")
+        self.assertEqual(res.status_code, 200)
+        ids = [r["id"] for r in res.data["results"]]
+        self.assertEqual(ids, [self.own.id])
+
+    def test_create_sets_organization(self):
+        res = self.client.post(
+            "/api/readers/",
+            {"fish": "New Reader", "telefon": "+998900000003", "sinf": "5-A"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 201, res.data)
+        self.assertEqual(Oquvchi.objects.get(pk=res.data["id"]).organization, self.org_a)
+
+    def test_same_phone_allowed_in_other_organization(self):
+        res = self.client.post(
+            "/api/readers/",
+            {"fish": "Dup", "telefon": "+998900000002", "sinf": "5-A"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 201, res.data)
 
 
 class ArizaFormatTest(ArizaTestMixin, TestCase):
@@ -1006,52 +1123,3 @@ class ArizaFormatAuditTest(TestCase):
         self.assertTrue(yomon_ariza.qayta_ariza_kerak)
         self.assertFalse(yaxshi_azo.qayta_ariza_kerak)
         self.assertTrue(yomon_azo.qayta_ariza_kerak)
-
-
-class ReaderTenantIsolationTests(TestCase):
-    """Readers ro'yxati va yaratish faqat kutubxonachi tashkilotiga tegishli."""
-
-    def setUp(self):
-        from organization.models import Membership, Organization
-
-        self.org_a = Organization.objects.create(
-            nomi="A", slug="org-a", status=Organization.HOLAT_ACTIVE
-        )
-        self.org_b = Organization.objects.create(
-            nomi="B", slug="org-b", status=Organization.HOLAT_ACTIVE
-        )
-        self.user = User.objects.create_user(username="lib_a", password="x")
-        Membership.objects.create(
-            user=self.user, organization=self.org_a, rol="kutubxonachi"
-        )
-        self.own = Oquvchi.objects.create(
-            organization=self.org_a, fish="Own", telefon="+998900000001", karta_raqami="LIB-1"
-        )
-        self.foreign = Oquvchi.objects.create(
-            organization=self.org_b, fish="Foreign", telefon="+998900000002", karta_raqami="LIB-1"
-        )
-        self.client = APIClient()
-        self.client.force_authenticate(self.user)
-
-    def test_list_hides_other_organization(self):
-        res = self.client.get("/api/readers/")
-        self.assertEqual(res.status_code, 200)
-        ids = [r["id"] for r in res.data["results"]]
-        self.assertEqual(ids, [self.own.id])
-
-    def test_create_sets_organization(self):
-        res = self.client.post(
-            "/api/readers/",
-            {"fish": "New Reader", "telefon": "+998900000003", "sinf": "5-A"},
-            format="json",
-        )
-        self.assertEqual(res.status_code, 201, res.data)
-        self.assertEqual(Oquvchi.objects.get(pk=res.data["id"]).organization, self.org_a)
-
-    def test_same_phone_allowed_in_other_organization(self):
-        res = self.client.post(
-            "/api/readers/",
-            {"fish": "Dup", "telefon": "+998900000002", "sinf": "5-A"},
-            format="json",
-        )
-        self.assertEqual(res.status_code, 201, res.data)

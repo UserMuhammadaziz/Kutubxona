@@ -1,288 +1,277 @@
-import { useQuery } from '@tanstack/react-query'
+import type { CSSProperties, ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { statsApi } from '../api/resources'
-import { errorMessage } from '../api/client'
+import { Logo } from '../components/Logo'
 import { Icons } from '../components/icons'
-import { Badge, Card, EmptyState, ErrorState, PageHeader, Spinner } from '../components/ui'
-import { formatDate, formatMoney } from '../lib/format'
-import type { RecentActivity, TopBook } from '../types'
+import { useThemeStore } from '../store/theme'
 
-function StatCard({
-  label,
-  value,
-  tone,
-  sub,
+/*
+ * Landing (/welcome). Iliq bej fon, to'q yashil aksent, yumshoq burchaklar (16-24px),
+ * bitta shrift. Imkoniyatlar bir xil kartalarda emas, turli o'lchamdagi mozaikada.
+ * Skrinshotlar — dev serverdagi real ilovadan (namunaviy ma'lumotlar bilan).
+ */
+
+const FON = 'var(--l-bg)'
+const QUM = 'var(--l-sand)'
+const OQ = 'var(--l-card)'
+const YASHIL = 'var(--l-green)'
+const YASHIL_OCH = 'var(--l-accent)'
+const INK = 'var(--l-ink)'
+const SOYA = 'var(--l-muted)'
+const SHRIFT: CSSProperties = { fontFamily: "'IBM Plex Sans', system-ui, sans-serif" }
+
+const btn = 'inline-flex min-h-12 items-center rounded-full px-6 text-base font-semibold'
+
+function Tile({
+  className = '',
+  bg,
+  color = INK,
+  children,
 }: {
-  label: string
-  value: string | number
-  tone?: 'red' | 'amber' | 'green' | 'blue'
-  sub?: string
+  className?: string
+  bg: string
+  color?: string
+  children: ReactNode
 }) {
-  const rang =
-    tone === 'red'
-      ? 'text-red-600 dark:text-red-400'
-      : tone === 'amber'
-        ? 'text-amber-600 dark:text-amber-400'
-        : tone === 'green'
-          ? 'text-green-600 dark:text-green-400'
-          : tone === 'blue'
-            ? 'text-blue-600 dark:text-blue-400'
-            : 'text-slate-900 dark:text-slate-100'
-
   return (
-    <Card className="p-5">
-      <div className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</div>
-      <div className={`mt-2 text-3xl font-semibold ${rang}`}>{value}</div>
-      {sub && (
-        <div className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400" title={sub}>
-          {sub}
-        </div>
-      )}
-    </Card>
-  )
-}
-
-function medalTone(orin: number): 'amber' | 'blue' | 'slate' {
-  if (orin === 1) return 'amber'
-  if (orin === 2) return 'blue'
-  return 'slate'
-}
-
-function ActivityRow({ harakat }: { harakat: RecentActivity }) {
-  const Icon = harakat.turi === 'berish' ? Icons.bookOpen : Icons.checkCircle
-  const iconTone =
-    harakat.turi === 'berish'
-      ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400'
-      : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400'
-
-  return (
-    <div className="flex items-start gap-3 p-4">
-      <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${iconTone}`}>
-        <Icon className="h-5 w-5" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-semibold text-slate-900 dark:text-slate-100">{harakat.sarlavha}</span>
-          <Badge tone={harakat.turi === 'berish' ? 'blue' : 'green'}>
-            {harakat.turi === 'berish' ? 'Berish' : 'Qaytarish'}
-          </Badge>
-        </div>
-        <div className="truncate text-sm text-slate-600 dark:text-slate-300">{harakat.tavsif}</div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
-          <span className="inline-flex items-center gap-1">
-            <Icons.user className="h-3.5 w-3.5" /> {harakat.xodim}
-          </span>
-          <span>·</span>
-          <span className="inline-flex items-center gap-1">
-            <Icons.clock className="h-3.5 w-3.5" /> {formatDate(harakat.vaqt)}
-          </span>
-        </div>
-      </div>
+    <div className={'flex flex-col overflow-hidden rounded-[22px] p-6 ' + className} style={{ background: bg, color }}>
+      {children}
     </div>
   )
 }
 
-function TopBookRow({ kitob, orin }: { kitob: TopBook; orin: number }) {
+// Bump when the files in public/landing are retaken: nginx caches them for days.
+const SHOTS_VERSION = '2611'
+
+/** App screenshot that follows the theme and swaps to a phone capture on small screens. */
+function Screenshot({
+  name,
+  alt,
+  width,
+  height,
+  className,
+  lazy = false,
+}: {
+  name: 'panel' | 'loans'
+  alt: string
+  width: number
+  height: number
+  className: string
+  lazy?: boolean
+}) {
+  const theme = useThemeStore((t) => t.theme)
+  const suffix = `${theme === 'dark' ? 'dark' : 'light'}-${SHOTS_VERSION}.webp`
   return (
-    <div className="flex items-center gap-3 p-4">
-      <Badge tone={medalTone(orin)}>#{orin}</Badge>
-      <div className="min-w-0 flex-1">
-        <Link
-          to={`/books/${kitob.id}`}
-          className="block truncate font-semibold text-brand-700 hover:underline dark:text-brand-400"
-        >
-          {kitob.nomi}
-        </Link>
-        <div className="truncate text-sm text-slate-500 dark:text-slate-400">{kitob.muallif}</div>
-      </div>
-      <div className="shrink-0 text-right">
-        <div className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-          {kitob.berishlar_soni}
-        </div>
-        <div className="text-xs text-slate-500 dark:text-slate-400">marta o'qilgan</div>
-      </div>
-    </div>
+    <picture>
+      <source
+        media="(max-width: 639px)"
+        srcSet={`/landing/${name}-mobile-${suffix}`}
+        width={780}
+        height={1560}
+      />
+      <img
+        src={`/landing/${name}-${suffix}`}
+        alt={alt}
+        width={width}
+        height={height}
+        loading={lazy ? 'lazy' : undefined}
+        className={`block h-auto w-full ${className}`}
+      />
+    </picture>
   )
 }
 
 export function Home() {
-  const {
-    data,
-    isLoading,
-    isError,
-    error,
-    refetch,
-    isFetching,
-  } = useQuery({
-    queryKey: ['stats', 'dashboard'],
-    queryFn: statsApi.dashboard,
-  })
-
-  const activity = useQuery({
-    queryKey: ['stats', 'recent-activity'],
-    queryFn: () => statsApi.recentActivity(8),
-  })
-
-  const topBooks = useQuery({
-    queryKey: ['stats', 'top-books'],
-    queryFn: () => statsApi.topBooks(5),
-  })
-
-  const faollik = useQuery({
-    queryKey: ['stats', 'faollik-reytingi'],
-    queryFn: statsApi.faollikReytingi,
-  })
-
-  const engFaolSinf = faollik.data?.sinflar[0]
-  const engFaolOqituvchi = faollik.data?.faol_oqituvchilar[0]
-
+  const theme = useThemeStore((t) => t.theme)
+  const toggleTheme = useThemeStore((t) => t.toggle)
   return (
-    <div>
-      <PageHeader
-        title="Boshqaruv paneli"
-        subtitle="Kutubxonangizning joriy holati va asosiy ko‘rsatkichlari"
-      />
+    <div className="landing min-h-screen" style={{ ...SHRIFT, background: FON, color: INK }}>
+      <header className="mx-auto flex h-20 max-w-6xl items-center justify-between px-4">
+        <Logo />
+        <nav className="flex items-center gap-1 sm:gap-2">
+          <Link to="/yordam" className="hidden px-3 py-2 text-sm font-medium hover:underline md:block">
+            Qo‘llanma
+          </Link>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Yorug rejimga o‘tish' : 'Qorong‘i rejimga o‘tish'}
+            className="rounded-full p-2.5 hover:bg-black/10 dark:hover:bg-white/10"
+          >
+            {theme === 'dark' ? Icons.sun({ className: 'h-5 w-5' }) : Icons.moon({ className: 'h-5 w-5' })}
+          </button>
+          <Link
+            to="/login"
+            className="whitespace-nowrap rounded-full border px-4 py-2 text-sm font-semibold"
+            style={{ borderColor: 'var(--l-green-ink)', color: 'var(--l-green-ink)' }}
+          >
+            Tizimga kirish
+          </Link>
+          {/* Phones: the hero repeats this button right below, so the header keeps only login. */}
+          <Link
+            to="/register"
+            className="hidden whitespace-nowrap rounded-full px-5 py-2.5 text-sm font-semibold text-white sm:block"
+            style={{ background: YASHIL }}
+          >
+            Ro‘yxatdan o‘tish
+          </Link>
+        </nav>
+      </header>
 
-      <section className="mb-8 rounded-2xl bg-gradient-to-r from-brand-600 to-brand-800 p-8 text-white">
-        <h1 className="text-3xl font-bold sm:text-4xl">Kitoblarni boshqaring</h1>
-        <p className="mt-3 max-w-2xl text-sm text-white/80">
-          Kitoblar, a'zolar, berish va qaytarish jarayonlarini bitta joydan kuzatib boring.
-        </p>
-      </section>
-
-      <section className="mb-8">
-        <h2 className="mb-3 text-lg font-semibold text-slate-900 dark:text-slate-100">
-          Kutubxona statistikasi
-        </h2>
-
-        {isLoading && <Spinner label="Statistika yuklanmoqda..." />}
-
-        {isError && (
-          <ErrorState
-            title="Statistikani yuklab bo‘lmadi"
-            message={errorMessage(error)}
-            onRetry={() => void refetch()}
-            retrying={isFetching}
-          />
-        )}
-
-        {data && (
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <StatCard label="Jami kitoblar" value={data.jami_kitoblar} />
-            <StatCard label="Jami nusxalar" value={data.jami_nusxalar} />
-            <StatCard label="Mavjud nusxalar" value={data.mavjud_nusxalar} tone="green" />
-            <StatCard label="Berilgan nusxalar" value={data.berilgan_nusxalar} tone="amber" />
-            <StatCard
-              label="Muddati o'tgan berishlar"
-              value={data.muddati_otgan_berishlar}
-              tone="red"
-            />
-            <StatCard label="Faol navbatlar" value={data.faol_navbatlar} />
-            <StatCard
-              label="To'lanmagan jarimalar"
-              value={data.tolanmagan_jarimalar_soni}
-              tone="red"
-            />
-            <StatCard
-              label="Umumiy qarz"
-              value={formatMoney(data.umumiy_qarz)}
-              tone="amber"
-            />
-            {data.oquvchi_soni !== undefined && (
-              <StatCard label="O'quvchilar" value={data.oquvchi_soni} />
-            )}
-            {data.oqituvchi_soni !== undefined && (
-              <StatCard label="O'qituvchilar" value={data.oqituvchi_soni} />
-            )}
-            <StatCard
-              label="Faol sinflar"
-              value={faollik.data?.sinflar.length ?? 0}
-              tone="amber"
-              sub={engFaolSinf ? `Eng faoli: ${engFaolSinf.sinf}-sinf` : undefined}
-            />
-            <StatCard
-              label="Faol o'qituvchilar"
-              value={faollik.data?.faol_oqituvchilar.length ?? 0}
-              tone="blue"
-              sub={engFaolOqituvchi ? `Eng faoli: ${engFaolOqituvchi.fish}` : undefined}
-            />
+      <main>
+        {/* Hero */}
+        <section className="mx-auto max-w-6xl px-4 pt-10 sm:pt-16">
+          <h1 className="max-w-4xl text-4xl font-bold leading-[1.06] tracking-tight sm:text-6xl">
+            Kim qaysi kitobni olgani <span style={{ color: YASHIL_OCH }}>doim ko‘z oldingizda.</span>
+          </h1>
+          <p className="mt-6 max-w-2xl text-lg leading-relaxed sm:text-xl" style={{ color: SOYA }}>
+            Kitob berish, qaytarish, muddat va jarima hisobi bir joyda. Daftar va Excel kerak emas. Hammasi o‘zbek
+            tilida, kompyuter va telefonda ishlaydi.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link to="/register" className={btn + ' text-white'} style={{ background: YASHIL }}>
+              Ro‘yxatdan o‘tish
+            </Link>
           </div>
-        )}
-      </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section>
-          <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-slate-100">
-            <Icons.clock className="h-5 w-5 text-brand-600 dark:text-brand-400" />
-            So'ngi harakatlar
-          </h2>
-
-          {activity.isLoading && <Spinner label="Harakatlar yuklanmoqda..." />}
-
-          {activity.isError && (
-            <ErrorState
-              title="Harakatlarni yuklab bo‘lmadi"
-              message={errorMessage(activity.error)}
-              onRetry={() => void activity.refetch()}
-              retrying={activity.isFetching}
+          <figure className="mt-12 overflow-hidden rounded-[24px] p-2 sm:p-3" style={{ background: QUM }}>
+            <Screenshot
+              name="panel"
+              alt="Boshqaruv paneli: fond holati, muddati o‘tgan berishlar, jarimalar, so‘nggi harakatlar va muammo haqida xabar tugmasi"
+              width={2560}
+              height={1960}
+              className="rounded-[16px]"
             />
-          )}
-
-          {activity.data && (
-            <Card className="divide-y divide-slate-100 dark:divide-slate-700">
-              {activity.data.length ? (
-                activity.data.map((harakat) => (
-                  <ActivityRow key={harakat.id} harakat={harakat} />
-                ))
-              ) : (
-                <div className="p-4">
-                  <EmptyState
-                    icon={<Icons.inbox className="h-10 w-10" />}
-                    title="Hali harakat yo‘q"
-                    description="Kitob berilganda yoki qaytarilganda shu yerda ko‘rinadi."
-                  />
-                </div>
-              )}
-            </Card>
-          )}
+          </figure>
         </section>
 
-        <section>
-          <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-slate-100">
-            <Icons.books className="h-5 w-5 text-brand-600 dark:text-brand-400" />
-            Eng ko'p o'qilgan kitoblar
-          </h2>
-
-          {topBooks.isLoading && <Spinner label="Kitoblar yuklanmoqda..." />}
-
-          {topBooks.isError && (
-            <ErrorState
-              title="Kitoblarni yuklab bo‘lmadi"
-              message={errorMessage(topBooks.error)}
-              onRetry={() => void topBooks.refetch()}
-              retrying={topBooks.isFetching}
-            />
-          )}
-
-          {topBooks.data && (
-            <Card className="divide-y divide-slate-100 dark:divide-slate-700">
-              {topBooks.data.length ? (
-                topBooks.data.map((kitob, i) => (
-                  <TopBookRow key={kitob.id} kitob={kitob} orin={i + 1} />
-                ))
-              ) : (
-                <div className="p-4">
-                  <EmptyState
-                    icon={<Icons.inbox className="h-10 w-10" />}
-                    title="Hali ma'lumot yo‘q"
-                    description="Kitob berilgach, eng ko'p o'qilganlar shu yerda ko‘rinadi."
-                  />
-                </div>
-              )}
-            </Card>
-          )}
+        {/* Raqamlar */}
+        <section className="mx-auto mt-12 grid max-w-6xl gap-3 px-4 sm:grid-cols-3">
+          {[
+            ['2', 'muddati o‘tgan berish — panelda qizil raqam bilan ajralib turadi'],
+            ['28', 'nusxa — qaysi biri javonda, qaysi biri o‘quvchida ko‘rinadi'],
+            ['35 000 so‘m', 'to‘lanmagan jarima — kechikish bo‘yicha o‘zi hisoblanadi'],
+          ].map(([n, m]) => (
+            <div key={n} className="rounded-[22px] p-5" style={{ background: OQ }}>
+              <div className="text-2xl font-bold sm:text-3xl">{n}</div>
+              <p className="mt-1 text-sm leading-snug" style={{ color: SOYA }}>
+                {m}
+              </p>
+            </div>
+          ))}
         </section>
-      </div>
+
+        {/* Mozaika */}
+        <section className="mx-auto mt-24 max-w-6xl px-4">
+          <h2 className="text-3xl font-bold sm:text-4xl">Kundalik ish uchun nimalar bor</h2>
+
+          <div className="mt-8 grid gap-3 lg:grid-cols-6">
+            <Tile bg={OQ} className="lg:col-span-4 lg:row-span-2">
+              <h3 className="text-2xl font-bold sm:text-3xl">Berish va qaytarish</h3>
+              <p className="mt-2 max-w-md text-base leading-relaxed" style={{ color: SOYA }}>
+                O‘quvchini toping, kitobni tanlang, bering. Qaytganda qator oxiridagi tugmani bosasiz — nusxa
+                javonga qaytadi.
+              </p>
+              <Screenshot
+                name="loans"
+                alt="Berish va qaytarish jadvali: kitob, kitobxon, berilgan sana, muddat, Qaytarish tugmasi"
+                width={1958}
+                height={1364}
+                className="mt-5 rounded-[14px]"
+                lazy
+              />
+            </Tile>
+
+            <Tile bg={YASHIL} color="#fff" className="lg:col-span-2">
+              <h3 className="text-xl font-bold">AI yordamchi</h3>
+              <p className="mt-2 text-base leading-relaxed" style={{ color: '#cfe5da' }}>
+                Tizim haqida savol bersangiz, o‘zbekcha javob beradi. Ctrl+K bosib, oddiy gap bilan buyruq ham berishingiz mumkin.
+              </p>
+            </Tile>
+
+            <Tile bg={QUM} className="lg:col-span-2">
+              <h3 className="text-xl font-bold">Band va navbat</h3>
+              <p className="mt-2 text-base leading-relaxed" style={{ color: SOYA }}>
+                Kitob qo‘lda bo‘lsa, o‘quvchi navbatga turadi. Navbatdagilar sonini panelda ko‘rasiz.
+              </p>
+            </Tile>
+
+            <Tile bg={QUM} className="lg:col-span-2">
+              <h3 className="text-xl font-bold">Nusxalar</h3>
+              <p className="mt-2 text-base leading-relaxed" style={{ color: SOYA }}>
+                Har bir nusxaning inventar raqami bor. Qaysi biri javonda, qaysi biri qo‘lda — ro‘yxatda.
+              </p>
+            </Tile>
+
+            <Tile bg={OQ} className="lg:col-span-2">
+              <h3 className="text-xl font-bold">Jarimalar</h3>
+              <p className="mt-2 text-base leading-relaxed" style={{ color: SOYA }}>
+                Kechikish uchun jarima hisoblanadi. To‘langan va to‘lanmagan summa alohida turadi.
+              </p>
+            </Tile>
+
+            <Tile bg={OQ} className="lg:col-span-2">
+              <h3 className="text-xl font-bold">O‘quvchi va o‘qituvchilar</h3>
+              <p className="mt-2 text-base leading-relaxed" style={{ color: SOYA }}>
+                Ikkalasi alohida ro‘yxatda. O‘qituvchilar Telegram bot orqali ariza yuboradi, siz tasdiqlaysiz.
+              </p>
+            </Tile>
+
+            <Tile bg={QUM} className="lg:col-span-6">
+              <h3 className="text-xl font-bold">Kutubxonalar alohida</h3>
+              <p className="mt-2 text-base leading-relaxed" style={{ color: SOYA }}>
+                Har bir kutubxonaning ma’lumoti boshqalarnikidan ajratilgan. Maktab, universitet, mahalla
+                kutubxonasi yoki ofis kutubxonasi bo‘lishi mumkin.
+              </p>
+            </Tile>
+          </div>
+        </section>
+
+        {/* Boshlash */}
+        <section className="mx-auto mt-24 max-w-6xl px-4">
+          <h2 className="text-3xl font-bold sm:text-4xl">Boshlash</h2>
+          <ol className="mt-8 grid gap-3 md:grid-cols-3">
+            {[
+              ['Ro‘yxatdan o‘ting', 'Kutubxona nomi va turini kiriting.'],
+              ['Kitoblarni kiriting', 'Kitob va nusxalarni qo‘shing. O‘quvchilar Telegram bot orqali o‘zlari ariza yuboradi.'],
+              ['Kitob bera boshlang', 'Qo‘llanma tizim ichida. Savol bo‘lsa, AI yordamchidan so‘rang.'],
+            ].map(([n, m], i) => (
+              <li key={n} className="rounded-[22px] p-6" style={{ background: OQ }}>
+                <div className="text-sm font-semibold" style={{ color: YASHIL_OCH }}>
+                  {i + 1}-qadam
+                </div>
+                <div className="mt-1 text-lg font-semibold">{n}</div>
+                <p className="mt-2 text-base leading-relaxed" style={{ color: SOYA }}>
+                  {m}
+                </p>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        {/* CTA */}
+        <section className="mx-auto mt-24 max-w-6xl px-4">
+          <div
+            className="flex flex-wrap items-center justify-between gap-6 rounded-[28px] px-6 py-12 sm:px-12"
+            style={{ background: YASHIL, color: '#fff' }}
+          >
+            <h2 className="max-w-xl text-3xl font-bold leading-tight sm:text-4xl">
+              Kutubxonangizni bugun ro‘yxatdan o‘tkazing
+            </h2>
+            <div className="flex flex-wrap gap-3">
+              <Link to="/register" className={btn} style={{ background: '#fff', color: '#0f3d2e' }}>
+                Ro‘yxatdan o‘tish
+              </Link>
+              <Link to="/yordam" className={btn} style={{ border: '1px solid #ffffff80' }}>
+                Qo‘llanma
+              </Link>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer className="py-8 text-center text-sm" style={{ color: SOYA }}>
+        © {new Date().getFullYear()} Kutubxona
+      </footer>
     </div>
   )
 }

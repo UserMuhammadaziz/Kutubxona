@@ -10,6 +10,8 @@
  * qilinadi — aks holda xatolik xabari yuborilishi yana yangi xato keltirib,
  * cheksiz takrorlanish (loop) yuz berishi mumkin.
  */
+import { isRequestLocked } from './requestLock'
+
 const AUTO_KEY = 'kutubxona_xato_avtomatik'
 const ACCESS_KEY = 'kutubxona_access'
 const ENDPOINT = '/api/auth/xatolik-xabari/'
@@ -60,7 +62,7 @@ export function xatoMatni(xato: unknown): string {
 }
 
 export function avtomatikXatolikniYubor(xato: unknown): void {
-  if (!avtomatikYoqilgan()) return
+  if (!avtomatikYoqilgan() || isRequestLocked()) return
   const matn = xatoMatni(xato).slice(0, 2000)
   if (!matn) return
   // Bir xil xato qayta-qayta yuborilmasligi uchun 1 daqiqa ichida takrorlamaymiz.
