@@ -97,7 +97,8 @@ export interface TelegramBotInfo {
   telegram_bot_id: number
   holati: string
   webhook_ornatilgan: boolean
-  webhook_url: string
+  webhook_url: string | null
+  polling?: boolean
   oxirgi_tekshiruv: string | null
   oxirgi_xato: string
   yaratilgan: string

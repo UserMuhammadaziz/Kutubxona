@@ -488,11 +488,15 @@ function BotSection() {
                 <dd className="font-medium text-slate-900 dark:text-slate-100">@{bot.username}</dd>
               </div>
               <div>
-                <dt className="text-slate-500 dark:text-slate-400">Webhook</dt>
+                <dt className="text-slate-500 dark:text-slate-400">{bot.polling ? 'Ulanish turi' : 'Webhook'}</dt>
                 <dd>
-                  <Badge tone={bot.webhook_ornatilgan ? 'green' : 'amber'}>
-                    {bot.webhook_ornatilgan ? 'O‘rnatilgan' : 'O‘rnatilmagan'}
-                  </Badge>
+                  {bot.polling ? (
+                    <Badge tone="green">Server boti</Badge>
+                  ) : (
+                    <Badge tone={bot.webhook_ornatilgan ? 'green' : 'amber'}>
+                      {bot.webhook_ornatilgan ? 'O‘rnatilgan' : 'O‘rnatilmagan'}
+                    </Badge>
+                  )}
                 </dd>
               </div>
               <div>

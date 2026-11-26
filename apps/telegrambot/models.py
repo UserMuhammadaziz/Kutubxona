@@ -29,6 +29,10 @@ class TelegramBot(models.Model):
     webhook_secret = models.CharField(max_length=80)
     holati = models.CharField(max_length=20, choices=HOLAT_CHOICES, default="ulanmoqda")
     webhook_ornatilgan = models.BooleanField(default=False)
+    # The server's long-polling bot (`kutubxona-bot` service, TELEGRAM_BOT_TOKEN).
+    # Its token is used for sending, but a webhook must never be set on it:
+    # Telegram would then stop delivering updates to the polling process.
+    polling = models.BooleanField(default=False)
     oxirgi_tekshiruv = models.DateTimeField(null=True, blank=True)
     oxirgi_xato = models.CharField(max_length=255, blank=True)
     yaratilgan = models.DateTimeField(auto_now_add=True)
