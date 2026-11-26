@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
+from user.login import resolve_username
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 
@@ -16,6 +17,14 @@ class ThrottledTokenView(TokenObtainPairView):
     """Parol terishdan himoya: IP bo'yicha daqiqasiga 10 urinish (Redis'da umumiy)."""
 
     throttle_classes = [LoginThrottle]
+
+    def get_serializer(self, *args, **kwargs):
+        # Accept a username, a long numeric login or a phone in any format.
+        if "data" in kwargs:
+            data = kwargs["data"].copy()
+            data["username"] = resolve_username(data.get("username"))
+            kwargs["data"] = data
+        return super().get_serializer(*args, **kwargs)
 
     def post(self, request, *args, **kwargs):
         try:
@@ -29,7 +38,7 @@ class ThrottledTokenView(TokenObtainPairView):
     def _specific_error(username, password):
         if not username or not password:
             return "login_yoki_parol_bosh", "Login va parolni kiriting"
-        user = get_user_model().objects.filter(username=str(username)).first()
+        user = get_user_model().objects.filter(username=resolve_username(username)).first()
         if user is None:
             return "login_topilmadi", f"«{username}» logini bilan foydalanuvchi topilmadi"
         if not user.is_active:

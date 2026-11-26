@@ -35,6 +35,39 @@ def service_worker(request):
 
 
 # --- Sozlamalar va Promptlar ---
+DIST_DIR = SW_FILE.parent
+
+# Files from `frontend/public` are copied to the root of `dist` and requested
+# from the site root (`/logo.png`, `/landing/x.webp`, `/manifest.json`).
+# Without this view the SPA catch-all answered them with index.html.
+PUBLIC_FILE_TYPES = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".svg": "image/svg+xml",
+    ".ico": "image/x-icon",
+    ".json": "application/json",
+    ".webmanifest": "application/manifest+json",
+    ".txt": "text/plain; charset=utf-8",
+    ".xml": "application/xml",
+}
+
+
+def public_file(request, path):
+    """Serve a file from the root of the frontend build, never index.html."""
+    target = (DIST_DIR / path).resolve()
+    if DIST_DIR.resolve() not in target.parents or not target.is_file():
+        raise Http404("Fayl topilmadi")
+    content_type = PUBLIC_FILE_TYPES.get(target.suffix.lower())
+    if content_type is None:
+        raise Http404("Fayl topilmadi")
+    response = FileResponse(open(target, "rb"), content_type=content_type)
+    # manifest.json changes with deploys; images are versioned by name.
+    response["Cache-Control"] = "no-cache" if target.suffix == ".json" else "public, max-age=86400"
+    return response
+
+
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
 
 CHATBOT_SYSTEM_INSTRUCTION = (

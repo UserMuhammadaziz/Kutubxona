@@ -1,4 +1,3 @@
-import { loginIdentifier } from '../lib/phone'
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { BookOpen, Eye, EyeOff, Loader2, Lock, User, Users, Clock, BarChart3 } from 'lucide-react'
@@ -42,7 +41,7 @@ export function Login() {
     setError(null)
     setLoading(true)
     try {
-      await login(loginIdentifier(username), password)
+      await login(username.trim(), password)
       navigate(from, { replace: true })
     } catch (err) {
       setError(errorMessage(err))
