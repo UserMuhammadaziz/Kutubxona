@@ -27,7 +27,7 @@ export function LogoMark({ className = 'h-7 w-7' }: LogoMarkProps) {
         fill="#fff"
         fillOpacity=".76"
       />
-      <path d="M40 18.2h6V32l-3-3-3 3z" fill="#FBBF24" />
+      <path d="M40 18.2h6V32l-3-3-3 3z" fill="#F2A93B" />
     </svg>
   )
 }

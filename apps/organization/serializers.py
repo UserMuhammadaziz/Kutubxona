@@ -1,3 +1,4 @@
+import logging
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils.text import slugify
@@ -16,6 +17,7 @@ from .models import (
 from .services import DEFAULT_PLAN_CODE, subscription_for
 from .tenancy import foydalanuvchi_azoligi
 
+logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
@@ -386,6 +388,8 @@ class RegisterSerializer(serializers.Serializer):
     email = serializers.EmailField(required=False, allow_blank=True)
     password = serializers.CharField(write_only=True, min_length=8, error_messages={"min_length": "Parol kamida 8 ta belgidan iborat bo'lishi kerak."})
     password_confirm = serializers.CharField(write_only=True)
+    # Traffic source captured by the landing page (UTM tags, referrer, click id).
+    attribution = serializers.JSONField(required=False, write_only=True)
 
     PAROL_XABARLARI = {
         "password_too_short": "Parol kamida 8 ta belgidan iborat bo'lishi kerak.",
@@ -412,6 +416,17 @@ class RegisterSerializer(serializers.Serializer):
             raise serializers.ValidationError({"password": xabarlar[0]})
         return attrs
 
+    def _record_attribution(self, organization, payload):
+        from marketing.attribution import record_signup
+
+        request = self.context.get("request")
+        host = request.get_host().split(":")[0] if request else ""
+        try:
+            with transaction.atomic():
+                record_signup(organization, payload or {}, host)
+        except Exception:  # a broken tracking payload must never block a signup
+            logger.exception("Signup attribution failed for organization %s", organization.pk)
+
     def _slug(self, nomi, slug):
         asos = slugify(slug or nomi) or "kutubxona"
         nomzod = asos
@@ -425,6 +440,7 @@ class RegisterSerializer(serializers.Serializer):
     def create(self, validated_data):
         validated_data.pop("password_confirm")
         password = validated_data.pop("password")
+        attribution = validated_data.pop("attribution", None)
         organization = Organization.objects.create(
             nomi=validated_data["kutubxona_nomi"],
             slug=self._slug(validated_data["kutubxona_nomi"], validated_data.get("slug")),
@@ -449,6 +465,7 @@ class RegisterSerializer(serializers.Serializer):
             organization=organization, user=user, rol="egasi", faol=True
         )
         subscription_for(organization, trial=True)
+        self._record_attribution(organization, attribution)
         from .services import log_action
 
         log_action(

@@ -1,5 +1,6 @@
 import type { DashboardWidget, OrganizationType } from '../lib/organization'
 import { api } from './client'
+import { signupAttribution } from '../lib/tracking'
 import type {
   Paginated,
   Announcement,
@@ -130,7 +131,12 @@ export const authApi = {
   },
   deleteLogo: (id: number) => api.delete<OrganizationInfo>(`/organizations/${id}/logo/`).then((r) => r.data),
   register: (payload: RegisterPayload) =>
-    api.post<{ access: string; refresh: string; user: User; organization: any }>('/auth/register/', payload).then((r) => r.data),
+    api
+      .post<{ access: string; refresh: string; user: User; organization: any }>('/auth/register/', {
+        ...payload,
+        attribution: signupAttribution(),
+      })
+      .then((r) => r.data),
   changePassword: (payload: ParolAlmashtirishPayload) =>
     api.post<{ detail: string }>('/auth/change-password/', payload).then((r) => r.data),
   updateProfile: (payload: ProfilYangilashPayload) =>
@@ -534,4 +540,54 @@ export interface PlatformHealth {
 
 export const healthApi = {
   platform: () => api.get<PlatformHealth>('/saas/health/').then((r) => r.data),
+}
+
+export interface MarketingSourceRow {
+  source: string
+  medium: string
+  visits: number
+  visitors: number
+  signups: number
+  approved: number
+  conversion: number
+}
+
+export interface MarketingCampaignRow {
+  source: string
+  medium: string
+  campaign: string
+  visits: number
+  visitors: number
+  signups: number
+  conversion: number
+}
+
+export interface MarketingSignup {
+  organization_id: number
+  organization_name: string
+  status: string
+  created_at: string
+  first_seen_at: string | null
+  source: string
+  medium: string
+  campaign: string
+  term: string
+  content: string
+  referrer_host: string
+  landing_path: string
+  last_source: string
+  last_medium: string
+}
+
+export interface MarketingReport {
+  days: number
+  totals: { visits: number; visitors: number; signups: number; approved: number; conversion: number }
+  sources: MarketingSourceRow[]
+  campaigns: MarketingCampaignRow[]
+  daily: { date: string; visits: number; visitors: number; signups: number }[]
+  recent_signups: MarketingSignup[]
+}
+
+export const marketingApi = {
+  report: (days: number) => api.get<MarketingReport>('/marketing/report/', { params: { days } }).then((r) => r.data),
 }

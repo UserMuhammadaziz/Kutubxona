@@ -58,7 +58,7 @@ class RegisterView(APIView):
     throttle_classes = [RegisterThrottle]
 
     def post(self, request):
-        serializer = RegisterSerializer(data=request.data)
+        serializer = RegisterSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         data = serializer.save()
         return Response(
