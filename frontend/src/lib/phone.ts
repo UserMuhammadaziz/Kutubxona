@@ -25,9 +25,3 @@ export function formatPhone(raw: string): string {
 export function isCompletePhone(value: string): boolean {
   return /^\+998\d{9}$/.test(value)
 }
-
-/** Login field accepts legacy usernames too: only phone-looking input is normalized. */
-export function loginIdentifier(raw: string): string {
-  const v = raw.trim()
-  return /^[+\d][\d\s\-()+]*$/.test(v) ? normalizePhone(v) : v
-}
