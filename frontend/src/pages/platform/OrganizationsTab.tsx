@@ -8,6 +8,7 @@ import { ActionMenu, type ActionMenuItem } from '../../components/ActionMenu'
 import { useToast } from '../../components/Toast'
 import { Badge, Button, ConfirmDialog, EmptyState, ErrorBanner, ErrorState, Field, Input, Label, Modal, ResponsiveList, Select, Table, TableSkeleton, Textarea } from '../../components/ui'
 import { formatDate } from '../../lib/format'
+import { ORG_TYPE_LABELS } from '../../lib/organization'
 import { useAuthStore } from '../../store/auth'
 import { emptyOrgForm, OrganizationForm } from './OrganizationForm'
 import { OrganizationDetails } from './OrganizationDetails'
@@ -25,9 +26,12 @@ const ACTION_TEXT: Record<Action, { title: string; confirm: string; danger: bool
   archive: { title: 'Tashkilotni arxivlash', confirm: 'Arxivlash', danger: true, reason: false, effect: "Xodimlar tizimdan foydalana olmaydi. Ma'lumotlar saqlanadi, keyin qayta faollashtirish mumkin.", done: 'arxivlandi' },
 }
 
-const FILTERS: { key: OrgStatus | 'all'; label: string }[] = [
+type Filter = OrgStatus | 'all' | 'type_request'
+
+const FILTERS: { key: Filter; label: string }[] = [
   { key: 'all', label: 'Hammasi' },
   { key: 'pending', label: 'Kutilmoqda' },
+  { key: 'type_request', label: 'Tur o‘zgarishi' },
   { key: 'active', label: 'Faol' },
   { key: 'suspended', label: "To'xtatilgan" },
   { key: 'rejected', label: 'Rad etilgan' },
@@ -58,7 +62,7 @@ export function OrganizationsTab({ plan, onPlanChange }: { plan: string; onPlanC
   const toast = useToast()
   const stats = useQuery({ queryKey: ['platform', 'stats'], queryFn: platformApi.stats })
   const plans = usePlans()
-  const [filter, setFilter] = useState<OrgStatus | 'all'>('all')
+  const [filter, setFilter] = useState<Filter>('all')
   const [q, setQ] = useState('')
   const [pending, setPending] = useState<Pending | null>(null)
   const [reason, setReason] = useState('')
@@ -78,6 +82,19 @@ export function OrganizationsTab({ plan, onPlanChange }: { plan: string; onPlanC
       // The admin may be a member of this library: keep the own status in sync.
       void useAuthStore.getState().refresh().catch(() => undefined)
     },
+  })
+  const typeMut = useMutation({
+    mutationFn: ({ org, decision }: { org: PlatformOrg; decision: 'approve' | 'reject' }) => platformApi.settleTypeRequest(org.id, decision),
+    onSuccess: (_, { org, decision }) => {
+      toast.success(
+        decision === 'approve'
+          ? `«${org.nomi}» turi «${ORG_TYPE_LABELS[org.requested_type] ?? org.requested_type}» bo‘ldi.`
+          : `«${org.nomi}» turini o‘zgartirish so‘rovi rad etildi.`,
+      )
+      refresh()
+      void useAuthStore.getState().refresh().catch(() => undefined)
+    },
+    onError: (e) => toast.error(errorMessage(e)),
   })
   const removeMut = useMutation({
     mutationFn: (org: PlatformOrg) => platformApi.remove(org.id),
@@ -104,12 +121,12 @@ export function OrganizationsTab({ plan, onPlanChange }: { plan: string; onPlanC
     return (stats.data?.tashkilotlar ?? [])
       .filter(
         (o) =>
-          (filter === 'all' || o.status === filter) &&
+          (filter === 'all' || (filter === 'type_request' ? !!o.requested_type : o.status === filter)) &&
           (!plan || o.subscription?.plan === plan) &&
           (!needle || matchesSearch([o.nomi, o.slug, o.egasi_ismi, o.telefon].join(' '), needle)),
       )
       // New applications wait for a decision, so they come first.
-      .sort((a, b) => Number(b.status === 'pending') - Number(a.status === 'pending'))
+      .sort((a, b) => Number(b.status === 'pending' || !!b.requested_type) - Number(a.status === 'pending' || !!a.requested_type))
   }, [stats.data, filter, q, plan])
 
   if (stats.isLoading) return <TableSkeleton rows={6} cols={6} />
@@ -117,6 +134,7 @@ export function OrganizationsTab({ plan, onPlanChange }: { plan: string; onPlanC
     return <ErrorState title="Yuklab bo‘lmadi" message={errorMessage(stats.error)} onRetry={() => void stats.refetch()} retrying={stats.isFetching} />
 
   const { holatlar: counts, jami } = stats.data
+  const typeRequests = stats.data.tashkilotlar.filter((o) => o.requested_type).length
   const create = () => setEditing({ id: null, form: emptyOrgForm() })
   const filtered = filter !== 'all' || !!q.trim() || !!plan
   const clear = () => {
@@ -150,6 +168,22 @@ export function OrganizationsTab({ plan, onPlanChange }: { plan: string; onPlanC
     <>
       <Badge tone={ORG_STATUS[o.status]?.tone}>{ORG_STATUS[o.status]?.label ?? o.status}</Badge>
       {o.status_reason && <div className="mt-1 max-w-[14rem] break-words text-xs text-slate-600 dark:text-slate-300">{o.status_reason}</div>}
+      {o.requested_type && (
+        <div className="mt-2 max-w-[16rem] rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">
+          <div>
+            Tur: {ORG_TYPE_LABELS[o.type]} → <b>{ORG_TYPE_LABELS[o.requested_type]}</b>
+            {o.type_requested_at ? ` · ${formatDate(o.type_requested_at)}` : ''}
+          </div>
+          <div className="mt-1 flex gap-1">
+            <Button size="sm" loading={typeMut.isPending && typeMut.variables?.org.id === o.id && typeMut.variables.decision === 'approve'} onClick={() => typeMut.mutate({ org: o, decision: 'approve' })}>
+              Tasdiqlash
+            </Button>
+            <Button size="sm" variant="secondary" loading={typeMut.isPending && typeMut.variables?.org.id === o.id && typeMut.variables.decision === 'reject'} onClick={() => typeMut.mutate({ org: o, decision: 'reject' })}>
+              Rad etish
+            </Button>
+          </div>
+        </div>
+      )}
     </>
   )
   const planCell = (o: PlatformOrg) => {
@@ -192,7 +226,7 @@ export function OrganizationsTab({ plan, onPlanChange }: { plan: string; onPlanC
     <div>
       <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0" role="group" aria-label="Holat bo'yicha filtr">
         {FILTERS.map((f) => {
-          const count = f.key === 'all' ? jami : (counts[f.key] ?? 0)
+          const count = f.key === 'all' ? jami : f.key === 'type_request' ? typeRequests : (counts[f.key] ?? 0)
           const on = filter === f.key
           return (
             <button
@@ -208,7 +242,7 @@ export function OrganizationsTab({ plan, onPlanChange }: { plan: string; onPlanC
               )}
             >
               {f.label}
-              <span className={clsx('tabular-nums', f.key === 'pending' && count > 0 ? 'font-bold text-amber-800 dark:text-amber-300' : 'font-normal')}>{count}</span>
+              <span className={clsx('tabular-nums', (f.key === 'pending' || f.key === 'type_request') && count > 0 ? 'font-bold text-amber-800 dark:text-amber-300' : 'font-normal')}>{count}</span>
             </button>
           )
         })}

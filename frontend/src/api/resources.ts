@@ -57,6 +57,9 @@ export interface OrganizationInfo {
   id: number
   nomi: string
   type: OrganizationType
+  /** Type the owner asked for; applies after a platform admin approves it. Empty when none. */
+  requested_type?: OrganizationType | ''
+  type_requested_at?: string | null
   /** Effective ordered widget keys shown on the dashboard. */
   dashboard_widgets?: DashboardWidget[]
   /** Widget keys this organization's type may show. */
@@ -559,6 +562,8 @@ export interface PlatformOrg {
   nomi: string
   slug: string
   type: OrganizationType
+  requested_type: OrganizationType | ''
+  type_requested_at: string | null
   status: OrgStatus
   faol: boolean
   kitoblar: number
@@ -649,6 +654,8 @@ export const platformApi = {
   stats: () => api.get<PlatformStats>('/saas/organizations/stats/').then((r) => r.data),
   setStatus: (id: number, action: 'approve' | 'reject' | 'suspend' | 'activate' | 'archive', reason = '') =>
     api.post(`/saas/organizations/${id}/${action}/`, reason ? { reason } : {}).then((r) => r.data),
+  settleTypeRequest: (id: number, decision: 'approve' | 'reject') =>
+    api.post<PlatformOrg>(`/saas/organizations/${id}/type-request/${decision}/`).then((r) => r.data),
   setSubscription: (
     id: number,
     payload: { plan?: string; status?: SubscriptionStatus; trial_ends_at?: string | null; current_period_end?: string | null },

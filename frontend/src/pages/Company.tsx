@@ -14,6 +14,7 @@ import { errorMessage } from '../api/client'
 import { canManageCompany, useOrganization } from '../hooks/useOrganization'
 import { useToast } from '../components/Toast'
 import { Icons } from '../components/icons'
+import { formatDateTime } from '../lib/format'
 import {
   DASHBOARD_WIDGET_INFO,
   ORG_TYPE_LABELS,
@@ -311,7 +312,11 @@ function OrganizationTypeSection({ org }: { org: OrganizationInfo }) {
     onSuccess: (next) => {
       qc.setQueryData(['organization-info'], next)
       qc.invalidateQueries({ queryKey: ['stats', 'dashboard'] })
-      toast.success(`Tashkilot turi: ${ORG_TYPE_LABELS[next.type]}`)
+      toast.success(
+        next.requested_type
+          ? `«${ORG_TYPE_LABELS[next.requested_type]}» turiga o‘tish so‘rovi yuborildi. Platforma administratori tasdiqlagach kuchga kiradi.`
+          : 'So‘rov bekor qilindi.',
+      )
       setPending(null)
     },
     onError: (e) => {
@@ -324,11 +329,26 @@ function OrganizationTypeSection({ org }: { org: OrganizationInfo }) {
       <h2 className="mb-1 text-lg font-semibold text-slate-900 dark:text-slate-100">Tashkilot turi</h2>
       <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
         Telegram bot va kitobxon qo‘shish formasi shu turga qarab ma‘lumot so‘raydi.
-        {!isOwner && ' Turni faqat tashkilot egasi o‘zgartira oladi.'}
+        {' '}Turni o‘zgartirish platforma administratori tasdiqlagandan keyin kuchga kiradi.
+        {!isOwner && ' So‘rovni faqat tashkilot egasi yubora oladi.'}
       </p>
+      {org.requested_type && (
+        <div className="mb-4 flex flex-col gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between dark:bg-amber-500/10 dark:text-amber-200">
+          <span>
+            «{ORG_TYPE_LABELS[org.requested_type]}» turiga o‘tish so‘rovi tasdiqlanishini kutmoqda
+            {org.type_requested_at ? ` (${formatDateTime(org.type_requested_at)})` : ''}.
+          </span>
+          {isOwner && (
+            <Button size="sm" variant="secondary" loading={mut.isPending} onClick={() => mut.mutate(org.type)}>
+              So‘rovni bekor qilish
+            </Button>
+          )}
+        </div>
+      )}
       <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Tashkilot turi">
         {ORG_TYPE_OPTIONS.map((option) => {
           const active = org.type === option.value
+          const requested = org.requested_type === option.value
           return (
             <button
               key={option.value}
@@ -336,7 +356,7 @@ function OrganizationTypeSection({ org }: { org: OrganizationInfo }) {
               role="radio"
               aria-checked={active}
               disabled={!isOwner || mut.isPending}
-              onClick={() => !active && setPending(option.value)}
+              onClick={() => !active && !requested && setPending(option.value)}
               className={
                 'rounded-lg border p-4 text-left transition disabled:cursor-not-allowed ' +
                 (active
@@ -347,6 +367,7 @@ function OrganizationTypeSection({ org }: { org: OrganizationInfo }) {
               <div className="flex items-center justify-between gap-2">
                 <span className="font-medium text-slate-900 dark:text-slate-100">{option.label}</span>
                 {active && <Badge tone="green">Joriy</Badge>}
+                {requested && <Badge tone="amber">Tasdiq kutilmoqda</Badge>}
               </div>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{option.hint}</p>
             </button>
@@ -355,13 +376,13 @@ function OrganizationTypeSection({ org }: { org: OrganizationInfo }) {
       </div>
       <ConfirmDialog
         open={pending !== null}
-        title="Tashkilot turini o‘zgartirasizmi?"
+        title="Tashkilot turini o‘zgartirish so‘rovi"
         message={
           pending
-            ? `Tur «${ORG_TYPE_LABELS[pending]}» bo‘ladi. Yangi arizalar va kitobxon formasi shunga moslashadi; mavjud kitobxonlar o‘zgarmaydi.`
+            ? `«${ORG_TYPE_LABELS[pending]}» turiga o‘tish so‘rovi platforma administratoriga yuboriladi. Tasdiqlangach yangi arizalar va kitobxon formasi shunga moslashadi; mavjud kitobxonlar o‘zgarmaydi.`
             : ''
         }
-        confirmLabel="O‘zgartirish"
+        confirmLabel="So‘rov yuborish"
         variant="primary"
         loading={mut.isPending}
         onConfirm={() => pending && mut.mutate(pending)}
