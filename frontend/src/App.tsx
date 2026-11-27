@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuthStore } from './store/auth'
 import { Layout } from './components/Layout'
 import { Company } from './pages/Company'
+import { Billing } from './pages/Billing'
 import { Profile } from './pages/Profile'
 import { RequireAdmin, RequireAuth, RequirePlatform } from './components/RequireAuth'
 import { Login } from './pages/Login'
@@ -69,6 +70,7 @@ function App() {
             <Route path="/guide" element={<Guide />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/company" element={<Company />} />
+            <Route path="/billing" element={<Billing />} />
 
             <Route path="/platform" element={<RequirePlatform><Platform /></RequirePlatform>} />
             <Route element={<RequireAdmin />}>

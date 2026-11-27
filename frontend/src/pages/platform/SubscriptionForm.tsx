@@ -117,7 +117,7 @@ export function SubscriptionForm({ org, onClose }: { org: PlatformOrg; onClose: 
           <Label htmlFor="sub-end">{status === 'trial' ? 'Sinov tugash sanasi' : 'Obuna tugash sanasi'}</Label>
           <DatePicker id="sub-end" value={date} onChange={setDate} />
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            {([[1, '+1 oy'], [3, '+3 oy'], [12, '+1 yil']] as const).map(([months, label]) => (
+            {([[1, '+1 oy'], [3, '+3 oy'], [6, '+6 oy'], [12, '+1 yil']] as const).map(([months, label]) => (
               <Button key={months} type="button" size="sm" variant="secondary" onClick={() => setDate(extend(date, months))}>{label}</Button>
             ))}
           </div>

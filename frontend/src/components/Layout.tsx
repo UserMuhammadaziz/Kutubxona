@@ -5,6 +5,7 @@ import { applicationsApi, statsApi } from '../api/resources'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import clsx from 'clsx'
 import { useAuthStore, isAdmin } from '../store/auth'
+import { SubscriptionBanner } from './SubscriptionBanner'
 import { useThemeStore } from '../store/theme'
 import { Logo, LogoMark } from './Logo'
 import { Chatbot } from './Chatbot'
@@ -174,6 +175,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
   const manage: NavItem[] = [
     ...(user?.is_platform ? [{ to: '/platform', label: 'Platforma', icon: Icons.shield }] : []),
     ...(!platformOnly && canManageCompany ? [{ to: '/company', label: 'Kutubxona profili', icon: Icons.building }] : []),
+    ...(!platformOnly && canManageCompany ? [{ to: '/billing', label: 'Obuna', icon: Icons.creditCard }] : []),
     ...(!platformOnly && isAdmin(user) ? [{ to: '/staff', label: 'Xodimlar', icon: Icons.users }] : []),
   ]
   const groups = [
@@ -422,6 +424,7 @@ export function Layout() {
 
         {/* Bottom padding keeps page-end controls clear of the floating chatbot button. */}
         <main className="min-w-0 flex-1 p-4 pb-36 sm:p-6 sm:pb-36 lg:p-8 lg:pb-24">
+          <SubscriptionBanner />
           <Outlet />
         </main>
       </div>

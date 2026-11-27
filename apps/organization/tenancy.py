@@ -1,6 +1,8 @@
+from django.conf import settings
 from django.db import models
 from django.db.models import QuerySet
 from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.permissions import SAFE_METHODS
 
 from .models import Membership, Organization
 
@@ -61,7 +63,7 @@ def _holatni_tekshir(org, allow_inactive=False):
     )
 
 
-def joriy_kutubxonani_aniqla(request, required=True, allow_inactive=False):
+def _resolve_organization(request, required=True, allow_inactive=False):
     """So'rov uchun kutubxonani xavfsiz aniqlaydi.
 
     Tartib:
@@ -140,6 +142,32 @@ def joriy_kutubxonani_aniqla(request, required=True, allow_inactive=False):
             }
         )
     return None
+
+
+def joriy_kutubxonani_aniqla(request, required=True, allow_inactive=False, allow_unpaid=False):
+    org = _resolve_organization(request, required=required, allow_inactive=allow_inactive)
+    if org is not None and not (allow_inactive or allow_unpaid):
+        _check_subscription(request, org)
+    return org
+
+
+def _check_subscription(request, org):
+    """With BILLING_ENFORCE on, an expired library keeps read access but cannot change data."""
+    if not settings.BILLING_ENFORCE or getattr(request, "method", "GET") in SAFE_METHODS:
+        return
+    user = request.user
+    if user.is_superuser or (settings.BOT_SERVICE_USERNAME and user.get_username() == settings.BOT_SERVICE_USERNAME):
+        return
+    from billing.services import is_expired
+
+    if is_expired(org):
+        raise PermissionDenied(
+            {
+                "error": "subscription_expired",
+                "detail": "Obuna muddati tugagan. «Obuna» sahifasida to'lovni amalga oshiring.",
+                "status": "expired",
+            }
+        )
 
 
 def kutubxona_roli(user, organization):
