@@ -367,3 +367,21 @@ BILLING_DISCOUNTS = {
 }
 # When on, a library whose subscription has run out can read but not change data.
 BILLING_ENFORCE = os.environ.get("BILLING_ENFORCE", "0").lower() in ("1", "true", "yes")
+
+
+# Errors go to stderr (journald) and, when ERROR_ALERT_* is set, to the reports Telegram bot.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "level": "WARNING"},
+        "telegram": {"()": "config.error_alerts.TelegramAlertHandler", "level": "ERROR", "process_name": "web"},
+    },
+    "root": {"handlers": ["console", "telegram"], "level": "WARNING"},
+    "loggers": {
+        "django": {"handlers": ["console", "telegram"], "level": "INFO", "propagate": False},
+    },
+}
+if "test" in sys.argv:
+    # Test runs on the servers must not page the team.
+    LOGGING["handlers"]["telegram"] = {"class": "logging.NullHandler"}

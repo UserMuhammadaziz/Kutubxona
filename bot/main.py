@@ -152,11 +152,27 @@ async def _serve_webhook(bot, dp):
         await runner.cleanup()
 
 
+def _attach_error_alerts():
+    """Send bot errors to the reports Telegram bot (config/error_alerts.py, loaded by path:
+    `config` here is bot/config.py)."""
+    import importlib.util
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parent.parent / "config" / "error_alerts.py"
+    spec = importlib.util.spec_from_file_location("error_alerts", path)
+    if spec is None or spec.loader is None:
+        return
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.attach(process_name="bot")
+
+
 async def main():
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
+    _attach_error_alerts()
 
     bot = Bot(
         token=config.BOT_TOKEN,
