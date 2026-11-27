@@ -8,7 +8,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, BasePermission
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
@@ -254,3 +254,65 @@ class XabarYuborishView(APIView):
                 "xatolik": xatolik,
             }
         )
+
+
+class IsBotService(BasePermission):
+    """Only the server's polling bot account (BOT_SERVICE_USERNAME) may call."""
+
+    def has_permission(self, request, view):
+        from django.conf import settings
+
+        username = getattr(settings, "BOT_SERVICE_USERNAME", "")
+        user = request.user
+        return bool(username and user and user.is_authenticated and user.username == username)
+
+
+def _polling_bot_organization(request):
+    """The library whose polling bot sent this request (`X-Bot-Id` header)."""
+    bot_id = request.headers.get("X-Bot-Id", "")
+    if not bot_id.isdigit():
+        return None
+    bot = (
+        TelegramBot.objects.select_related("organization")
+        .filter(telegram_bot_id=int(bot_id), polling=True, holati="ulangan")
+        .first()
+    )
+    return bot.organization if bot else None
+
+
+class BotStaffLinkView(APIView):
+    """POST {code, telegram_id} from the polling bot after /start staff_<code>."""
+
+    permission_classes = [IsBotService]
+
+    def post(self, request):
+        from .staff_link import link_staff
+
+        org = _polling_bot_organization(request)
+        if org is None:
+            return Response({"detail": "Bot kutubxonaga ulanmagan."}, status=400)
+        try:
+            telegram_id = int(request.data.get("telegram_id"))
+        except (TypeError, ValueError):
+            return Response({"detail": "telegram_id noto'g'ri."}, status=400)
+        membership, message = link_staff(org, request.data.get("code"), telegram_id)
+        return Response({"linked": membership is not None, "message": message})
+
+
+class BotSubscriptionView(APIView):
+    """GET ?telegram_id=&fresh=1 → {"required": false} or {"required": true, title, url}."""
+
+    permission_classes = [IsBotService]
+
+    def get(self, request):
+        from .subscription import subscription_gate
+
+        org = _polling_bot_organization(request)
+        try:
+            telegram_id = int(request.query_params.get("telegram_id"))
+        except (TypeError, ValueError):
+            return Response({"detail": "telegram_id noto'g'ri."}, status=400)
+        gate = subscription_gate(org, telegram_id, fresh=request.query_params.get("fresh") == "1")
+        if gate is None:
+            return Response({"required": False})
+        return Response({"required": True, **gate})

@@ -27,6 +27,8 @@ from oquvchi.search import tolerant_q
 
 from .client import answer_callback_query, answer_inline_query
 from .models import TelegramSession
+from .staff_link import code_from_start_payload, link_staff
+from .subscription import CHECK_CALLBACK, gate_keyboard, gate_text, subscription_gate
 from .services import xabar_yubor
 
 TELEFON_RE = re.compile(r"^\+998\d{9}$")
@@ -294,6 +296,10 @@ def _start(bot, message):
     chat_id = message["chat"]["id"]
     telegram_id = message["from"]["id"]
     _clear_session(bot, telegram_id)
+    parts = (message.get("text") or "").split(maxsplit=1)
+    link_code = code_from_start_payload(parts[1] if len(parts) > 1 else "")
+    if link_code:
+        return _ulash(bot, chat_id, telegram_id, link_code)
     qayta_ariza = _qayta_ariza_kerak(bot, telegram_id)
     oquvchi = _reader(bot, telegram_id)
     xodim = _staff(bot, telegram_id)
@@ -930,35 +936,8 @@ def _qaytarish(bot, chat_id, telegram_id, inventar):
 def _ulash(bot, chat_id, telegram_id, kod):
     if not kod:
         return _send(bot, chat_id, "Format: /ulash KOD")
-    azolik = Membership.objects.filter(
-        organization=bot.organization,
-        link_code=kod,
-        link_code_expires__gt=timezone.now(),
-        faol=True,
-    ).first()
-    if not azolik:
-        return _send(bot, chat_id, "Kod yaroqsiz yoki muddati o'tgan.")
-    boshqa = (
-        Membership.objects.filter(
-            organization=bot.organization, telegram_id=telegram_id
-        )
-        .exclude(pk=azolik.pk)
-        .exists()
-    )
-    if boshqa:
-        return _send(bot, chat_id, "Bu Telegram akkaunt boshqa xodimga bog'langan.")
-    if azolik.telegram_id and azolik.telegram_id != telegram_id:
-        return _send(bot, chat_id, "Bu kod boshqa Telegram akkauntga bog'langan.")
-    azolik.telegram_id = telegram_id
-    azolik.link_code = ""
-    azolik.link_code_expires = None
-    azolik.save(update_fields=["telegram_id", "link_code", "link_code_expires"])
-    _send(
-        bot,
-        chat_id,
-        f"✅ Telegram ulandi. Xush kelibsiz, {telegram_escape(azolik.user.full_name)}!",
-        STAFF_MENU,
-    )
+    membership, message = link_staff(bot.organization, kod, telegram_id)
+    _send(bot, chat_id, message, _menu(bot, telegram_id) if membership else None)
 
 
 def _yordam(bot, chat_id):
@@ -1141,10 +1120,57 @@ def _callback(bot, callback):
         _callback_javob(bot, callback_id)
 
 
+def _is_link_command(message):
+    text = (message.get("text") or "").strip()
+    if text.startswith("/ulash"):
+        return True
+    parts = text.split(maxsplit=1)
+    return parts[0].startswith("/start") and bool(code_from_start_payload(parts[1] if len(parts) > 1 else ""))
+
+
+def _gate_message(bot, message):
+    """Stop the update if the sender must first join the library's channel."""
+    if message.get("via_bot") or message.get("chat", {}).get("type") not in (None, "private"):
+        return False
+    if _is_link_command(message):
+        return False
+    gate = subscription_gate(bot.organization, message["from"]["id"])
+    if gate is None:
+        return False
+    _send(bot, message["chat"]["id"], gate_text(gate), gate_keyboard(gate))
+    return True
+
+
+def _gate_callback(bot, callback):
+    telegram_id = callback["from"]["id"]
+    data = callback.get("data", "")
+    if data == CHECK_CALLBACK:
+        gate = subscription_gate(bot.organization, telegram_id, fresh=True)
+        if gate is not None:
+            try:
+                answer_callback_query(bot.get_token(), callback.get("id"), "Siz hali kanalga obuna bo'lmagansiz.")
+            except Exception:
+                pass
+            return True
+        _callback_javob(bot, callback.get("id"))
+        _start(bot, {"chat": {"id": telegram_id}, "from": callback["from"], "text": "/start"})
+        return True
+    gate = subscription_gate(bot.organization, telegram_id)
+    if gate is None:
+        return False
+    _callback_javob(bot, callback.get("id"))
+    _send(bot, telegram_id, gate_text(gate), gate_keyboard(gate))
+    return True
+
+
 def handle_update(bot, update):
     if "message" in update:
+        if _gate_message(bot, update["message"]):
+            return True
         _text(bot, update["message"])
     elif "callback_query" in update:
+        if _gate_callback(bot, update["callback_query"]):
+            return True
         _callback(bot, update["callback_query"])
     elif "inline_query" in update:
         _inline_query(bot, update["inline_query"])

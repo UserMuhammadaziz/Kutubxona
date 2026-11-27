@@ -20,6 +20,7 @@ import {
 import { useAuthStore } from '../store/auth'
 import { Icons } from '../components/icons'
 import { ProfilePreferences } from '../components/ProfilePreferences'
+import { TelegramLinkCard } from '../components/TelegramLinkCard'
 import {
   Badge,
   Button,
@@ -299,6 +300,8 @@ export function Profile() {
           </Button>
         </Card>
       )}
+
+      <TelegramLinkCard />
 
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="flex flex-col gap-5">

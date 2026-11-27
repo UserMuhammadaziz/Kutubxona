@@ -95,6 +95,13 @@ class Organization(models.Model):
         max_length=20, choices=REPORT_RECIPIENT_CHOICES, default=REPORT_RECIPIENTS_ALL
     )
     daily_report_last_sent = models.DateField(null=True, blank=True)
+    # Mandatory channel subscription for bot users. Empty id means "off".
+    # Set only through the subscription-channel endpoint, which checks that
+    # the library's bot is an admin of the channel.
+    subscription_channel = models.CharField(max_length=100, blank=True)
+    subscription_channel_id = models.BigIntegerField(null=True, blank=True)
+    subscription_channel_title = models.CharField(max_length=255, blank=True)
+    subscription_channel_url = models.CharField(max_length=255, blank=True)
     # Per-library feature switches, e.g. {"search_inline": true}. Unknown/missing keys mean "off".
     capabilities = models.JSONField(default=dict, blank=True)
     # Ordered list of widget keys shown on the dashboard (see `dashboard.py`).
