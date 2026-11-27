@@ -10,6 +10,7 @@ from django.db import IntegrityError, transaction
 from django.utils.timezone import now
 
 from config.telegram import telegram_escape, telegram_xabar_yubor
+from organization.services import check_limit
 from .models import Ariza, Oquvchi
 
 # Karta raqami unique bo'lgani uchun ikki so'rov bir vaqtda yuborilsa
@@ -45,6 +46,13 @@ def oquvchi_yarat(**maydonlar) -> Oquvchi:
     xatolar (masalan, takrorlanuvchi telefon) o'zgarishsiz qaytariladi.
     """
     organization = maydonlar.get("organization")
+    if organization is not None:
+        # Every reader creation path (form, bot application, bind) ends here.
+        check_limit(
+            organization,
+            "max_customers",
+            Oquvchi.objects.filter(organization=organization).count(),
+        )
     for _ in range(_KARTA_URINISH_SONI):
         try:
             with transaction.atomic():

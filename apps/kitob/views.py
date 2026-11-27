@@ -6,6 +6,7 @@ from rest_framework.response import Response
 
 from navbat.serializers import NavbatSerializer
 from oquvchi.models import Oquvchi
+from organization.services import check_limit
 from organization.tenancy import joriy_kutubxonani_aniqla, scope
 from user.permissions import IsLibrarian
 from .models import BandQilish, Kitob
@@ -73,6 +74,7 @@ class KitobViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         org = joriy_kutubxonani_aniqla(self.request, required=True)
+        check_limit(org, "max_resources", Kitob.objects.filter(organization=org).count())
         kitob = serializer.save(organization=org)
         try:
             from telegrambot.tasks import yangi_kitob_xabari_yubor
