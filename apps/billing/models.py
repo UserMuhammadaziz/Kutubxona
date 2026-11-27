@@ -43,3 +43,24 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"{self.organization} — {self.months} oy, {self.amount} so'm ({self.status})"
+
+
+class PaymentPart(models.Model):
+    """Taps caps one donation (200 000 so'm), so a long period is paid in equal parts."""
+
+    payment = models.ForeignKey(Payment, on_delete=models.CASCADE, related_name="parts")
+    index = models.PositiveSmallIntegerField()
+    amount = models.PositiveIntegerField()
+    provider_payment_id = models.CharField(max_length=64, blank=True, db_index=True)
+    checkout_url = models.URLField(max_length=1000, blank=True)
+    status = models.CharField(max_length=20, choices=Payment.STATUS_CHOICES, default=Payment.STATUS_PENDING)
+    created_at = models.DateTimeField(auto_now_add=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+    meta = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["payment", "index"]
+        constraints = [models.UniqueConstraint(fields=["payment", "index"], name="billing_part_unique_index")]
+
+    def __str__(self):
+        return f"{self.payment_id}#{self.index}: {self.amount} ({self.status})"

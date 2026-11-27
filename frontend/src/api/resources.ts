@@ -789,6 +789,10 @@ export interface BillingPayment {
   method_name: string
   status: PaymentStatus
   checkout_url: string
+  /** Taps caps one payment, so long periods are paid in equal parts. */
+  parts_total: number
+  parts_paid: number
+  part_amount: number | null
   created_at: string
   paid_at: string | null
   period_end: string | null
@@ -812,6 +816,7 @@ export interface BillingOverview {
   plans: BillingPlan[]
   methods: { code: string; name: string }[]
   enforced: boolean
+  max_part_amount: number
   payments: BillingPayment[]
 }
 

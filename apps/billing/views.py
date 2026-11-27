@@ -26,6 +26,8 @@ def _admin_org(request):
 
 
 def _payment(payment):
+    parts = list(payment.parts.all())
+    current = next((part for part in parts if part.status == Payment.STATUS_PENDING), None)
     return {
         "id": payment.pk,
         "plan": payment.plan.code,
@@ -35,7 +37,10 @@ def _payment(payment):
         "method": payment.method,
         "method_name": taps.METHODS.get(payment.method, (None, payment.method))[1],
         "status": payment.status,
-        "checkout_url": payment.checkout_url if payment.status == Payment.STATUS_PENDING else "",
+        "checkout_url": current.checkout_url if current and payment.status == Payment.STATUS_PENDING else "",
+        "parts_total": len(parts),
+        "parts_paid": sum(part.status == Payment.STATUS_PAID for part in parts),
+        "part_amount": current.amount if current else None,
         "created_at": payment.created_at,
         "paid_at": payment.paid_at,
         "period_end": payment.period_end,
@@ -71,7 +76,8 @@ def overview(request):
             "plans": plans,
             "methods": [{"code": code, "name": name} for code, (_, name) in taps.METHODS.items()],
             "enforced": settings.BILLING_ENFORCE,
-            "payments": [_payment(p) for p in Payment.objects.filter(organization=org).select_related("plan")[:20]],
+            "max_part_amount": settings.TAPS_MAX_AMOUNT,
+            "payments": [_payment(p) for p in Payment.objects.filter(organization=org).select_related("plan").prefetch_related("parts")[:20]],
         }
     )
 
@@ -112,7 +118,7 @@ def payment_detail(request, pk):
     if payment is None:
         return Response({"error": "not_found", "detail": "To'lov topilmadi."}, status=404)
     try:
-        sync_payment(payment)
+        sync_payment(payment, renew=True)
     except taps.TapsError:
         pass  # keep the last known status; the background task retries
     payment.refresh_from_db()

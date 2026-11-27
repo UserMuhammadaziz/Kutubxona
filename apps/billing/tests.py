@@ -10,8 +10,8 @@ from organization.models import Membership, Organization, OrganizationSubscripti
 from organization.services import subscription_for
 
 from . import taps
-from .models import Payment
-from .services import add_months, price, sync_pending
+from .models import Payment, PaymentPart
+from .services import add_months, price, split_amount, sync_pending
 
 User = get_user_model()
 CREATED = {"donationId": "d-1", "checkoutUrl": "https://pay.example/1", "totalAmount": 60000, "commissionAmount": 1800}
@@ -40,6 +40,13 @@ class PriceTest(BillingBase):
     @override_settings(BILLING_DISCOUNTS={12: 15})
     def test_discount(self):
         self.assertEqual(price(self.plan, 12), 612000)
+
+    def test_split_amount_respects_taps_cap(self):
+        self.assertEqual(split_amount(180000, 200000), [180000])
+        self.assertEqual(split_amount(360000, 200000), [180000, 180000])
+        self.assertEqual(split_amount(720000, 200000), [180000] * 4)
+        self.assertEqual(split_amount(612000, 200000), [153000] * 4)
+        self.assertEqual(split_amount(250000, 200000), [125000, 125000])
 
     def test_add_months_clamps_day(self):
         moment = timezone.now().replace(year=2026, month=1, day=31)
@@ -90,7 +97,7 @@ class CheckoutTest(BillingBase):
         self.assertEqual(Payment.objects.get().status, "cancelled")
 
         self.checkout()
-        Payment.objects.filter(status="pending").update(created_at=timezone.now() - timedelta(hours=3))
+        PaymentPart.objects.filter(payment__status="pending").update(created_at=timezone.now() - timedelta(hours=3))
         with mock.patch("billing.taps.donation_status", return_value={"status": "Created"}):
             sync_pending()
         self.assertFalse(Payment.objects.filter(status="pending").exists())
@@ -140,3 +147,57 @@ class EnforcementTest(BillingBase):
     def test_active_library_writes(self):
         response = self.client.post("/api/books/", {}, format="json")
         self.assertNotEqual(response.status_code, 403)
+
+
+class SplitPaymentTest(BillingBase):
+    def test_year_is_paid_in_four_parts(self):
+        donations = iter(range(1, 20))
+
+        def create(**kwargs):
+            n = next(donations)
+            return {"donationId": f"d-{n}", "checkoutUrl": f"https://pay.example/{n}"}
+
+        with mock.patch("billing.taps.create_donation", side_effect=create) as created:
+            response = self.client.post("/api/billing/checkout/", {"months": 12, "method": "payme"}, format="json")
+            self.assertEqual(response.status_code, 201, response.data)
+            self.assertEqual((response.data["parts_total"], response.data["part_amount"]), (4, 180000))
+            self.assertEqual(created.call_count, 1)  # later parts are opened one by one
+            paid = set()
+
+            def status(donation_id):
+                return {"status": "Paid", "amount": 180000} if donation_id in paid else {"status": "Draft"}
+
+            with mock.patch("billing.taps.donation_status", side_effect=status):
+                url = f"/api/billing/payments/{response.data['id']}/"
+                for n in range(1, 5):
+                    data = self.client.get(url).data
+                    self.assertEqual(data["status"], "pending")
+                    self.assertEqual(data["parts_paid"], n - 1)
+                    self.assertEqual(data["checkout_url"], f"https://pay.example/{n}")
+                    paid.add(f"d-{n}")
+                data = self.client.get(url).data
+        self.assertEqual(data["status"], "paid")
+        self.assertEqual(data["parts_paid"], 4)
+        sub = subscription_for(self.org)
+        self.assertGreater(sub.current_period_end, timezone.now() + timedelta(days=360))
+
+    def test_half_paid_payment_is_never_cancelled(self):
+        donations = iter(range(1, 20))
+        create = lambda **kw: {"donationId": f"d-{next(donations)}", "checkoutUrl": "https://pay.example/x"}  # noqa: E731
+        with mock.patch("billing.taps.create_donation", side_effect=create):
+            response = self.client.post("/api/billing/checkout/", {"months": 6, "method": "click"}, format="json")
+            status = lambda donation_id: {"status": "Paid", "amount": 180000} if donation_id == "d-1" else {"status": "Draft"}  # noqa: E731
+            with mock.patch("billing.taps.donation_status", side_effect=status):
+                sync_pending()  # part 1 paid, part 2 opened as d-2
+                PaymentPart.objects.filter(index=2).update(created_at=timezone.now() - timedelta(hours=3))
+                sync_pending()
+                self.assertEqual(Payment.objects.get().status, "pending")
+                # The page asks for a fresh link; the old one is still watched.
+                self.client.get(f"/api/billing/payments/{response.data['id']}/")
+                part = PaymentPart.objects.get(index=2)
+                self.assertEqual(part.provider_payment_id, "d-3")
+                self.assertEqual(part.meta["previous_ids"], ["d-2"])
+            late = lambda donation_id: {"status": "Paid", "amount": 180000} if donation_id in ("d-1", "d-2") else {"status": "Draft"}  # noqa: E731
+            with mock.patch("billing.taps.donation_status", side_effect=late):
+                sync_pending()
+        self.assertEqual(Payment.objects.get().status, "paid")

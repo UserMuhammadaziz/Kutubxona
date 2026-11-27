@@ -12,7 +12,7 @@ from organization.models import OrganizationSubscription, SubscriptionPlan
 from organization.services import log_action, subscription_for
 
 from . import taps
-from .models import Payment
+from .models import Payment, PaymentPart
 
 logger = logging.getLogger(__name__)
 
@@ -50,92 +50,158 @@ def is_expired(organization):
     return bool(sub) and not sub.faolmi
 
 
+def split_amount(total, cap):
+    """Equal parts not above `cap`, rounded to 1000 so'm; the last part takes the rest."""
+    if total <= cap:
+        return [total]
+    count = -(-total // cap)
+    part = -(-total // count // 1000) * 1000
+    parts = [part] * (count - 1)
+    parts.append(total - sum(parts))
+    return parts
+
+
+def _open_part(part, payment):
+    """Create the Taps donation for one part and mirror its link on the payment."""
+    data = taps.create_donation(
+        method=payment.method,
+        amount=part.amount,
+        note=f"kutubxona:{payment.organization_id}:{payment.pk}:{part.index}",
+    )
+    donation_id = str(data.get("donationId") or "")
+    url = str(data.get("checkoutUrl") or "")[:1000]
+    if not donation_id or not url:
+        raise taps.TapsError("taps: no donationId/checkoutUrl")
+    if part.provider_payment_id:
+        # An older link may still be paid later: keep checking it.
+        part.meta = {**part.meta, "previous_ids": [*part.meta.get("previous_ids", []), part.provider_payment_id]}
+    part.provider_payment_id = donation_id
+    part.checkout_url = url
+    part.created_at = timezone.now()
+    part.meta = {**part.meta, "total": data.get("totalAmount"), "commission": data.get("commissionAmount")}
+    part.save()
+    payment.provider_payment_id = donation_id
+    payment.checkout_url = url
+    payment.save(update_fields=["provider_payment_id", "checkout_url"])
+
+
 def create_checkout(organization, plan, months, method, user):
     amount = price(plan, months)
-    payment = Payment.objects.create(
-        organization=organization,
-        plan=plan,
-        months=months,
-        amount=amount,
-        method=method,
-        created_by=user if getattr(user, "is_authenticated", False) else None,
-    )
+    with transaction.atomic():
+        payment = Payment.objects.create(
+            organization=organization,
+            plan=plan,
+            months=months,
+            amount=amount,
+            method=method,
+            created_by=user if getattr(user, "is_authenticated", False) else None,
+        )
+        for index, part_amount in enumerate(split_amount(amount, settings.TAPS_MAX_AMOUNT), start=1):
+            PaymentPart.objects.create(payment=payment, index=index, amount=part_amount)
     try:
-        data = taps.create_donation(method=method, amount=amount, note=f"kutubxona:{organization.pk}:{payment.pk}")
+        _open_part(payment.parts.order_by("index").first(), payment)
     except taps.TapsError as error:
         logger.warning("billing: create failed for payment %s: %s", payment.pk, error)
         Payment.objects.filter(pk=payment.pk).update(status=Payment.STATUS_CANCELLED, status_reason="create_failed")
         raise
-    payment.provider_payment_id = str(data.get("donationId") or "")
-    payment.checkout_url = str(data.get("checkoutUrl") or "")[:1000]
-    payment.meta = {"total": data.get("totalAmount"), "commission": data.get("commissionAmount")}
-    if not payment.provider_payment_id or not payment.checkout_url:
-        payment.status = Payment.STATUS_CANCELLED
-        payment.status_reason = "bad_provider_answer"
-        payment.save()
-        raise taps.TapsError("taps: no donationId/checkoutUrl")
-    payment.save()
     log_action(
         "billing.checkout_created",
         actor=user,
         organization=organization,
         target_type="payment",
         target_id=payment.pk,
-        metadata={"months": months, "amount": amount, "method": method, "plan": plan.code},
+        metadata={"months": months, "amount": amount, "method": method, "plan": plan.code, "parts": payment.parts.count()},
     )
+    payment.refresh_from_db()
     return payment
 
 
-def _apply(payment, data, now):
-    """Mark paid and extend the subscription. Runs once per payment (row lock)."""
-    with transaction.atomic():
-        locked = Payment.objects.select_for_update().get(pk=payment.pk)
-        if locked.status != Payment.STATUS_PENDING:
-            return locked.status
-        sub = subscription_for(locked.organization)
-        sub = OrganizationSubscription.objects.select_for_update().get(pk=sub.pk)
-        # Paid time is added on top of what is left, so paying early loses nothing.
-        current_end = sub.current_period_end if sub.status in ("active", "past_due") else None
-        trial_end = sub.trial_ends_at if sub.status == "trial" else None
-        base = max([moment for moment in (now, current_end, trial_end) if moment])
-        sub.plan = locked.plan
-        sub.status = "active"
-        sub.current_period_end = add_months(base, locked.months)
-        sub.cancel_at_period_end = False
-        sub.save()
-        locked.status = Payment.STATUS_PAID
-        locked.paid_at = now
-        locked.period_end = sub.current_period_end
-        locked.meta = {**locked.meta, "status": data.get("status"), "paid_time": data.get("paidTime"), "paid_total": data.get("amount")}
-        locked.save()
+def _apply(payment, now):
+    """Mark paid and extend the subscription. The caller holds the payment row lock."""
+    sub = subscription_for(payment.organization)
+    sub = OrganizationSubscription.objects.select_for_update().get(pk=sub.pk)
+    # Paid time is added on top of what is left, so paying early loses nothing.
+    current_end = sub.current_period_end if sub.status in ("active", "past_due") else None
+    trial_end = sub.trial_ends_at if sub.status == "trial" else None
+    base = max([moment for moment in (now, current_end, trial_end) if moment])
+    sub.plan = payment.plan
+    sub.status = "active"
+    sub.current_period_end = add_months(base, payment.months)
+    sub.cancel_at_period_end = False
+    sub.save()
+    payment.status = Payment.STATUS_PAID
+    payment.paid_at = now
+    payment.period_end = sub.current_period_end
+    payment.checkout_url = ""
+    payment.save()
     log_action(
         "billing.payment_paid",
-        organization=locked.organization,
+        organization=payment.organization,
         target_type="payment",
-        target_id=locked.pk,
-        metadata={"months": locked.months, "amount": locked.amount, "period_end": locked.period_end.isoformat()},
+        target_id=payment.pk,
+        metadata={"months": payment.months, "amount": payment.amount, "period_end": payment.period_end.isoformat()},
     )
-    return locked.status
 
 
-def sync_payment(payment, now=None):
-    """Compare a pending payment with Taps. Returns the (possibly new) status."""
+def _part_paid(part):
+    """Look at the current and any replaced donation of a part. Returns (paid, data_of_current)."""
+    current = None
+    for donation_id in [part.provider_payment_id, *part.meta.get("previous_ids", [])]:
+        if not donation_id:
+            continue
+        data = taps.donation_status(donation_id)
+        if current is None:
+            current = data
+        if taps.is_paid(data):
+            if taps.paid_amount(data) >= part.amount:
+                return True, data
+            logger.warning("billing: part %s underpaid: %s", part.pk, data.get("amount"))
+    return False, current or {}
+
+
+def sync_payment(payment, now=None, renew=False):
+    """Bring a pending payment up to date with Taps. Returns its status.
+
+    `renew` (a user looking at the page) replaces an expired part link so a
+    half-paid period can be finished; the background task never does that.
+    """
     now = now or timezone.now()
-    if payment.status != Payment.STATUS_PENDING or not payment.provider_payment_id:
+    if payment.status != Payment.STATUS_PENDING:
         return payment.status
-    data = taps.donation_status(payment.provider_payment_id)
-    if taps.is_paid(data):
-        if taps.paid_amount(data) < payment.amount:
-            logger.warning("billing: paid amount too low for payment %s: %s", payment.pk, data.get("amount"))
+    with transaction.atomic():
+        payment = Payment.objects.select_for_update().select_related("organization", "plan").get(pk=payment.pk)
+        if payment.status != Payment.STATUS_PENDING:
             return payment.status
-        return _apply(payment, data, now)
-    if taps.is_dead(data) or now - payment.created_at > PENDING_TTL:
-        reason = f"taps: {data.get('status')}" if taps.is_dead(data) else "expired"
-        Payment.objects.filter(pk=payment.pk, status=Payment.STATUS_PENDING).update(
-            status=Payment.STATUS_CANCELLED, status_reason=reason[:255]
-        )
-        return Payment.STATUS_CANCELLED
-    return payment.status
+        while True:
+            part = payment.parts.filter(status=Payment.STATUS_PENDING).order_by("index").first()
+            if part is None:
+                _apply(payment, now)
+                return payment.status
+            if not part.provider_payment_id:
+                if renew or part.index > 1:
+                    _open_part(part, payment)
+                return payment.status
+            paid, data = _part_paid(part)
+            if paid:
+                part.status = Payment.STATUS_PAID
+                part.paid_at = now
+                part.meta = {**part.meta, "status": data.get("status"), "paid_time": data.get("paidTime"), "paid_total": data.get("amount")}
+                part.save()
+                continue  # next part, or apply when none is left
+            stale = taps.is_dead(data) or now - part.created_at > PENDING_TTL
+            if not stale:
+                return payment.status
+            if not payment.parts.filter(status=Payment.STATUS_PAID).exists():
+                reason = f"taps: {data.get('status')}" if taps.is_dead(data) else "expired"
+                payment.status = Payment.STATUS_CANCELLED
+                payment.status_reason = reason[:255]
+                payment.checkout_url = ""
+                payment.save()
+                return payment.status
+            # Part of the money is in: never cancel, offer a fresh link instead.
+            if renew:
+                _open_part(part, payment)
+            return payment.status
 
 
 def sync_pending(limit=50):

@@ -75,6 +75,8 @@ export function Billing() {
     },
   })
 
+  const live = pending ? (watch.data?.id === pending.id ? watch.data : pending) : null
+
   if (overview.isLoading) return <PageSkeleton stats={2} panels={2} />
   if (overview.isError) return <ErrorState message={errorMessage(overview.error)} onRetry={() => void overview.refetch()} />
   const data = overview.data!
@@ -135,6 +137,9 @@ export function Billing() {
                 {p.months > 1 && (
                   <div className="text-xs text-slate-500 dark:text-slate-400">oyiga {formatMoney(Math.round(p.amount / p.months))}</div>
                 )}
+                {p.amount > data.max_part_amount && (
+                  <div className="mt-1 text-xs text-amber-700 dark:text-amber-300">{Math.ceil(p.amount / data.max_part_amount)} qismda to'lanadi</div>
+                )}
               </button>
             ))}
           </div>
@@ -166,21 +171,37 @@ export function Billing() {
           </div>
           {error && <div className="mt-3"><ErrorBanner message={error} /></div>}
 
-          {pending && (
+          {live && (
             <div className="mt-4 rounded-lg border border-brand-200 bg-brand-50 p-4 text-sm dark:border-brand-800 dark:bg-brand-900/20">
               <div className="flex items-center gap-2 font-medium text-slate-800 dark:text-slate-100">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-brand-600" />
-                To'lov kutilmoqda: {formatMoney(pending.amount)}, {periodLabel(pending.months)}
+                To'lov kutilmoqda: {formatMoney(live.amount)}, {periodLabel(live.months)}
               </div>
-              <p className="mt-2 text-slate-600 dark:text-slate-300">
-                Ochilgan sahifada to'lovni yakunlang. Bu sahifa to'lovni o'zi tekshiradi.{' '}
-                <a href={pending.checkout_url} target="_blank" rel="noreferrer" className="font-medium text-brand-700 underline dark:text-brand-300">
-                  To'lov sahifasini ochish
-                </a>
-              </p>
-              <button type="button" className="mt-2 text-xs text-slate-500 underline" onClick={() => setPending(null)}>
-                Kutishni to'xtatish
-              </button>
+              {live.parts_total > 1 && (
+                <p className="mt-2 text-slate-700 dark:text-slate-200">
+                  To'lov tizimi bir martada {formatMoney(data.max_part_amount)} dan ko'p qabul qilmaydi, shuning uchun summa{' '}
+                  {live.parts_total} qismga bo'lingan. To'langan: <b>{live.parts_paid}/{live.parts_total}</b>.
+                  {live.part_amount ? ` Navbatdagi qism: ${formatMoney(live.part_amount)}.` : ''}
+                </p>
+              )}
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                {live.checkout_url ? (
+                  <a
+                    href={live.checkout_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center rounded-lg bg-brand-600 px-4 py-2 font-medium text-white hover:bg-brand-700"
+                  >
+                    {live.parts_total > 1 ? `${live.parts_paid + 1}-qismni to'lash` : "To'lov sahifasini ochish"}
+                  </a>
+                ) : (
+                  <span className="text-slate-500">To'lov havolasi tayyorlanmoqda…</span>
+                )}
+                <button type="button" className="text-xs text-slate-500 underline" onClick={() => setPending(null)}>
+                  Kutishni to'xtatish
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Bu sahifa to'lovni o'zi tekshiradi, to'lagandan keyin shu yerga qayting.</p>
             </div>
           )}
         </Card>
@@ -199,6 +220,7 @@ export function Billing() {
                 <th className="px-5 py-3">Summa</th>
                 <th className="px-5 py-3">Usul</th>
                 <th className="px-5 py-3">Holat</th>
+                <th className="px-5 py-3" />
               </tr>
             </thead>
             <tbody>
@@ -208,7 +230,19 @@ export function Billing() {
                   <td className="px-5 py-3">{periodLabel(p.months)}</td>
                   <td className="px-5 py-3">{formatMoney(p.amount)}</td>
                   <td className="px-5 py-3">{p.method_name}</td>
-                  <td className="px-5 py-3"><Badge tone={PAYMENT_STATUS[p.status].tone}>{PAYMENT_STATUS[p.status].label}</Badge></td>
+                  <td className="px-5 py-3">
+                    <Badge tone={PAYMENT_STATUS[p.status].tone}>{PAYMENT_STATUS[p.status].label}</Badge>
+                    {p.parts_total > 1 && p.status === 'pending' && (
+                      <span className="ml-2 text-xs text-slate-500">{p.parts_paid}/{p.parts_total} qism</span>
+                    )}
+                  </td>
+                  <td className="px-5 py-3 text-right">
+                    {p.status === 'pending' && pending?.id !== p.id && (
+                      <Button size="sm" variant="secondary" onClick={() => { setError(null); setPending(p) }}>
+                        Davom etish
+                      </Button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -357,6 +357,8 @@ SECURE_CROSS_ORIGIN_OPENER_POLICY = None if _coop.lower() in ("", "none", "off")
 # --- Billing (taps.so) ---
 TAPS_PROFILE_ID = int(os.environ.get("TAPS_PROFILE_ID", "352"))
 TAPS_SLUG = os.environ.get("TAPS_SLUG", "dilyorbekdev")
+# Taps refuses a single donation above this, so bigger totals are split.
+TAPS_MAX_AMOUNT = int(os.environ.get("TAPS_MAX_AMOUNT", "200000"))
 # Percent off the monthly price for longer periods, e.g. BILLING_DISCOUNTS=3:5,6:10,12:15
 BILLING_DISCOUNTS = {
     int(k): int(v)
