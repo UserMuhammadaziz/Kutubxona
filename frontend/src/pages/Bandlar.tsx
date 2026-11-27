@@ -25,6 +25,8 @@ import {
 import { useToast } from '../components/Toast'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { formatDateTime } from '../lib/format'
+import { useOrganization } from '../hooks/useOrganization'
+import { isSchool } from '../lib/organization'
 import DataTable, { type DataTableColumn } from '../components/DataTable'
 import { usePageSize } from '../hooks/usePageSize'
 
@@ -102,6 +104,9 @@ function HarakatTugmalari({
 
 /** O'quvchi roli + sinfi (yoki kasbi) — ikki qatorli yordamchi matn. */
 function OquvchiQatori({ band }: { band: BandQilish }) {
+  const { data: org } = useOrganization()
+  // Library readers have neither a class nor a role.
+  const library = !!org && !isSchool(org)
   const rol = band.oquvchi_rol === 'oqituvchi' ? 'O’qituvchi' : 'O’quvchi'
   const ikkinchi = band.oquvchi_rol === 'oqituvchi' ? 'Kasb' : 'Sinf'
   const qiymat = band.oquvchi_sinf?.trim()
@@ -111,7 +116,7 @@ function OquvchiQatori({ band }: { band: BandQilish }) {
         {band.oquvchi_fish}
       </div>
       <div className="text-xs text-slate-500 dark:text-slate-400">
-        {qiymat ? `${rol} — ${qiymat}` : `${rol} — ${ikkinchi} belgilanmagan`}
+        {library ? 'Kitobxon' : qiymat ? `${rol} — ${qiymat}` : `${rol} — ${ikkinchi} belgilanmagan`}
       </div>
     </>
   )

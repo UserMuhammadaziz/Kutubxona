@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { statsApi } from '../api/resources'
 import { errorMessage } from '../api/client'
+import { useOrganization } from '../hooks/useOrganization'
+import { isSchool } from '../lib/organization'
 import { Icons } from '../components/icons'
 import { Badge, Button, Card, EmptyState, ErrorState, PageHeader, Spinner } from '../components/ui'
 
@@ -104,6 +106,9 @@ function ReytingBolimi({
 export function Kitobxonlar() {
   const [tab, setTab] = useState<Tab>('oquvchi')
   const [sinfTanlov, setSinfTanlov] = useState('')
+  const { data: org } = useOrganization()
+  // Libraries have no classes or teachers: only the reader ratings are shown.
+  const library = !!org && !isSchool(org)
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['stats', 'faollik-reytingi'],
@@ -126,13 +131,13 @@ export function Kitobxonlar() {
         title="Kitobxonlar"
         subtitle={
           data?.organization
-            ? `${data.organization.nomi} — sinflar, o'quvchilar va o'qituvchilar faolligi`
-            : "Sinf, o'quvchi va o'qituvchilar faolligi"
+            ? `${data.organization.nomi} — ${library ? 'kitobxonlar' : "sinflar, o'quvchilar va o'qituvchilar"} faolligi`
+            : library ? 'Kitobxonlar faolligi' : "Sinf, o'quvchi va o'qituvchilar faolligi"
         }
       />
 
       {/* Ikki tugma: o'quvchilar va o'qituvchilar */}
-      <div className="mb-5 inline-flex rounded-xl border border-slate-200 bg-paper p-1 dark:border-slate-700 dark:bg-slate-800">
+      {!library && <div className="mb-5 inline-flex rounded-xl border border-slate-200 bg-paper p-1 dark:border-slate-700 dark:bg-slate-800">
         <Button
           variant={tab === 'oquvchi' ? 'primary' : 'ghost'}
           onClick={() => setTab('oquvchi')}
@@ -147,7 +152,7 @@ export function Kitobxonlar() {
         >
           <Icons.user className="h-4 w-4" /> O‘qituvchilar
         </Button>
-      </div>
+      </div>}
 
       {isLoading && <Spinner label="Reyting yuklanmoqda..." />}
 
@@ -191,9 +196,9 @@ export function Kitobxonlar() {
             </Card>
           </div>
 
-          {tab === 'oquvchi' ? (
+          {tab === 'oquvchi' || library ? (
             <>
-              <ReytingBolimi
+              {!library && <ReytingBolimi
                 sarlavha="Faol sinflar"
                 izoh="Bir sinf turli yozilishlarda bitta hisoblanadi. O'rin sinfdagi o'quvchilarning hozirgi kitob o'qish faolligiga qarab aniqlanadi."
                 bor={sinflar.length > 0}
@@ -209,16 +214,16 @@ export function Kitobxonlar() {
                     ball={s.ball}
                   />
                 ))}
-              </ReytingBolimi>
+              </ReytingBolimi>}
 
               <ReytingBolimi
-                sarlavha="Faol o‘quvchilar"
-                izoh="Hozirda qaytarilmagan kitoblari bor o‘quvchilar — kim ko‘p kitob o‘qiyotgani shu ro‘yxatda ko‘rinadi."
+                sarlavha={library ? 'Faol kitobxonlar' : 'Faol o‘quvchilar'}
+                izoh={`Hozirda qaytarilmagan kitoblari bor ${library ? 'kitobxonlar' : 'o‘quvchilar'} — kim ko‘p kitob o‘qiyotgani shu ro‘yxatda ko‘rinadi.`}
                 bor={faolOquvchilar.length > 0}
-                boshqaSarlavha="Hali kitob olgan o‘quvchi yo‘q"
-                boshqaIzoh="Kitob berilgach, o‘quvchi bu ro‘yxatda ko‘rinadi."
+                boshqaSarlavha={library ? 'Hali kitob olgan kitobxon yo‘q' : 'Hali kitob olgan o‘quvchi yo‘q'}
+                boshqaIzoh={`Kitob berilgach, ${library ? 'kitobxon' : 'o‘quvchi'} bu ro‘yxatda ko‘rinadi.`}
               >
-                <div className="border-b border-slate-100 p-3 dark:border-slate-700">
+                {!library && <div className="border-b border-slate-100 p-3 dark:border-slate-700">
                   <div className="mb-2 text-xs font-medium uppercase text-slate-500 dark:text-slate-400">
                     Faol sinf bo‘yicha
                   </div>
@@ -241,7 +246,7 @@ export function Kitobxonlar() {
                       </Button>
                     ))}
                   </div>
-                </div>
+                </div>}
                 {korsatiladiganOquvchilar.length ? (
                   korsatiladiganOquvchilar.map((o) => (
                     <RatingRow

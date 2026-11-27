@@ -18,6 +18,8 @@ import {
   avtomatikYoqilgan,
 } from '../lib/xatolikXabari'
 import { useAuthStore } from '../store/auth'
+import { useOrganization } from '../hooks/useOrganization'
+import { isSchool } from '../lib/organization'
 import { Icons } from '../components/icons'
 import { ProfilePreferences } from '../components/ProfilePreferences'
 import { TelegramLinkCard } from '../components/TelegramLinkCard'
@@ -97,6 +99,7 @@ export function Profile() {
   const [ochirishTasdiq, setOchirishTasdiq] = useState(false)
   const [ochirishNatija, setOchirishNatija] = useState<OchirishNatijasi | null>(null)
 
+  const { data: org } = useOrganization()
   const [xabar, setXabar] = useState<XabarYuborishPayload>({
     tur: 'shaxs',
     rol: 'oquvchi',
@@ -220,7 +223,9 @@ export function Profile() {
     .map((soz) => soz[0]?.toUpperCase() ?? '')
     .join('')
 
-  const rolNomi = xabar.rol === 'oquvchi' ? 'o‘quvchi' : 'o‘qituvchi'
+  // Libraries have no classes or teachers: every reader is messaged as one group.
+  const library = !!org && !isSchool(org)
+  const rolNomi = library ? 'kitobxon' : xabar.rol === 'oquvchi' ? 'o‘quvchi' : 'o‘qituvchi'
   const joriyKutubxonaNomi =
     user.kutubxonalar?.find((k) => k.id === organizationId)?.nomi ?? 'Tanlanmagan'
 
@@ -563,11 +568,11 @@ export function Profile() {
           Kitobxonlarga xabar yuborish
         </h2>
         <p className="mb-5 text-sm text-slate-500 dark:text-slate-400">
-          Bitta {rolNomi}, butun sinf yoki barcha sinflarga Telegram orqali xabar yuborishingiz mumkin.
+          {library ? 'Bitta kitobxonga yoki barcha kitobxonlarga' : `Bitta ${rolNomi}, butun sinf yoki barcha sinflarga`} Telegram orqali xabar yuborishingiz mumkin.
         </p>
         <form onSubmit={xabarYuborish}>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field>
+            {!library && <Field>
               <Label htmlFor="xabar-rol">Kimga</Label>
               <Select
                 id="xabar-rol"
@@ -583,7 +588,7 @@ export function Profile() {
                 <option value="oquvchi">O'quvchilarga</option>
                 <option value="oqituvchi">O'qituvchilarga</option>
               </Select>
-            </Field>
+            </Field>}
             <Field>
               <Label htmlFor="xabar-tur">Yuborish usuli</Label>
               <Select
@@ -598,8 +603,8 @@ export function Profile() {
                 }
               >
                 <option value="shaxs">Bitta {rolNomi}</option>
-                <option value="sinf">Sinf bo'yicha</option>
-                <option value="hamma">Barcha sinflarga</option>
+                {!library && <option value="sinf">Sinf bo'yicha</option>}
+                <option value="hamma">{library ? 'Barcha kitobxonlarga' : 'Barcha sinflarga'}</option>
               </Select>
             </Field>
           </div>
@@ -607,10 +612,10 @@ export function Profile() {
           {xabar.tur === 'shaxs' && (
             <>
               <Field>
-                <Label htmlFor="xabar-qidiruv">{xabar.rol === 'oquvchi' ? 'O‘quvchi' : 'O‘qituvchi'} qidirish</Label>
+                <Label htmlFor="xabar-qidiruv">{library ? 'Kitobxon' : xabar.rol === 'oquvchi' ? 'O‘quvchi' : 'O‘qituvchi'} qidirish</Label>
                 <Input
                   id="xabar-qidiruv"
-                  placeholder="Ism, sinf yoki telefon..."
+                  placeholder={library ? 'Ism yoki telefon...' : 'Ism, sinf yoki telefon...'}
                   value={kitobxonQidiruv}
                   onChange={(e) => setKitobxonQidiruv(e.target.value)}
                 />
@@ -639,7 +644,7 @@ export function Profile() {
             </>
           )}
 
-          {xabar.tur === 'sinf' && (
+          {xabar.tur === 'sinf' && !library && (
             <Field>
               <Label htmlFor="xabar-sinf">Sinf</Label>
               {sinflarYuklanmoqda ? (
@@ -666,7 +671,7 @@ export function Profile() {
 
           {xabar.tur === 'hamma' && (
             <p className="mb-4 rounded-lg border border-slate-200 bg-canvas px-3 py-2 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
-              Tanlangan roldagi barcha faol kitobxonlarga (barcha sinflarga) yuboriladi.
+              {library ? 'Barcha faol kitobxonlarga yuboriladi.' : 'Tanlangan roldagi barcha faol kitobxonlarga (barcha sinflarga) yuboriladi.'}
             </p>
           )}
 
