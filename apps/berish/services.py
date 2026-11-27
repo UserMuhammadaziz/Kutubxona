@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 
 from django.conf import settings
@@ -286,6 +287,15 @@ def _erken_qaytarish_xabarini_yubor(berish):
     telegram_xabar_yubor(oquvchi.telegram_id, matn, organization=berish.organization)
 
 
+def _review_invite(berish):
+    try:
+        from reviews.services import invite_after_return
+
+        invite_after_return(berish)
+    except Exception:
+        logging.getLogger(__name__).exception("review invite failed for loan %s", berish.pk)
+
+
 @transaction.atomic
 def kitob_qaytar(berish, xodim):
     """Kitobni qaytarib olish: avval nusxani bo'shatadi (nusxasiz «asli»
@@ -340,5 +350,6 @@ def kitob_qaytar(berish, xodim):
     # xabar bir xil ishlaydi.
     if erken_qaytarish:
         transaction.on_commit(lambda: _erken_qaytarish_xabarini_yubor(berish))
+    transaction.on_commit(lambda: _review_invite(berish))
 
     return berish, jarima, taklif_ketdi

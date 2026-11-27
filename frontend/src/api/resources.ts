@@ -826,3 +826,27 @@ export const billingApi = {
     api.post<BillingPayment>('/billing/checkout/', payload).then((r) => r.data),
   payment: (id: number) => api.get<BillingPayment>(`/billing/payments/${id}/`).then((r) => r.data),
 }
+
+// ---- Book reviews ----
+export interface BookReview {
+  id: number
+  book: number
+  rating: number
+  text: string
+  author: string
+  updated_at: string
+  reader: number
+  reader_name: string
+  is_hidden: boolean
+}
+
+export interface BookReviewList {
+  summary: { avg: number | null; count: number }
+  results: BookReview[]
+}
+
+export const reviewsApi = {
+  list: (book: number) => api.get<BookReviewList>('/reviews/', { params: { book } }).then((r) => r.data),
+  setHidden: (id: number, hidden: boolean) =>
+    api.post<BookReview>(`/reviews/${id}/hide/`, { hidden }).then((r) => r.data),
+}

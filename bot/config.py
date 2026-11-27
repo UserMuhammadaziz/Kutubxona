@@ -12,6 +12,13 @@ _REDIS = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 FSM_REDIS_URL = os.environ.get("BOT_FSM_REDIS_URL", _REDIS.rsplit("/", 1)[0] + "/2")
 API_BASE_URL = os.environ.get("BOT_API_BASE_URL", "http://127.0.0.1:8000/api")
 
+# Webhook mode: Telegram posts updates to BOT_WEBHOOK_URL (proxied by nginx to
+# BOT_WEBHOOK_HOST:BOT_WEBHOOK_PORT). Empty URL keeps the old long polling.
+WEBHOOK_URL = os.environ.get("BOT_WEBHOOK_URL", "").strip()
+WEBHOOK_SECRET = os.environ.get("BOT_WEBHOOK_SECRET", "").strip()
+WEBHOOK_HOST = os.environ.get("BOT_WEBHOOK_HOST", "127.0.0.1")
+WEBHOOK_PORT = int(os.environ.get("BOT_WEBHOOK_PORT", "8081"))
+
 # Bot IsAuthenticated/IsLibrarian talab qiladigan endpointlarga kirishi uchun
 # ishlatadigan xizmat akkaunti (Django admin orqali rol="kutubxonachi" bilan
 # oldindan yaratilishi kerak).

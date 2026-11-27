@@ -288,7 +288,7 @@ def janr_kitob_tugmalari(
 
 
 def kitob_band_qilish_tugmalari(
-    kitob_id: int, qaytish: str | None = None, navbat_mavjud: bool = False
+    kitob_id: int, qaytish: str | None = None, navbat_mavjud: bool = False, reviews_count: int = 0
 ) -> InlineKeyboardMarkup:
     """Batafsil sahifada: band qilish, bekor qilish va (kerak bo'lsa) navbat.
 
@@ -310,6 +310,9 @@ def kitob_band_qilish_tugmalari(
         inline_keyboard.append(
             [InlineKeyboardButton(text="⏳ Navbatga turish", callback_data=f"navbat_qoldir:{kitob_id}")]
         )
+    inline_keyboard.append(
+        [InlineKeyboardButton(text=f"💬 Fikrlar ({reviews_count})", callback_data=f"rv_list:{kitob_id}")]
+    )
     if qaytish:
         inline_keyboard.append(
             [InlineKeyboardButton(text="🔙 Ro'yxatga qaytish", callback_data=qaytish)]
@@ -383,5 +386,16 @@ def qaytarish_tasdiq_tugmasi(berish_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="✅ Qaytarib olish", callback_data=f"qaytar:{berish_id}")]
+        ]
+    )
+
+def rating_keyboard(book_id: int) -> InlineKeyboardMarkup:
+    """Same callback data as the webhook handler: `rv_rate:<book>:<n>`."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text=f"{n}⭐", callback_data=f"rv_rate:{book_id}:{n}")
+                for n in range(1, 6)
+            ]
         ]
     )

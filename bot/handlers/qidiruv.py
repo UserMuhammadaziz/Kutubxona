@@ -308,6 +308,7 @@ async def janr_kitob_tanlandi(callback: CallbackQuery):
             kitob_id,
             qaytish=f"jpage:{janr}:{sahifa}",
             navbat_mavjud=_navbat_mavjud(kitob),
+            reviews_count=_reviews_count(kitob),
         ),
     )
     await callback.answer()
@@ -335,7 +336,7 @@ async def kitob_kartochka(callback: CallbackQuery):
     await callback.message.answer(
         matn,
         reply_markup=kitob_band_qilish_tugmalari(
-            kitob_id, navbat_mavjud=_navbat_mavjud(kitob)
+            kitob_id, navbat_mavjud=_navbat_mavjud(kitob), reviews_count=_reviews_count(kitob)
         ),
     )
     await callback.answer()
@@ -380,6 +381,10 @@ def _navbat_mavjud(kitob: dict) -> bool:
     return not _mavjud_nusxa_bormi(kitob)
 
 
+def _reviews_count(kitob: dict) -> int:
+    return (kitob.get("rating") or {}).get("count") or 0
+
+
 def _kitob_batafsil_matn(kitob: dict) -> str:
     """Kitob kartochkasi matni — faqat batafsil ma'lumot.
 
@@ -395,6 +400,9 @@ def _kitob_batafsil_matn(kitob: dict) -> str:
         f"Nashriyot: {x(kitob.get('nashriyot')) or '-'} "
         f"({x(kitob.get('nashr_yili'))})"
     )
+    rating = kitob.get("rating") or {}
+    if rating.get("count"):
+        matn += f"\n⭐ {rating['avg']} / 5 · {rating['count']} ta baho"
     if kitob.get("tavsif"):
         matn += f"\n\n{x(kitob['tavsif'])}"
 

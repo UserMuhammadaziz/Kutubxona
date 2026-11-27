@@ -7,6 +7,7 @@ Django server (runserver) ishlab turgan bo'lishi kerak — bot faqat
 """
 import asyncio
 import logging
+from urllib.parse import urlsplit
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
@@ -15,6 +16,8 @@ from aiogram.exceptions import TelegramAPIError
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.storage.redis import DefaultKeyBuilder, RedisStorage
 from aiogram.types import ErrorEvent, MenuButtonCommands
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler
+from aiohttp import web
 
 import config
 from api_client import api
@@ -24,6 +27,7 @@ from handlers import (
     navigatsiya,
     noma_lum,
     qidiruv,
+    reviews,
     shaxsiy,
     staff_link,
     start,
@@ -119,6 +123,35 @@ async def _fsm_storage():
         return MemoryStorage()
 
 
+async def _serve_webhook(bot, dp):
+    """Receive updates over HTTPS instead of long polling.
+
+    The webhook is left in place on shutdown, so Telegram keeps updates
+    queued while the service restarts and nothing is lost.
+    """
+    if not config.WEBHOOK_SECRET:
+        raise RuntimeError("BOT_WEBHOOK_SECRET is required with BOT_WEBHOOK_URL")
+    app = web.Application()
+    SimpleRequestHandler(dispatcher=dp, bot=bot, secret_token=config.WEBHOOK_SECRET).register(
+        app, path=urlsplit(config.WEBHOOK_URL).path
+    )
+    runner = web.AppRunner(app)
+    await runner.setup()
+    await web.TCPSite(runner, config.WEBHOOK_HOST, config.WEBHOOK_PORT).start()
+    await bot.set_webhook(
+        config.WEBHOOK_URL,
+        secret_token=config.WEBHOOK_SECRET,
+        allowed_updates=dp.resolve_used_update_types(),
+    )
+    logging.getLogger(__name__).info(
+        "Bot ishga tushdi (webhook, %s:%s)", config.WEBHOOK_HOST, config.WEBHOOK_PORT
+    )
+    try:
+        await asyncio.Event().wait()
+    finally:
+        await runner.cleanup()
+
+
 async def main():
     logging.basicConfig(
         level=logging.INFO,
@@ -148,12 +181,14 @@ async def main():
     dp.include_router(qidiruv.router)
     dp.include_router(shaxsiy.router)
     dp.include_router(kutubxonachi.router)
+    dp.include_router(reviews.router)
     # Oxirida — boshqa hech narsa javob bermasa, foydalanuvchi hech qachon
     # jim qolmasin (masalan ariza bosqichida API xatosi yuz berganda).
     dp.include_router(noma_lum.router)
 
     try:
-        await bot.delete_webhook(drop_pending_updates=True)
+        if not config.WEBHOOK_URL:
+            await bot.delete_webhook(drop_pending_updates=True)
         try:
             await menyu_tugmasini_yoqish(bot)
         except TelegramAPIError:
@@ -162,8 +197,11 @@ async def main():
             logging.getLogger(__name__).exception(
                 "«Menu» tugmasi yoqilmadi, bot baribir ishga tushmoqda"
             )
-        logging.getLogger(__name__).info("Bot ishga tushdi (polling)...")
-        await dp.start_polling(bot)
+        if config.WEBHOOK_URL:
+            await _serve_webhook(bot, dp)
+        else:
+            logging.getLogger(__name__).info("Bot ishga tushdi (polling)...")
+            await dp.start_polling(bot)
     finally:
         await api.yopish()
         await bot.session.close()

@@ -212,6 +212,18 @@ class ApiClient:
             params["fresh"] = "1"
         return await self._so_rov("GET", "/telegram/bot/subscription/", params=params)
 
+    async def reviews(self, book_id: int, telegram_id: int):
+        return await self._so_rov(
+            "GET", "/reviews/bot/", params={"book": book_id, "telegram_id": telegram_id}
+        )
+
+    async def save_review(self, book_id: int, telegram_id: int, rating: int, text: str = ""):
+        return await self._so_rov(
+            "POST",
+            "/reviews/bot/",
+            json_data={"book": book_id, "telegram_id": telegram_id, "rating": rating, "text": text},
+        )
+
     # ---------- Kartani bog'lash ----------
     async def bind(self, telefon: str, karta_raqami: str, telegram_id: int):
         return await self._so_rov(
