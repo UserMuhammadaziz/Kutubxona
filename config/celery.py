@@ -1,12 +1,22 @@
 import os
 from celery import Celery
 from celery.schedules import crontab
+from celery.signals import after_setup_logger, after_setup_task_logger
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 
 app = Celery("kutubxona")
 app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks()
+
+
+@after_setup_logger.connect
+@after_setup_task_logger.connect
+def _error_alerts(logger, **kwargs):
+    """Celery replaces the root handlers, so the Telegram alert handler is added back here."""
+    from config.error_alerts import attach
+
+    attach(logger, process_name="celery")
 
 app.conf.beat_schedule = {
     "heartbeat-har-daqiqada": {
