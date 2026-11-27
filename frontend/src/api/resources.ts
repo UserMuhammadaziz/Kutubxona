@@ -507,6 +507,36 @@ export interface PeriodReport {
   fines_paid: PeriodFine[]
   by_staff: { name: string; issued: number; received: number }[]
   by_class: { class_name: string; overdue: number }[]
+  books: BookUsage
+}
+
+export interface BookUsageRow {
+  id: number
+  title: string
+  author: string
+  added_at: string | null
+  rating: number | null
+  rating_count: number
+  loans?: number
+  last_loan?: string | null
+}
+
+export interface BookOnLoan {
+  book_id: number
+  title: string
+  reader: string
+  class_name: string
+  issued_at: string
+  due_date: string
+  late_days: number
+}
+
+export interface BookUsage {
+  summary: { total: number; read_in_period: number; unread_in_period: number; never_read: number; on_loan: number }
+  popular: BookUsageRow[]
+  on_loan: BookOnLoan[]
+  unread: BookUsageRow[]
+  never_read: BookUsageRow[]
 }
 
 // ---- Announcements ----

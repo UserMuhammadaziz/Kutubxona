@@ -10,15 +10,18 @@ from io import BytesIO
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
-from django.db.models import Q, Sum
+from django.db.models import Avg, Count, Max, Q, Sum
 from django.utils import timezone
 
 from berish.models import Berish
 from jarima.models import Jarima
+from kitob.models import Kitob
 from navbat.models import Navbat
 from organization.tenancy import scope
 from oquvchi.models import Ariza, Oquvchi
 from oquvchi.utils import sinf_normal
+
+from reviews.models import Review
 
 from .models import ReminderLog
 
@@ -150,6 +153,80 @@ def _fine_row(fine):
     }
 
 
+def _book_row(book, ratings, **extra):
+    avg, count = ratings.get(book.pk, (None, 0))
+    return {
+        "id": book.pk,
+        "title": book.nomi,
+        "author": book.muallif,
+        "added_at": book.qoshilgan_sana.isoformat() if book.qoshilgan_sana else None,
+        "rating": round(avg, 1) if avg is not None else None,
+        "rating_count": count,
+        **extra,
+    }
+
+
+def build_book_usage(org, start, end, today):
+    """Which books are read in the period, which sit on loan now, which nobody reads."""
+    books = scope(Kitob.objects, org).exclude(holati="yoqolgan")
+    loans = scope(Berish.objects, org)
+    ratings = {
+        row["book"]: (row["avg"], row["count"])
+        for row in Review.objects.filter(organization=org, is_hidden=False)
+        .values("book").annotate(avg=Avg("rating"), count=Count("id"))
+    }
+
+    period_counts = dict(
+        loans.filter(berilgan_sana__range=(start, end)).values("kitob").annotate(n=Count("id")).values_list("kitob", "n")
+    )
+    last_loan = dict(loans.values("kitob").annotate(last=Max("berilgan_sana")).values_list("kitob", "last"))
+
+    popular_books = books.filter(pk__in=period_counts)
+    popular = sorted(
+        (_book_row(b, ratings, loans=period_counts[b.pk]) for b in popular_books),
+        key=lambda row: (-row["loans"], row["title"]),
+    )[:LIST_LIMIT]
+
+    on_loan = [
+        {
+            "book_id": loan.kitob_id,
+            "title": loan.kitob.nomi,
+            "reader": loan.oquvchi.fish,
+            "class_name": loan.oquvchi.sinf or "",
+            "issued_at": loan.berilgan_sana.isoformat(),
+            "due_date": loan.qaytarish_muddati.isoformat(),
+            "late_days": max((today - loan.qaytarish_muddati).days, 0),
+        }
+        for loan in loans.filter(qaytarilgan_sana__isnull=True)
+        .exclude(holati="yoqolgan")
+        .select_related("kitob", "oquvchi")
+        .order_by("qaytarish_muddati", "kitob__nomi")[:LIST_LIMIT]
+    ]
+
+    # Books that existed during the period but were not issued in it.
+    unread_qs = books.exclude(pk__in=period_counts).filter(qoshilgan_sana__lte=end).order_by("nomi")
+    unread = [
+        _book_row(b, ratings, last_loan=last_loan[b.pk].isoformat() if b.pk in last_loan else None)
+        for b in unread_qs[:LIST_LIMIT]
+    ]
+    never_qs = books.exclude(pk__in=last_loan).order_by("qoshilgan_sana", "nomi")
+    never = [_book_row(b, ratings) for b in never_qs[:LIST_LIMIT]]
+
+    return {
+        "summary": {
+            "total": books.count(),
+            "read_in_period": len(period_counts),
+            "unread_in_period": unread_qs.count(),
+            "never_read": never_qs.count(),
+            "on_loan": len(on_loan),
+        },
+        "popular": popular,
+        "on_loan": on_loan,
+        "unread": unread,
+        "never_read": never,
+    }
+
+
 def build_period_report(org, start, end, today=None):
     today = today or local_today()
     start_dt, end_dt = _datetime_range(start, end)
@@ -237,6 +314,7 @@ def build_period_report(org, start, end, today=None):
             {"class_name": name, "overdue": count}
             for name, count in sorted(by_class.items(), key=lambda item: (-item[1], item[0]))
         ],
+        "books": build_book_usage(org, start, end, today),
     }
 
 
@@ -309,6 +387,16 @@ def build_report_xlsx(report, organization_name=""):
     for label, value in lines:
         ws.append([label, value])
         ws.cell(row=ws.max_row, column=1).font = Font(bold=True)
+    books = report["books"]
+    for label, value in [
+        ("Kitoblar (jami)", books["summary"]["total"]),
+        ("Davrda o'qilgan kitoblar", books["summary"]["read_in_period"]),
+        ("Davrda o'qilmagan kitoblar", books["summary"]["unread_in_period"]),
+        ("Hech qachon o'qilmagan", books["summary"]["never_read"]),
+        ("Hozir kitobxonlar qo'lida", books["summary"]["on_loan"]),
+    ]:
+        ws.append([label, value])
+        ws.cell(row=ws.max_row, column=1).font = Font(bold=True)
     ws.column_dimensions["A"].width = 34
     ws.column_dimensions["B"].width = 40
 
@@ -350,6 +438,34 @@ def build_report_xlsx(report, organization_name=""):
         ["Xodim", "Bergan", "Qabul qilgan"],
         [[s["name"], s["issued"], s["received"]] for s in report["by_staff"]],
         [30, 10, 14],
+    )
+
+    def rating(row):
+        return f"{row['rating']} ({row['rating_count']})" if row["rating"] is not None else ""
+
+    sheet(
+        "Ko'p o'qilgan",
+        ["Kitob", "Muallif", "Berildi (marta)", "Baho"],
+        [[r["title"], r["author"], r["loans"], rating(r)] for r in books["popular"]],
+        [40, 28, 16, 12],
+    )
+    sheet(
+        "Kitobxonlar qo'lida",
+        ["Kitob", "F.I.Sh.", "Sinf", "Berilgan", "Muddat", "Kechikish (kun)"],
+        [[r["title"], r["reader"], r["class_name"], r["issued_at"], r["due_date"], r["late_days"]] for r in books["on_loan"]],
+        [40, 30, 8, 12, 12, 14],
+    )
+    sheet(
+        "Davrda o'qilmagan",
+        ["Kitob", "Muallif", "Oxirgi berilgan", "Baho"],
+        [[r["title"], r["author"], r["last_loan"] or "Hech qachon", rating(r)] for r in books["unread"]],
+        [40, 28, 16, 12],
+    )
+    sheet(
+        "Hech o'qilmagan",
+        ["Kitob", "Muallif", "Qo'shilgan sana"],
+        [[r["title"], r["author"], r["added_at"] or ""] for r in books["never_read"]],
+        [40, 28, 16],
     )
 
     buffer = BytesIO()

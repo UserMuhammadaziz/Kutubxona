@@ -226,3 +226,55 @@ class DailyReportTaskTest(PeriodReportBase):
         self.org.refresh_from_db()
         self.assertEqual(self.org.daily_report_time, time(17, 30))
         self.assertEqual(self.org.daily_report_recipients, "librarians")
+
+
+class BookUsageTest(PeriodReportBase):
+    def give(self, book, reader, issued, returned=True):
+        return Berish.objects.create(
+            organization=self.org, kitob=book, oquvchi=reader, bergan_xodim=self.user,
+            berilgan_sana=issued, qaytarish_muddati=issued + timedelta(days=10),
+            qaytarilgan_sana=issued + timedelta(days=3) if returned else None,
+            holati="qaytarilgan" if returned else "faol",
+        )
+
+    def test_read_unread_never_and_on_loan(self):
+        from reviews.models import Review
+
+        popular = self.book  # read twice this week, rated
+        old = Kitob.objects.create(organization=self.org, nomi="Eski", muallif="B", janr="badiiy", nashr_yili=2000)
+        never = Kitob.objects.create(organization=self.org, nomi="Hech kim", muallif="C", janr="badiiy", nashr_yili=2001)
+        lost = Kitob.objects.create(
+            organization=self.org, nomi="Yo'qolgan", muallif="D", janr="badiiy", nashr_yili=2001, holati="yoqolgan"
+        )
+        self.give(popular, self.readers[0], self.today - timedelta(days=5))
+        self.give(popular, self.readers[1], self.today)
+        self.give(old, self.readers[2], self.today - timedelta(days=200))
+        open_loan = self.give(old, self.readers[3], self.today - timedelta(days=60), returned=False)
+        Review.objects.create(organization=self.org, book=popular, reader=self.readers[0], rating=4)
+
+        books = build_period_report(self.org, self.today - timedelta(days=7), self.today)["books"]
+        self.assertEqual(books["popular"][0]["title"], popular.nomi)
+        self.assertEqual((books["popular"][0]["loans"], books["popular"][0]["rating"]), (2, 4.0))
+        unread = {row["title"]: row for row in books["unread"]}
+        self.assertEqual(set(unread), {"Eski", "Hech kim"})  # lost book is not counted
+        self.assertEqual(unread["Eski"]["last_loan"], open_loan.berilgan_sana.isoformat())
+        self.assertIsNone(unread["Hech kim"]["last_loan"])
+        self.assertEqual([row["title"] for row in books["never_read"]], ["Hech kim"])
+        self.assertEqual([row["title"] for row in books["on_loan"]], ["Eski"])
+        self.assertEqual(books["on_loan"][0]["late_days"], 50)
+        self.assertEqual(
+            books["summary"], {"total": 3, "read_in_period": 1, "unread_in_period": 2, "never_read": 1, "on_loan": 1}
+        )
+        self.assertNotIn(lost.nomi, str(books))
+
+    def test_other_library_books_hidden_and_excel_sheets(self):
+        from openpyxl import load_workbook
+
+        other = Organization.objects.create(nomi="Boshqa", status=Organization.HOLAT_ACTIVE)
+        Kitob.objects.create(organization=other, nomi="Begona", muallif="X", janr="badiiy", nashr_yili=2000)
+        data = self.client.get("/api/stats/period/", {"preset": "week"}).data
+        self.assertNotIn("Begona", str(data["books"]))
+        response = self.client.get("/api/stats/period/export/", {"preset": "week"})
+        workbook = load_workbook(BytesIO(response.content))
+        for name in ("Ko'p o'qilgan", "Kitobxonlar qo'lida", "Davrda o'qilmagan", "Hech o'qilmagan"):
+            self.assertIn(name, workbook.sheetnames)
