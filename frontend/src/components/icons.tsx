@@ -228,6 +228,16 @@ export const Icons = {
       <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
     </Svg>
   ),
+  chart: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M3 3v18h18M8 17v-5m4 5V8m4 9v-3" />
+    </Svg>
+  ),
+  download: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+    </Svg>
+  ),
   send: (p: IconProps) => (
     <Svg {...p}>
       <path d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />

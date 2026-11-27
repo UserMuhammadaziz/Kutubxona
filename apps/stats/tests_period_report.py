@@ -65,9 +65,13 @@ class PeriodReportBase(TestCase):
         ]
 
     def loan(self, reader, due, returned=None, issued=None):
+        # One open loan per book is allowed, so each loan gets its own book.
+        book = Kitob.objects.create(
+            organization=self.org, nomi=f"Kitob {Kitob.objects.count()}", muallif="A", janr="badiiy", nashr_yili=2020
+        )
         return Berish.objects.create(
             organization=self.org,
-            kitob=self.book,
+            kitob=book,
             oquvchi=reader,
             bergan_xodim=self.user,
             berilgan_sana=issued or due - timedelta(days=14),

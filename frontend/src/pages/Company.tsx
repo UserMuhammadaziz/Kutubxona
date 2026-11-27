@@ -26,6 +26,7 @@ import {
   Label,
   PageHeader,
   PhoneInput,
+  Select,
   Textarea,
   ListSkeleton,
   PageSkeleton,
@@ -89,6 +90,9 @@ function SettingsForm({ org }: { org: OrganizationInfo }) {
     taklif_soat: String(org.taklif_soat ?? 24),
     eslatma_kunlar_oldin: String(org.eslatma_kunlar_oldin ?? 2),
     kitob_xabarlari_yoqilgan: org.kitob_xabarlari_yoqilgan ?? true,
+    daily_report_enabled: org.daily_report_enabled ?? true,
+    daily_report_time: (org.daily_report_time ?? '18:00').slice(0, 5),
+    daily_report_recipients: org.daily_report_recipients ?? 'all',
   }
   const [form, setForm] = useState(initial)
   const dirty = JSON.stringify(form) !== JSON.stringify(initial)
@@ -109,6 +113,9 @@ function SettingsForm({ org }: { org: OrganizationInfo }) {
         taklif_soat: Number(form.taklif_soat),
         eslatma_kunlar_oldin: Number(form.eslatma_kunlar_oldin),
         kitob_xabarlari_yoqilgan: form.kitob_xabarlari_yoqilgan,
+        daily_report_enabled: form.daily_report_enabled,
+        daily_report_time: form.daily_report_time,
+        daily_report_recipients: form.daily_report_recipients,
       }),
     onSuccess: (next) => {
       qc.setQueryData(['organization-info'], next)
@@ -225,6 +232,50 @@ function SettingsForm({ org }: { org: OrganizationInfo }) {
               label={form.kitob_xabarlari_yoqilgan ? 'Yoqilgan' : 'O‘chirilgan'}
             />
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Berish va qaytarish haqida o‘quvchiga Telegram xabari.</p>
+          </Field>
+        </div>
+      </Card>
+
+      <Card className="p-5">
+        <h2 className="mb-1 text-lg font-semibold text-slate-900 dark:text-slate-100">Kunlik hisobot</h2>
+        <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+          Har kuni belgilangan vaqtda kutubxona boti kunlik statistikani Excel fayl qilib xodimlarga Telegramda yuboradi.
+          Hisobot faqat botga ulangan xodimlarga boradi.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field>
+            <Label htmlFor="c-report">Hisobot</Label>
+            <Switch
+              id="c-report"
+              checked={form.daily_report_enabled}
+              onChange={(v) => set('daily_report_enabled', v)}
+              label={form.daily_report_enabled ? 'Yoqilgan' : 'O‘chirilgan'}
+            />
+          </Field>
+          <Field>
+            <Label htmlFor="c-report-time">Yuborish vaqti</Label>
+            <Input
+              id="c-report-time"
+              type="time"
+              required
+              disabled={!form.daily_report_enabled}
+              value={form.daily_report_time}
+              onChange={(e) => set('daily_report_time', e.target.value)}
+              className="max-w-40"
+            />
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Odatda kutubxona yopiladigan vaqt.</p>
+          </Field>
+          <Field>
+            <Label htmlFor="c-report-to">Kimlarga</Label>
+            <Select
+              id="c-report-to"
+              disabled={!form.daily_report_enabled}
+              value={form.daily_report_recipients}
+              onChange={(e) => set('daily_report_recipients', e.target.value as 'all' | 'librarians')}
+            >
+              <option value="all">Barcha xodimlar</option>
+              <option value="librarians">Faqat kutubxonachilar</option>
+            </Select>
           </Field>
         </div>
       </Card>

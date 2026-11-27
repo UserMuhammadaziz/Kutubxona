@@ -19,6 +19,7 @@ import { Bandlar } from './pages/Bandlar'
 import { Reservations } from './pages/Reservations'
 import { Announcements } from './pages/Announcements'
 import { Fines } from './pages/Fines'
+import { Statistics } from './pages/Statistics'
 import { Staff } from './pages/Staff'
 import { Guide, PublicGuide } from './pages/Guide'
 import { Register } from './pages/Register'
@@ -64,6 +65,7 @@ function App() {
             <Route path="/reservations" element={<Reservations />} />
             <Route path="/announcements" element={<Announcements />} />
             <Route path="/fines" element={<Fines />} />
+            <Route path="/statistics" element={<Statistics />} />
             <Route path="/guide" element={<Guide />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/company" element={<Company />} />

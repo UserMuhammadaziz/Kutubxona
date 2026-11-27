@@ -77,6 +77,10 @@ export interface OrganizationInfo {
   /** Days before the due date to send a reminder. */
   eslatma_kunlar_oldin?: number
   kitob_xabarlari_yoqilgan?: boolean
+  daily_report_enabled?: boolean
+  /** Local time `HH:MM:SS` when the daily Excel report goes to staff. */
+  daily_report_time?: string
+  daily_report_recipients?: 'all' | 'librarians'
   /** Current user's role inside this organization (membership role). */
   rol?: string | null
   status?: string
@@ -388,6 +392,88 @@ export const statsApi = {
   dashboard: () => api.get<DashboardStats>('/stats/dashboard/').then((r) => r.data),
   faollikReytingi: () =>
     api.get<FaollikReytingi>('/stats/ratings/activity/').then((r) => r.data),
+  period: (params: PeriodParams) => api.get<PeriodReport>('/stats/period/', { params }).then((r) => r.data),
+  exportPeriod: async (params: PeriodParams) => {
+    const r = await api.get<Blob>('/stats/period/export/', { params, responseType: 'blob' })
+    const match = /filename="([^"]+)"/.exec(String(r.headers['content-disposition'] ?? ''))
+    const url = URL.createObjectURL(r.data)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = match?.[1] ?? 'hisobot.xlsx'
+    link.click()
+    URL.revokeObjectURL(url)
+  },
+  remind: (loanId: number) => api.post<{ delivered: boolean }>('/stats/remind/', { loan_id: loanId }).then((r) => r.data),
+}
+
+export type PeriodPreset = 'today' | 'yesterday' | 'tomorrow' | 'week' | 'month' | 'custom'
+export interface PeriodParams {
+  preset: PeriodPreset
+  start?: string
+  end?: string
+}
+export interface PeriodLoan {
+  id: number
+  reader_id: number
+  reader: string
+  role: string
+  class_name: string
+  phone: string
+  telegram_linked: boolean
+  book: string
+  inventory_number: string
+  issued_at: string
+  due_date: string
+  returned_at: string | null
+  status: 'on_time' | 'late' | 'not_returned'
+  late_days: number
+  issued_by: string
+  received_by: string
+  reminder: { sent_at: string | null; delivered: boolean; kind: string } | null
+}
+export interface PeriodFine {
+  id: number
+  reader: string
+  class_name: string
+  book: string
+  late_days: number
+  amount: string
+  paid: boolean
+  paid_at: string | null
+  received_by: string
+}
+export interface PeriodReport {
+  period: { start: string; end: string; today: string }
+  summary: {
+    due: number
+    returned_on_time: number
+    returned_late: number
+    not_returned: number
+    overdue_total: number
+    issued: number
+    returned: number
+    fines_new_count: number
+    fines_new_amount: string
+    fines_paid_count: number
+    fines_paid_amount: string
+    fines_unpaid_amount: string
+    reservations_new: number
+    reservations_fulfilled: number
+    applications_new: number
+    applications_approved: number
+    new_readers: number
+    reminders_sent: number
+    reminders_delivered: number
+  }
+  due: PeriodLoan[]
+  not_returned: PeriodLoan[]
+  overdue: PeriodLoan[]
+  issued: PeriodLoan[]
+  returned: PeriodLoan[]
+  fines_new: PeriodFine[]
+  fines_paid: PeriodFine[]
+  by_staff: { name: string; issued: number; received: number }[]
+  by_class: { class_name: string; overdue: number }[]
 }
 
 // ---- Announcements ----
