@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { booksApi, holdsApi } from '../api/resources'
+import { BookReviews } from '../components/BookReviews'
 import { Icons } from '../components/icons'
 import { Badge, Button, Card, PageHeader, PageSkeleton, Table } from '../components/ui'
 import { BAND_HOLATI_LABELS, JANR_LABELS, NAVBAT_HOLATI_LABELS, NUSXA_HOLATI_LABELS, TIL_LABELS, HOLAT_LABELS, type Janr, type NavbatHolati, type NusxaHolati, type BandHolati } from '../types'
@@ -158,6 +159,7 @@ export function BookDetail() {
               </Table>
             </>
           )}
+          <BookReviews bookId={bookId} />
         </div>
       </div>
     </div>

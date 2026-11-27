@@ -24,6 +24,7 @@ from organization.models import Membership, Organization
 from oquvchi.constants import FAN_LIMIT, FANLAR, FISH_RE, SINF_RE, format_xatolari
 from oquvchi.models import Ariza, Oquvchi
 from oquvchi.search import tolerant_q
+from reviews import services as reviews
 
 from .client import answer_callback_query, answer_inline_query
 from .models import TelegramSession
@@ -695,7 +696,78 @@ def _kitob_karta(bot, chat_id, telegram_id, kitob_id):
                 f"{f' ({telegram_escape(sinf)})' if sinf else ''} — "
                 f"{berish.qaytarish_muddati}\n"
             )
-    _send(bot, chat_id, matn, _inline(_book_action_rows(kitob.pk, mavjud, jami)))
+    info = reviews.summary(kitob)
+    if info["count"]:
+        matn += f"\n⭐ {info['avg']} / 5 · {info['count']} ta baho\n"
+    rows = _book_action_rows(kitob.pk, mavjud, jami)
+    rows.append(_review_row(bot, telegram_id, kitob, info))
+    _send(bot, chat_id, matn, _inline(rows))
+
+
+def _review_row(bot, telegram_id, kitob, info):
+    row = [{"text": f"💬 Fikrlar ({info['count']})", "callback_data": f"rv_list:{kitob.pk}"}]
+    reader = _reader(bot, telegram_id)
+    if reader and reviews.has_read(reader, kitob):
+        row.append({"text": "✍️ Fikr qoldirish", "callback_data": f"rv_new:{kitob.pk}"})
+    return row
+
+
+def _review_book(bot, chat_id, telegram_id, book_id):
+    """The book and reader for a review action, or None after telling the user why."""
+    kitob = Kitob.objects.filter(organization=bot.organization, pk=book_id).first()
+    reader = _reader(bot, telegram_id)
+    if not kitob:
+        _send(bot, chat_id, "Kitob topilmadi.")
+        return None, None
+    if not reader or not reviews.has_read(reader, kitob):
+        _send(bot, chat_id, reviews.NOT_ALLOWED)
+        return None, None
+    return kitob, reader
+
+
+def _review_callback(bot, chat_id, telegram_id, data):
+    parts = data.split(":")
+    action, book_id = parts[0], parts[1] if len(parts) > 1 else ""
+    if not book_id.isdigit():
+        return
+    if action == "rv_list":
+        kitob = Kitob.objects.filter(organization=bot.organization, pk=book_id).first()
+        if not kitob:
+            return _send(bot, chat_id, "Kitob topilmadi.")
+        info = reviews.summary(kitob)
+        reader = _reader(bot, telegram_id)
+        markup = None
+        if reader and reviews.has_read(reader, kitob):
+            markup = _inline([[{"text": "✍️ Fikr qoldirish", "callback_data": f"rv_new:{kitob.pk}"}]])
+        return _send(bot, chat_id, reviews.telegram_text(kitob, reviews.public_reviews(kitob), info), markup)
+    kitob, reader = _review_book(bot, chat_id, telegram_id, book_id)
+    if not kitob:
+        return
+    if action == "rv_new":
+        return _send(
+            bot, chat_id, reviews.RATE_PROMPT.format(title=telegram_escape(kitob.nomi)), reviews.rating_keyboard(kitob.pk)
+        )
+    rating = parts[2] if len(parts) > 2 else ""
+    if not rating.isdigit() or not 1 <= int(rating) <= 5:
+        return
+    if action == "rv_rate":
+        _set_session(bot, telegram_id, chat_id, "review_text", {"book": kitob.pk, "rating": int(rating)})
+        return _send(
+            bot, chat_id, reviews.TEXT_PROMPT.format(stars=reviews.stars(rating)), reviews.skip_keyboard(kitob.pk, rating)
+        )
+    if action == "rv_skip":
+        _clear_session(bot, telegram_id)
+        reviews.save_review(reader, kitob, rating)
+        return _send(bot, chat_id, reviews.SAVED, _menu(bot, telegram_id))
+
+
+def _review_text(bot, chat_id, telegram_id, sessiya, matn):
+    _clear_session(bot, telegram_id)
+    kitob, reader = _review_book(bot, chat_id, telegram_id, sessiya.data.get("book"))
+    if not kitob:
+        return
+    reviews.save_review(reader, kitob, sessiya.data.get("rating", 5), matn)
+    _send(bot, chat_id, reviews.SAVED, _menu(bot, telegram_id))
 
 
 def _band_qilish(bot, chat_id, telegram_id, kitob_id):
@@ -991,6 +1063,9 @@ def _text(bot, message):
                     return
             _clear_session(bot, telegram_id)
             # Tugma o'z bo'limiga quyidagi filtrlar orqali yetkaziladi.
+        elif sessiya.step == "review_text":
+            _review_text(bot, chat_id, telegram_id, sessiya, matn)
+            return
         else:
             _ariza_text(bot, message, sessiya)
             return
@@ -1114,6 +1189,8 @@ def _callback(bot, callback):
             _band_qilish(bot, chat_id, telegram_id, data.split(":", 1)[1])
         elif data.startswith("navbat:"):
             _navbatga_qosh(bot, chat_id, telegram_id, data.split(":", 1)[1])
+        elif data.startswith("rv_"):
+            _review_callback(bot, chat_id, telegram_id, data)
     finally:
         # `kitob:`/`band_ok:`/`band_no:` dan tashqari holatlar ham javobsiz
         # qolardi — shuning uchun javob bitta joyda, hamma holatda beriladi.

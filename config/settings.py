@@ -85,6 +85,7 @@ INSTALLED_APPS = [
     'stats',
     'marketing',
     'billing',
+    'reviews',
     'web',
 ] 
 

@@ -33,3 +33,8 @@ class KutubxonachiQaytarish(StatesGroup):
     """Kutubxonachi: inventar raqami orqali kitobni qaytarib olish (ixtiyoriy)."""
 
     inventar = State()
+
+class ReviewText(StatesGroup):
+    """Waiting for the reader's opinion after they picked a rating."""
+
+    text = State()

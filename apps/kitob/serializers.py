@@ -65,9 +65,15 @@ class KitobDetailSerializer(KitobSerializer):
     """GET /api/books/{id}/ — kitob + nusxalari ro'yxati va holatlari."""
 
     nusxalar = NusxaQisqaSerializer(many=True, read_only=True)
+    rating = serializers.SerializerMethodField()
 
     class Meta(KitobSerializer.Meta):
-        fields = KitobSerializer.Meta.fields + ["nusxalar"]
+        fields = KitobSerializer.Meta.fields + ["nusxalar", "rating"]
+
+    def get_rating(self, obj):
+        from reviews.services import summary
+
+        return summary(obj)
 
 
 class KitobQidiruvSerializer(serializers.ModelSerializer):
