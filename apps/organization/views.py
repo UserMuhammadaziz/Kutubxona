@@ -140,26 +140,87 @@ class OrganizationViewSet(viewsets.GenericViewSet):
         org.save(update_fields=["logo_url"])
         return Response(OrganizationSerializer(org, context={"request": request}).data)
 
+    def _membership_for_telegram(self, request):
+        org = joriy_kutubxonani_aniqla(request, required=True)
+        return org, foydalanuvchi_azoligi(request.user, org)
+
+    @staticmethod
+    def _bot_username(org):
+        bot = getattr(org, "telegram_bot", None)
+        if bot is not None and bot.holati == "ulangan":
+            return bot.username
+        return ""
+
     @action(detail=False, methods=["post"], url_path="telegram-link-code")
     def telegram_link_code(self, request):
-        org = joriy_kutubxonani_aniqla(request, required=True)
-        azolik = foydalanuvchi_azoligi(request.user, org)
+        from telegrambot.staff_link import deep_link
+
+        org, azolik = self._membership_for_telegram(request)
         if not azolik:
             return Response({"detail": "A'zolik topilmadi."}, status=403)
+        bot_username = self._bot_username(org)
+        if not bot_username:
+            return Response(
+                {"detail": "Kutubxonaning Telegram boti ulanmagan. Administratorga murojaat qiling."},
+                status=400,
+            )
         kod = azolik.yangi_link_kod()
-        bot = getattr(org, "telegram_bot", None)
         return Response(
             {
                 "code": kod,
                 "expires": azolik.link_code_expires,
-                "bot_username": bot.username if bot else "",
-                "instruksiya": (
-                    f"Telegram botga /ulash {kod} yuboring."
-                    if bot
-                    else "Avval kutubxona Telegram botini ulang."
-                ),
+                "bot_username": bot_username,
+                "deep_link": deep_link(bot_username, kod),
+                "instruksiya": f"Telegram botga /ulash {kod} yuboring.",
             }
         )
+
+    @action(detail=False, methods=["get"], url_path="telegram-link-status")
+    def telegram_link_status(self, request):
+        org, azolik = self._membership_for_telegram(request)
+        if not azolik:
+            return Response({"detail": "A'zolik topilmadi."}, status=403)
+        return Response(
+            {
+                "linked": bool(azolik.telegram_id),
+                "bot_username": self._bot_username(org),
+            }
+        )
+
+    @action(detail=False, methods=["post"], url_path="telegram-unlink")
+    def telegram_unlink(self, request):
+        from telegrambot.staff_link import unlink_staff
+
+        org, azolik = self._membership_for_telegram(request)
+        if not azolik:
+            return Response({"detail": "A'zolik topilmadi."}, status=403)
+        unlink_staff(azolik)
+        return Response({"linked": False, "bot_username": self._bot_username(org)})
+
+    @action(detail=True, methods=["post", "delete"], url_path="subscription-channel")
+    def subscription_channel(self, request, pk=None):
+        """POST {"channel": "@name"} to require a channel subscription, DELETE to turn it off."""
+        from telegrambot.subscription import resolve_channel
+
+        org = self.get_queryset().filter(pk=pk).first()
+        if not org:
+            return Response({"detail": "Kutubxona topilmadi."}, status=404)
+        azolik = foydalanuvchi_azoligi(request.user, org)
+        if not request.user.is_superuser and not (azolik and azolik.adminmi):
+            return Response({"detail": "Ruxsat yo'q."}, status=403)
+        if request.method == "DELETE":
+            values = {
+                "subscription_channel": "",
+                "subscription_channel_id": None,
+                "subscription_channel_title": "",
+                "subscription_channel_url": "",
+            }
+        else:
+            values = resolve_channel(org, request.data.get("channel"))
+        for field, value in values.items():
+            setattr(org, field, value)
+        org.save(update_fields=list(values))
+        return Response(OrganizationSerializer(org, context={"request": request}).data)
 
 
 class SaaSOrganizationViewSet(viewsets.ModelViewSet):

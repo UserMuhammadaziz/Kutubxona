@@ -80,6 +80,8 @@ from organization.views import (
 )
 from oquvchi.views import ArizaViewSet, FanViewSet, OquvchiViewSet
 from telegrambot.views import (
+    BotStaffLinkView,
+    BotSubscriptionView,
     SinflarView,
     TelegramBotActionView,
     TelegramBotSettingsView,
@@ -139,6 +141,8 @@ urlpatterns = [
     path("api/messages/classes/", SinflarView.as_view()),
     path("api/messages/send/", XabarYuborishView.as_view()),
     path("api/telegram/settings/", TelegramBotSettingsView.as_view()),
+    path("api/telegram/bot/staff-link/", BotStaffLinkView.as_view()),
+    path("api/telegram/bot/subscription/", BotSubscriptionView.as_view()),
     path("api/telegram/actions/<str:action>/", TelegramBotActionView.as_view()),
     path("api/telegram/webhook/<str:path>/", TelegramWebhookView.as_view()),
     path("", include("web.urls")),

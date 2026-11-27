@@ -2,7 +2,13 @@ import { useState, type FormEvent } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { Navigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { authApi, telegramApi, type OrganizationInfo, type TelegramBotState } from '../api/resources'
+import {
+  authApi,
+  subscriptionChannelApi,
+  telegramApi,
+  type OrganizationInfo,
+  type TelegramBotState,
+} from '../api/resources'
 import { Switch } from '../components/controls'
 import { errorMessage } from '../api/client'
 import { canManageCompany, useOrganization } from '../hooks/useOrganization'
@@ -656,6 +662,97 @@ function InlineSearchSection({ org }: { org: OrganizationInfo }) {
   )
 }
 
+/** Readers must join the library's channel before the bot serves them; staff are exempt. */
+function SubscriptionChannelSection({ org }: { org: OrganizationInfo }) {
+  const qc = useQueryClient()
+  const toast = useToast()
+  const [channel, setChannel] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const active = Boolean(org.subscription_channel)
+
+  const saveMut = useMutation({
+    mutationFn: () => subscriptionChannelApi.set(org.id, channel.trim()),
+    onSuccess: (next) => {
+      qc.setQueryData(['organization-info'], next)
+      setChannel('')
+      setError(null)
+      toast.success('Majburiy obuna yoqildi')
+    },
+    onError: (e) => setError(errorMessage(e)),
+  })
+  const removeMut = useMutation({
+    mutationFn: () => subscriptionChannelApi.remove(org.id),
+    onSuccess: (next) => {
+      qc.setQueryData(['organization-info'], next)
+      setError(null)
+      toast.success('Majburiy obuna o‘chirildi')
+    },
+    onError: (e) => toast.error(errorMessage(e)),
+  })
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault()
+    if (!channel.trim()) {
+      setError('Kanalni kiriting.')
+      return
+    }
+    saveMut.mutate()
+  }
+
+  return (
+    <Card className="p-5">
+      <h2 className="mb-1 flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-slate-100">
+        Majburiy obuna
+        <Badge tone={active ? 'green' : 'slate'}>{active ? 'Yoqilgan' : 'O‘chirilgan'}</Badge>
+      </h2>
+      <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">
+        Kitobxonlar botdan foydalanishdan oldin kutubxona kanaliga obuna bo‘lishi kerak bo‘ladi. Xodimlar bundan ozod.
+      </p>
+
+      {active && (
+        <div className="mb-3 flex flex-col gap-3 rounded-lg border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700">
+          <div className="min-w-0 text-sm">
+            <div className="truncate font-medium text-slate-900 dark:text-slate-100">
+              {org.subscription_channel_title || org.subscription_channel}
+            </div>
+            {org.subscription_channel_url && (
+              <a
+                href={org.subscription_channel_url}
+                target="_blank"
+                rel="noreferrer"
+                className="truncate text-brand-700 underline dark:text-brand-300"
+              >
+                {org.subscription_channel_url}
+              </a>
+            )}
+          </div>
+          <Button variant="secondary" size="sm" loading={removeMut.isPending} onClick={() => removeMut.mutate()}>
+            O‘chirish
+          </Button>
+        </div>
+      )}
+
+      <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row">
+        <Input
+          value={channel}
+          onChange={(e) => setChannel(e.target.value)}
+          placeholder="@kutubxona_kanali yoki https://t.me/..."
+          aria-label="Kanal"
+          className="flex-1"
+        />
+        <Button type="submit" loading={saveMut.isPending}>
+          {active ? 'Kanalni almashtirish' : 'Saqlash'}
+        </Button>
+      </form>
+      {error && <div className="mt-2"><ErrorBanner message={error} /></div>}
+      <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+        Avval kutubxona botini kanalga <b>administrator</b> qilib qo‘shing. Yopiq kanal uchun kanal ID sini kiriting
+        (masalan, -1001234567890) va botga «Havola orqali taklif qilish» huquqini bering.
+      </p>
+    </Card>
+  )
+}
+
 export function Company() {
   const { data: org, isLoading } = useOrganization()
 
@@ -672,6 +769,7 @@ export function Company() {
 
       <BotSection />
       {org && <InlineSearchSection org={org} />}
+      {org && <SubscriptionChannelSection org={org} />}
     </div>
   )
 }

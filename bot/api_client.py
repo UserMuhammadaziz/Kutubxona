@@ -134,11 +134,15 @@ class ApiClient:
             await self._login()
 
     async def _headers(self, auth: bool) -> dict:
+        # Lets the backend find the library this polling bot belongs to.
+        bot_id = config.BOT_TOKEN.split(":", 1)[0]
+        headers = {"X-Bot-Id": bot_id} if bot_id.isdigit() else {}
         if not auth:
-            return {}
+            return headers
         if not self._access:
             await self._login()
-        return {"Authorization": f"Bearer {self._access}"}
+        headers["Authorization"] = f"Bearer {self._access}"
+        return headers
 
     async def _so_rov(
         self, method: str, path: str, *, auth=True, params=None, json_data=None, qayta=True
@@ -193,6 +197,20 @@ class ApiClient:
             # Server o'chgan / internet uzilgan / javob kelmadi —
             # foydalanuvchi hech narsa ko'rmasligi o'rniga aniq xabar.
             raise ApiXato("server_ga_ulab_bolmadi", f"Serverga ulanib bo'lmadi: {xato}") from xato
+
+    # ---------- Staff linking and channel subscription ----------
+    async def staff_link(self, code: str, telegram_id: int):
+        return await self._so_rov(
+            "POST",
+            "/telegram/bot/staff-link/",
+            json_data={"code": code, "telegram_id": telegram_id},
+        )
+
+    async def subscription(self, telegram_id: int, fresh: bool = False):
+        params = {"telegram_id": telegram_id}
+        if fresh:
+            params["fresh"] = "1"
+        return await self._so_rov("GET", "/telegram/bot/subscription/", params=params)
 
     # ---------- Kartani bog'lash ----------
     async def bind(self, telefon: str, karta_raqami: str, telegram_id: int):

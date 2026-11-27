@@ -81,6 +81,10 @@ export interface OrganizationInfo {
   /** Local time `HH:MM:SS` when the daily Excel report goes to staff. */
   daily_report_time?: string
   daily_report_recipients?: 'all' | 'librarians'
+  /** Mandatory subscription channel (`@name` or numeric id); empty when off. */
+  subscription_channel?: string
+  subscription_channel_title?: string
+  subscription_channel_url?: string
   /** Current user's role inside this organization (membership role). */
   rol?: string | null
   status?: string
@@ -120,6 +124,33 @@ export const telegramApi = {
   disconnect: () => api.delete<TelegramBotState>('/telegram/settings/').then((r) => r.data),
   action: (action: 'test' | 'webhook') =>
     api.post<TelegramBotState>(`/telegram/actions/${action}/`).then((r) => r.data),
+}
+
+export interface TelegramLinkCode {
+  code: string
+  expires: string
+  bot_username: string
+  deep_link: string
+  instruksiya: string
+}
+
+export interface TelegramLinkStatus {
+  linked: boolean
+  bot_username: string
+}
+
+/** Linking the signed-in staff member's own Telegram account. */
+export const telegramLinkApi = {
+  status: () => api.get<TelegramLinkStatus>('/organizations/telegram-link-status/').then((r) => r.data),
+  code: () => api.post<TelegramLinkCode>('/organizations/telegram-link-code/').then((r) => r.data),
+  unlink: () => api.post<TelegramLinkStatus>('/organizations/telegram-unlink/').then((r) => r.data),
+}
+
+export const subscriptionChannelApi = {
+  set: (orgId: number, channel: string) =>
+    api.post<OrganizationInfo>(`/organizations/${orgId}/subscription-channel/`, { channel }).then((r) => r.data),
+  remove: (orgId: number) =>
+    api.delete<OrganizationInfo>(`/organizations/${orgId}/subscription-channel/`).then((r) => r.data),
 }
 
 export const authApi = {

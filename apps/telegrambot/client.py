@@ -47,6 +47,18 @@ def get_me(token):
     return _chaqir(token, "getMe")
 
 
+def get_chat(token, chat_id):
+    return _chaqir(token, "getChat", {"chat_id": chat_id})
+
+
+def get_chat_member(token, chat_id, user_id, timeout=10):
+    return _chaqir(token, "getChatMember", {"chat_id": chat_id, "user_id": user_id}, timeout=timeout)
+
+
+def export_chat_invite_link(token, chat_id):
+    return _chaqir(token, "exportChatInviteLink", {"chat_id": chat_id})
+
+
 def set_webhook(token, url, secret, drop_pending_updates=False):
     return _chaqir(
         token,

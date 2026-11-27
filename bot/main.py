@@ -25,8 +25,10 @@ from handlers import (
     noma_lum,
     qidiruv,
     shaxsiy,
+    staff_link,
     start,
 )
+from subscription import SubscriptionMiddleware
 
 
 async def xatolik_handler(event: ErrorEvent):
@@ -136,6 +138,11 @@ async def main():
     # to'ldirilayotganda `/bekor` yoki "📚 Kategoriyalar" kabi tugmalar
     # ariza maydoniga matn sifatida tushib ketadi (batafsil: handlers/
     # navigatsiya.py).
+    # Mandatory channel subscription runs before every handler.
+    dp.message.outer_middleware(SubscriptionMiddleware())
+    dp.callback_query.outer_middleware(SubscriptionMiddleware())
+    # Staff linking (/start staff_<code>) must win over the generic /start.
+    dp.include_router(staff_link.router)
     dp.include_router(navigatsiya.router)
     dp.include_router(start.router)
     dp.include_router(qidiruv.router)

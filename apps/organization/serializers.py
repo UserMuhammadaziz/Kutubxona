@@ -52,6 +52,9 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "daily_report_enabled",
             "daily_report_time",
             "daily_report_recipients",
+            "subscription_channel",
+            "subscription_channel_title",
+            "subscription_channel_url",
             "capabilities",
             "dashboard_widgets",
             "available_dashboard_widgets",
@@ -60,6 +63,9 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "obuna",
         ]
         read_only_fields = [
+            "subscription_channel",
+            "subscription_channel_title",
+            "subscription_channel_url",
             "id",
             "slug",
             "faol",
