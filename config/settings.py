@@ -84,6 +84,7 @@ INSTALLED_APPS = [
     'oquvchi',
     'stats',
     'marketing',
+    'billing',
     'web',
 ] 
 
@@ -233,6 +234,7 @@ REST_FRAMEWORK = {
         "register": "10/hour",
         "bot_webhook": "600/min",
         "login": "10/min",
+        "billing": "30/hour",
         "refresh": "30/min",
         "password_reset": "10/hour",
         "chatbot": "30/min",
@@ -351,3 +353,14 @@ _coop = os.environ.get(
     "same-origin" if _session_cookie_secure else ""
 )
 SECURE_CROSS_ORIGIN_OPENER_POLICY = None if _coop.lower() in ("", "none", "off") else _coop
+
+# --- Billing (taps.so) ---
+TAPS_PROFILE_ID = int(os.environ.get("TAPS_PROFILE_ID", "352"))
+TAPS_SLUG = os.environ.get("TAPS_SLUG", "dilyorbekdev")
+# Percent off the monthly price for longer periods, e.g. BILLING_DISCOUNTS=3:5,6:10,12:15
+BILLING_DISCOUNTS = {
+    int(k): int(v)
+    for k, v in (item.split(":") for item in os.environ.get("BILLING_DISCOUNTS", "").split(",") if ":" in item)
+}
+# When on, a library whose subscription has run out can read but not change data.
+BILLING_ENFORCE = os.environ.get("BILLING_ENFORCE", "0").lower() in ("1", "true", "yes")

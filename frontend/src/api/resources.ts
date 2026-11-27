@@ -81,6 +81,8 @@ export interface OrganizationInfo {
   /** Local time `HH:MM:SS` when the daily Excel report goes to staff. */
   daily_report_time?: string
   daily_report_recipients?: 'all' | 'librarians'
+  /** SaaS subscription of the library (plan, effective status, end dates). */
+  obuna?: { plan: string; plan_nomi: string; status: SubscriptionStatus; trial_ends_at: string | null; current_period_end: string | null }
   /** Mandatory subscription channel (`@name` or numeric id); empty when off. */
   subscription_channel?: string
   subscription_channel_title?: string
@@ -772,4 +774,50 @@ export interface PlatformOrgDetails {
   push_subscriptions: number
   attribution: { first: MarketingTouch; last: MarketingTouch; signed_up_at: string; visits: MarketingVisit[] } | null
   timeline: { id: number; action: string; actor: string; metadata: Record<string, unknown>; created_at: string }[]
+}
+
+// --- Billing (subscription payments through Taps) ---
+export type PaymentStatus = 'pending' | 'paid' | 'cancelled'
+
+export interface BillingPayment {
+  id: number
+  plan: string
+  plan_name: string
+  months: number
+  amount: number
+  method: string
+  method_name: string
+  status: PaymentStatus
+  checkout_url: string
+  created_at: string
+  paid_at: string | null
+  period_end: string | null
+}
+
+export interface BillingPlan {
+  code: string
+  name: string
+  monthly_price: number
+  periods: { months: number; amount: number; discount: number }[]
+}
+
+export interface BillingOverview {
+  subscription: {
+    plan: string
+    plan_name: string
+    status: SubscriptionStatus
+    trial_ends_at: string | null
+    current_period_end: string | null
+  }
+  plans: BillingPlan[]
+  methods: { code: string; name: string }[]
+  enforced: boolean
+  payments: BillingPayment[]
+}
+
+export const billingApi = {
+  overview: () => api.get<BillingOverview>('/billing/').then((r) => r.data),
+  checkout: (payload: { plan?: string; months: number; method: string }) =>
+    api.post<BillingPayment>('/billing/checkout/', payload).then((r) => r.data),
+  payment: (id: number) => api.get<BillingPayment>(`/billing/payments/${id}/`).then((r) => r.data),
 }

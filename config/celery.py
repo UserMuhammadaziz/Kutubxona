@@ -51,6 +51,10 @@ app.conf.beat_schedule = {
         "task": "stats.tasks.send_overdue_reminders",
         "schedule": crontab(hour=10, minute=0),
     },
+    "billing-sync-pending-payments": {
+        "task": "billing.tasks.sync_pending_payments",
+        "schedule": crontab(minute="*"),
+    },
     "reytingni-har-hafta-yangila": {
         "task": "stats.tasks.update_library_ratings",
         "schedule": crontab(day_of_week=1, hour=3, minute=0),

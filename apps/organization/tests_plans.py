@@ -41,12 +41,14 @@ class PlanTests(TestCase):
         self.assertTrue(AuditLog.objects.filter(action="plan.created").exists())
 
     def test_list_follows_the_display_order(self):
-        first = self.create(nomi="Standart").data["id"]
+        first = self.create(nomi="Biznes").data["id"]
         second = self.create(nomi="Pro").data["id"]
         for pk, tartib in ((second, 1), (first, 2), (self.free.pk, 3)):
             self.client_api.patch(f"{PLANS}{pk}/", {"tartib": tartib}, format="json")
-        rows = [p["id"] for p in self.client_api.get(PLANS).data]
-        self.assertEqual(rows[-3:], [second, first, self.free.pk])
+        # Other seeded plans (billing's Standart) may sit in between.
+        ours = {second, first, self.free.pk}
+        rows = [p["id"] for p in self.client_api.get(PLANS).data if p["id"] in ours]
+        self.assertEqual(rows, [second, first, self.free.pk])
 
     def test_code_is_generated_for_names_without_latin_letters(self):
         first = self.create(nomi="Мактаб")
