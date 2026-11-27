@@ -539,3 +539,71 @@ def my_ratings(request):
     )
 
 
+
+
+# --- Period statistics -----------------------------------------------------
+
+def _report_period(request):
+    from .report import resolve_period
+
+    try:
+        return resolve_period(
+            request.query_params.get("preset"),
+            request.query_params.get("start"),
+            request.query_params.get("end"),
+        )
+    except ValueError as exc:
+        raise ValidationError({"detail": str(exc)})
+
+
+@api_view(["GET"])
+@permission_classes([IsLibrarian])
+def period_report(request):
+    from .report import build_period_report
+
+    org = joriy_kutubxonani_aniqla(request, required=False)
+    start, end = _report_period(request)
+    return Response(build_period_report(org, start, end))
+
+
+@api_view(["GET"])
+@permission_classes([IsLibrarian])
+def period_report_export(request):
+    from django.http import HttpResponse
+
+    from .report import build_period_report, build_report_xlsx, report_filename
+
+    org = joriy_kutubxonani_aniqla(request, required=False)
+    start, end = _report_period(request)
+    report = build_period_report(org, start, end)
+    response = HttpResponse(
+        build_report_xlsx(report, org.nomi if org else ""),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{report_filename(report)}"'
+    return response
+
+
+@api_view(["POST"])
+@permission_classes([IsLibrarian])
+def send_reminder(request):
+    from .models import ReminderLog
+    from .reminders import manual_cooldown_active, send_loan_reminder
+
+    org = joriy_kutubxonani_aniqla(request, required=False)
+    loan = (
+        scope(Berish.objects, org)
+        .select_related("organization", "oquvchi", "kitob", "nusxa")
+        .filter(pk=request.data.get("loan_id"), qaytarilgan_sana__isnull=True)
+        .first()
+    )
+    if loan is None:
+        return Response({"detail": "Qaytarilmagan berish topilmadi."}, status=404)
+    if not loan.oquvchi.telegram_id:
+        return Response({"detail": "Kitobxon Telegram botga ulanmagan."}, status=400)
+    if manual_cooldown_active(loan):
+        return Response({"detail": "Eslatma yaqinda yuborilgan, birozdan keyin urinib ko'ring."}, status=429)
+    delivered = send_loan_reminder(loan, ReminderLog.KIND_MANUAL, sent_by=request.user)
+    if not delivered:
+        return Response({"detail": "Xabar yetib bormadi: bot ulanmagan yoki kitobxon botni bloklagan."}, status=502)
+    return Response({"delivered": True})
