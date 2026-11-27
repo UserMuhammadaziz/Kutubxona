@@ -31,6 +31,8 @@ import DataTable, { type DataTableColumn } from '../components/DataTable'
 import { useToast } from '../components/Toast'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { formatDate, formatMoney } from '../lib/format'
+import { useOrganization } from '../hooks/useOrganization'
+import { isSchool } from '../lib/organization'
 import { usePageSize } from '../hooks/usePageSize'
 
 const TONE: Record<BerishHolati, 'blue' | 'green' | 'red'> = {
@@ -103,6 +105,9 @@ export function Loans() {
   const [issuedTo, setIssuedTo] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [readerSearch, setReaderSearch] = useState('')
+  const { data: org } = useOrganization()
+  // Library readers have no class, so it is not offered as a search hint.
+  const library = !!org && !isSchool(org)
   const kechikkanReaderSearch = useDebouncedValue(readerSearch)
   // O'quvchi va o'qituvchilar bitta jadvalda — ro'l bo'yicha filtr ularning
   // hammasini tanlash imkoniyatini beradi (faqat 20 ta bo'lgan sahifada
@@ -492,7 +497,7 @@ function onSubmit(e: FormEvent) {
             <Label htmlFor="l-qidirish">Kitobxonni qidirish</Label>
             <Input
               id="l-qidirish"
-              placeholder="Ism, sinf yoki telefon..."
+              placeholder={library ? 'Ism yoki telefon...' : 'Ism, sinf yoki telefon...'}
               value={readerSearch}
               onChange={(e) => {
                 setReaderSearch(e.target.value)

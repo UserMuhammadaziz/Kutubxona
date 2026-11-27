@@ -475,7 +475,7 @@ export function Profile() {
                 <Label htmlFor="ochirish-qidiruv">Qidiruv</Label>
                 <Input
                   id="ochirish-qidiruv"
-                  placeholder="Ism, sinf yoki telefon..."
+                  placeholder={library ? 'Ism yoki telefon...' : 'Ism, sinf yoki telefon...'}
                   value={ochirishQidiruv}
                   onChange={(e) => setOchirishQidiruv(e.target.value)}
                 />
