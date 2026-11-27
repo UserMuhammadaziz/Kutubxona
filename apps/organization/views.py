@@ -315,6 +315,34 @@ class SaaSOrganizationViewSet(viewsets.ModelViewSet):
     def archive(self, request, pk=None):
         return self._holat(request, Organization.HOLAT_ARCHIVED, "Arxivlangan.")
 
+    @action(detail=True, methods=["post"], url_path="type-request/approve")
+    def approve_type(self, request, pk=None):
+        return self._settle_type_request(request, approve=True)
+
+    @action(detail=True, methods=["post"], url_path="type-request/reject")
+    def reject_type(self, request, pk=None):
+        return self._settle_type_request(request, approve=False)
+
+    def _settle_type_request(self, request, approve):
+        org = self.get_object()
+        if not org.requested_type:
+            return Response({"detail": "Tashkilot turini o'zgartirish so'rovi yo'q."}, status=409)
+        old, requested = org.type, org.requested_type
+        if approve:
+            org.type = requested
+        org.requested_type, org.type_requested_at = "", None
+        org.save(update_fields=["type", "requested_type", "type_requested_at"])
+        log_action(
+            "organization.type_change_approved" if approve else "organization.type_change_rejected",
+            actor=request.user,
+            organization=org,
+            target_type="organization",
+            target_id=org.pk,
+            metadata={"from": old, "to": requested},
+            request=request,
+        )
+        return Response(SaaSOrganizationSerializer(org, context={"request": request}).data)
+
     @action(detail=True, methods=["post"], url_path="subscription")
     def subscription(self, request, pk=None):
         """Tarif rejasini o'zgartirish (to'lovsiz, foundation bosqichi)."""
@@ -397,6 +425,8 @@ class SaaSOrganizationViewSet(viewsets.ModelViewSet):
                     "nomi": org.nomi,
                     "slug": org.slug,
                     "type": org.type,
+                    "requested_type": org.requested_type,
+                    "type_requested_at": org.type_requested_at,
                     "status": org.status,
                     "faol": org.faol,
                     "kitoblar": Kitob.objects.filter(organization=org).count(),

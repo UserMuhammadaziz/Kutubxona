@@ -39,13 +39,54 @@ class OrganizationTypeApiTest(OrgTestBase):
         self.assertEqual(data["type"], "library")
         self.assertNotIn("turi", data)
 
-    def test_owner_can_switch_type(self):
-        res = self.member("egasi", "owner").patch(
-            f"/api/organizations/{self.org.pk}/", {"type": "school"}, format="json"
-        )
+    def platform_admin(self):
+        user = User.objects.create_user(username="root", password="parol12345", is_staff=True)
+        api = APIClient()
+        api.force_authenticate(user)
+        return api
+
+    def test_owner_type_change_waits_for_platform_approval(self):
+        owner = self.member("egasi", "owner")
+        res = owner.patch(f"/api/organizations/{self.org.pk}/", {"type": "school"}, format="json")
+        self.assertEqual(res.status_code, 200, res.data)
+        self.assertEqual((res.data["type"], res.data["requested_type"]), ("library", "school"))
+        self.org.refresh_from_db()
+        self.assertEqual(self.org.type, "library")
+        self.assertIsNotNone(self.org.type_requested_at)
+
+        admin = self.platform_admin()
+        listed = {o["id"]: o for o in admin.get("/api/saas/organizations/stats/").json()["tashkilotlar"]}
+        self.assertEqual(listed[self.org.pk]["requested_type"], "school")
+        res = admin.post(f"/api/saas/organizations/{self.org.pk}/type-request/approve/")
         self.assertEqual(res.status_code, 200, res.data)
         self.org.refresh_from_db()
-        self.assertEqual(self.org.type, "school")
+        self.assertEqual((self.org.type, self.org.requested_type), ("school", ""))
+        self.assertEqual(admin.post(f"/api/saas/organizations/{self.org.pk}/type-request/approve/").status_code, 409)
+
+    def test_platform_rejects_type_request(self):
+        self.member("egasi", "owner").patch(f"/api/organizations/{self.org.pk}/", {"type": "school"}, format="json")
+        res = self.platform_admin().post(f"/api/saas/organizations/{self.org.pk}/type-request/reject/")
+        self.assertEqual(res.status_code, 200, res.data)
+        self.org.refresh_from_db()
+        self.assertEqual((self.org.type, self.org.requested_type), ("library", ""))
+
+    def test_owner_withdraws_request_by_choosing_current_type(self):
+        owner = self.member("egasi", "owner")
+        owner.patch(f"/api/organizations/{self.org.pk}/", {"type": "school"}, format="json")
+        res = owner.patch(f"/api/organizations/{self.org.pk}/", {"type": "library"}, format="json")
+        self.assertEqual(res.data["requested_type"], "")
+
+    def test_platform_admin_sets_type_directly(self):
+        self.member("egasi", "owner").patch(f"/api/organizations/{self.org.pk}/", {"type": "school"}, format="json")
+        res = self.platform_admin().patch(f"/api/saas/organizations/{self.org.pk}/", {"type": "school"}, format="json")
+        self.assertEqual(res.status_code, 200, res.data)
+        self.org.refresh_from_db()
+        self.assertEqual((self.org.type, self.org.requested_type), ("school", ""))
+
+    def test_owner_cannot_approve_own_request(self):
+        owner = self.member("egasi", "owner")
+        owner.patch(f"/api/organizations/{self.org.pk}/", {"type": "school"}, format="json")
+        self.assertEqual(owner.post(f"/api/saas/organizations/{self.org.pk}/type-request/approve/").status_code, 403)
 
     def test_administrator_cannot_switch_type(self):
         res = self.member("administrator", "admin").patch(

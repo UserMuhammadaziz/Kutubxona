@@ -253,9 +253,16 @@ export function Login() {
             </button>
           </form>
 
+          <p className="mt-6 text-center text-sm text-slate-600 dark:text-slate-300">
+            Tashkilotingiz hali ro‘yxatdan o‘tmaganmi?{' '}
+            <Link to="/register" className="font-semibold text-brand-700 hover:text-brand-800 hover:underline dark:text-brand-300">
+              Ro‘yxatdan o‘tish
+            </Link>
+          </p>
+
           <Link
             to="/yordam"
-            className="mt-6 flex items-center justify-center gap-2 text-sm font-medium text-brand-700 transition hover:text-brand-800 dark:text-brand-300"
+            className="mt-4 flex items-center justify-center gap-2 text-sm font-medium text-brand-700 transition hover:text-brand-800 dark:text-brand-300"
           >
             <BookOpen className="h-4 w-4" aria-hidden="true" />
             Tizimdan foydalanish qo‘llanmasi

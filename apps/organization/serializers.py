@@ -33,6 +33,8 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "nomi",
             "slug",
             "type",
+            "requested_type",
+            "type_requested_at",
             "tavsif",
             "telefon",
             "email",
@@ -63,6 +65,8 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "obuna",
         ]
         read_only_fields = [
+            "requested_type",
+            "type_requested_at",
             "subscription_channel",
             "subscription_channel_title",
             "subscription_channel_url",
@@ -166,11 +170,48 @@ class OrganizationSerializer(serializers.ModelSerializer):
         return {**(self.instance.capabilities if self.instance else {}), **value}
 
     def update(self, instance, validated_data):
+        self._hold_type_change(instance, validated_data)
         was_on = instance.has_capability("search_inline")
         instance = super().update(instance, validated_data)
         if instance.has_capability("search_inline") and not was_on:
             self._refresh_bot_webhook(instance)
         return instance
+
+    def _hold_type_change(self, instance, validated_data):
+        """A library may not switch its own type: the change waits for platform approval.
+
+        Choosing the current type again withdraws a pending request.
+        """
+        if "type" not in validated_data:
+            return
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if user is not None and (user.is_superuser or user.is_staff):
+            instance.requested_type, instance.type_requested_at = "", None
+            return
+        new_type = validated_data.pop("type")
+        if new_type == instance.type:
+            if instance.requested_type:
+                instance.requested_type, instance.type_requested_at = "", None
+                instance.save(update_fields=["requested_type", "type_requested_at"])
+            return
+        if new_type == instance.requested_type:
+            return
+        from django.utils import timezone
+
+        from .services import log_action
+
+        instance.requested_type, instance.type_requested_at = new_type, timezone.now()
+        instance.save(update_fields=["requested_type", "type_requested_at"])
+        log_action(
+            "organization.type_change_requested",
+            actor=user if getattr(user, "is_authenticated", False) else None,
+            organization=instance,
+            target_type="organization",
+            target_id=instance.pk,
+            metadata={"from": instance.type, "to": new_type},
+            request=request,
+        )
 
     @staticmethod
     def _refresh_bot_webhook(organization):
@@ -235,6 +276,11 @@ class SaaSOrganizationSerializer(OrganizationSerializer):
     def validate_type(self, value):
         # The platform console (staff or superuser) may set any organization's type.
         return value
+
+    def _hold_type_change(self, instance, validated_data):
+        # Platform admins change the type directly; a pending request is then settled.
+        if "type" in validated_data:
+            instance.requested_type, instance.type_requested_at = "", None
 
     def validate_slug(self, value):
         value = super().validate_slug(value)

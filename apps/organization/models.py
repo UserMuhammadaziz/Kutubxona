@@ -43,6 +43,9 @@ class Organization(models.Model):
     slug = models.SlugField(max_length=80, unique=True)
     # School by default: before the type existed every organization ran the school flow.
     type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_SCHOOL)
+    # The owner's type change waits here until a platform admin approves it.
+    requested_type = models.CharField(max_length=20, choices=TYPE_CHOICES, blank=True, default="")
+    type_requested_at = models.DateTimeField(null=True, blank=True)
     tavsif = models.TextField(blank=True)
     telefon = models.CharField(max_length=20, blank=True)
     email = models.EmailField(blank=True)
