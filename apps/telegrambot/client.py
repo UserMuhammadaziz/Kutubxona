@@ -1,6 +1,7 @@
 """Telegram Bot API bilan minimal sinxron aloqa (urllib)."""
 
 import json
+import uuid
 from urllib import error, request
 
 
@@ -101,3 +102,41 @@ def edit_message_reply_markup(token, chat_id, message_id, reply_markup):
         "editMessageReplyMarkup",
         {"chat_id": chat_id, "message_id": message_id, "reply_markup": reply_markup},
     )
+
+
+def send_document(token, chat_id, filename, content, caption="", parse_mode="HTML", timeout=30):
+    """Upload `content` (bytes) as a file; Bot API needs multipart for uploads."""
+    if not token:
+        raise TelegramAPIError("sendDocument", "Bot tokeni yo'q")
+    boundary = uuid.uuid4().hex
+    fields = {"chat_id": str(chat_id), "caption": caption, "parse_mode": parse_mode}
+    body = bytearray()
+    for name, value in fields.items():
+        body += (
+            f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'
+        ).encode("utf-8")
+    safe_name = filename.replace('"', "")
+    body += (
+        f'--{boundary}\r\nContent-Disposition: form-data; name="document"; filename="{safe_name}"\r\n'
+        "Content-Type: application/octet-stream\r\n\r\n"
+    ).encode("utf-8")
+    body += content + f"\r\n--{boundary}--\r\n".encode("utf-8")
+    req = request.Request(
+        f"https://api.telegram.org/bot{token}/sendDocument",
+        data=bytes(body),
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+    )
+    try:
+        with request.urlopen(req, timeout=timeout) as response:
+            result = json.loads(response.read().decode("utf-8"))
+    except error.HTTPError as exc:
+        try:
+            description = json.loads(exc.read().decode("utf-8")).get("description", str(exc))
+        except Exception:
+            description = str(exc)
+        raise TelegramAPIError("sendDocument", description, exc.code)
+    except (error.URLError, OSError, ValueError) as exc:
+        raise TelegramAPIError("sendDocument", f"Telegram bilan aloqa xatosi: {exc}")
+    if not result.get("ok"):
+        raise TelegramAPIError("sendDocument", result.get("description", "Telegram xatosi"), result.get("error_code"))
+    return result.get("result")

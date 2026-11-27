@@ -42,6 +42,7 @@ const navGroups: { title: string; items: NavItem[] }[] = [
   {
     title: 'Hisob va aloqa',
     items: [
+      { to: '/statistics', label: 'Statistika', icon: Icons.chart },
       { to: '/fines', label: 'Jarimalar', icon: Icons.money },
       { to: '/announcements', label: 'E‘lonlar', icon: Icons.bell },
     ],

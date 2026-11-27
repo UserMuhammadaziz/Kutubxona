@@ -1,6 +1,6 @@
 import secrets
 import uuid
-from datetime import timedelta
+from datetime import time, timedelta
 
 from django.conf import settings
 from django.db import models
@@ -82,6 +82,19 @@ class Organization(models.Model):
     taklif_soat = models.PositiveIntegerField(default=24)
     eslatma_kunlar_oldin = models.PositiveIntegerField(default=2)
     kitob_xabarlari_yoqilgan = models.BooleanField(default=True)
+    # Daily Excel report the library's bot sends to staff at closing time.
+    REPORT_RECIPIENTS_ALL = "all"
+    REPORT_RECIPIENTS_LIBRARIANS = "librarians"
+    REPORT_RECIPIENT_CHOICES = [
+        (REPORT_RECIPIENTS_ALL, "Barcha xodimlar"),
+        (REPORT_RECIPIENTS_LIBRARIANS, "Faqat kutubxonachilar"),
+    ]
+    daily_report_enabled = models.BooleanField(default=True)
+    daily_report_time = models.TimeField(default=time(18, 0))
+    daily_report_recipients = models.CharField(
+        max_length=20, choices=REPORT_RECIPIENT_CHOICES, default=REPORT_RECIPIENTS_ALL
+    )
+    daily_report_last_sent = models.DateField(null=True, blank=True)
     # Per-library feature switches, e.g. {"search_inline": true}. Unknown/missing keys mean "off".
     capabilities = models.JSONField(default=dict, blank=True)
     # Ordered list of widget keys shown on the dashboard (see `dashboard.py`).

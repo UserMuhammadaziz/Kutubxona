@@ -83,6 +83,10 @@ def eslatma_yuborish():
             # TelegramForbiddenError va sh.k. holatlarda vazifa yiqilmasin
             continue
 
+        from stats.models import ReminderLog
+        from stats.reminders import log_reminder
+
+        log_reminder(berish, ReminderLog.KIND_DUE_SOON, bool(yuborildi_hali))
         if yuborildi_hali:
             berish.eslatma_yuborilgan = True
             berish.save(update_fields=["eslatma_yuborilgan"])

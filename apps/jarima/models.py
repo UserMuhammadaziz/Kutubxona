@@ -14,6 +14,8 @@ class Jarima(TenantModel):
     qabul_qilgan = models.ForeignKey(User, null=True, blank=True, on_delete=models.PROTECT)
     eslatma_yuborilgan_sana = models.DateTimeField(null=True, blank=True)
     yangilangan = models.DateTimeField(auto_now=True)
+    # Null for fines created before this field existed.
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
 
     class Meta:
         indexes = [

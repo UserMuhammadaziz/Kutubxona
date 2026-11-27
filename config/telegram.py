@@ -97,3 +97,17 @@ def telegram_xabar_yubor(
         return True
     except Exception:
         return False
+
+
+def send_telegram_document(chat_id, filename, content, caption="", organization=None):
+    """Send a file through the library's bot (same token rules as messages). True on success."""
+    token = _token_ol(organization=organization)
+    if not token or not chat_id:
+        return False
+    from telegrambot.client import send_document
+
+    try:
+        send_document(token, int(chat_id), filename, content, caption=caption)
+        return True
+    except Exception:
+        return False

@@ -43,4 +43,16 @@ app.conf.beat_schedule = {
         "task": "telegrambot.tasks.oylik_statistika_yubor",
         "schedule": crontab(day_of_month=1, hour=8, minute=0),
     },
+    "kunlik-hisobot-har-5-daqiqada": {
+        "task": "stats.tasks.send_daily_reports",
+        "schedule": crontab(minute="*/5"),
+    },
+    "muddati-otganlarga-eslatma-har-kuni": {
+        "task": "stats.tasks.send_overdue_reminders",
+        "schedule": crontab(hour=10, minute=0),
+    },
+    "reytingni-har-hafta-yangila": {
+        "task": "stats.tasks.update_library_ratings",
+        "schedule": crontab(day_of_week=1, hour=3, minute=0),
+    },
 }

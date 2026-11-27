@@ -6,6 +6,9 @@ from .views import (
     library_overall,
     library_ratings,
     my_ratings,
+    period_report,
+    period_report_export,
+    send_reminder,
     rate_library,
     recent_activity,
     top_books,
@@ -22,4 +25,7 @@ urlpatterns = [
     path("ratings/competition/", umummiy_bellashuv, name="stats-ratings-competition"),
     path("ratings/me/", my_ratings, name="stats-ratings-me"),
     path("ratings/rate/", rate_library, name="stats-ratings-rate"),
+    path("period/", period_report, name="stats-period"),
+    path("period/export/", period_report_export, name="stats-period-export"),
+    path("remind/", send_reminder, name="stats-remind"),
 ]

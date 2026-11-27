@@ -116,3 +116,99 @@ def kitob_qoshilish_reyting_hisobla(kitob_id, organization_id):
         return True
     except Kitob.DoesNotExist:
         return False
+
+# --- Scheduled tasks -------------------------------------------------------
+
+from celery import shared_task  # noqa: E402
+
+
+@shared_task
+def update_library_ratings():
+    """Weekly refresh of every active library's rating (was never scheduled)."""
+    library_ratingni_yangilash()
+    return "ok"
+
+
+@shared_task
+def send_overdue_reminders():
+    """Remind readers with overdue books again every few days until they return them."""
+    from datetime import timedelta as _td
+
+    from .reminders import OVERDUE_REPEAT_DAYS, recently_reminded, send_loan_reminder
+    from .models import ReminderLog
+    from .report import local_today
+
+    today = local_today()
+    since = timezone.now() - _td(days=OVERDUE_REPEAT_DAYS) + _td(hours=1)
+    loans = (
+        Berish.objects.select_related("organization", "oquvchi", "kitob", "nusxa")
+        .filter(
+            qaytarilgan_sana__isnull=True,
+            qaytarish_muddati__lt=today,
+            oquvchi__telegram_id__isnull=False,
+            organization__status=Organization.HOLAT_ACTIVE,
+        )
+        .exclude(holati="yoqolgan")
+    )
+    sent = 0
+    for loan in loans.iterator():
+        if recently_reminded(loan, since):
+            continue
+        if send_loan_reminder(loan, ReminderLog.KIND_OVERDUE, today=today):
+            sent += 1
+    return f"{sent} overdue reminders sent"
+
+
+def report_recipients(organization):
+    from organization.models import Membership
+
+    members = Membership.objects.filter(
+        organization=organization, faol=True, telegram_id__isnull=False, user__is_active=True
+    )
+    if organization.daily_report_recipients == Organization.REPORT_RECIPIENTS_LIBRARIANS:
+        members = members.filter(rol="kutubxonachi")
+    return list(members.values_list("telegram_id", flat=True).distinct())
+
+
+def send_daily_report(organization, today):
+    """Build today's report and send it to the library's staff. Returns how many got it."""
+    from config.telegram import send_telegram_document
+
+    from .report import build_period_report, build_report_xlsx, report_caption, report_filename
+
+    recipients = report_recipients(organization)
+    if not recipients:
+        return 0
+    report = build_period_report(organization, today, today, today=today)
+    content = build_report_xlsx(report, organization.nomi)
+    caption = report_caption(report, organization.nomi)
+    filename = report_filename(report)
+    return sum(
+        1 for chat_id in recipients
+        if send_telegram_document(chat_id, filename, content, caption=caption, organization=organization)
+    )
+
+
+@shared_task
+def send_daily_reports():
+    """Runs every few minutes; each library gets its report once a day, at its own time."""
+    from .report import local_tz
+
+    local_now = timezone.localtime(timezone.now(), local_tz())
+    today = local_now.date()
+    sent = 0
+    due = Organization.objects.filter(
+        status=Organization.HOLAT_ACTIVE,
+        daily_report_enabled=True,
+        daily_report_time__lte=local_now.time(),
+    ).filter(Q(daily_report_last_sent__isnull=True) | Q(daily_report_last_sent__lt=today))
+    for org in due:
+        # Claim the day first so overlapping runs never send twice.
+        claimed = (
+            Organization.objects.filter(pk=org.pk)
+            .filter(Q(daily_report_last_sent__isnull=True) | Q(daily_report_last_sent__lt=today))
+            .update(daily_report_last_sent=today)
+        )
+        if claimed:
+            sent += send_daily_report(org, today)
+    return f"{sent} daily reports sent"
