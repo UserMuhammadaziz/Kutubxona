@@ -6,6 +6,8 @@ import { Icons } from '../components/icons'
 import { StartActions } from '../components/StartActions'
 import { Badge, Card, EmptyState, ErrorState, PageHeader, Spinner } from '../components/ui'
 import { formatDate, formatMoney } from '../lib/format'
+import { useOrganization } from '../hooks/useOrganization'
+import { isSchool } from '../lib/organization'
 import type { RecentActivity, TopBook } from '../types'
 
 function StatCard({
@@ -129,6 +131,8 @@ export function Overview() {
     queryFn: () => statsApi.topBooks(5),
   })
 
+  const { data: org } = useOrganization()
+  const library = !!org && !isSchool(org)
   const faollik = useQuery({
     queryKey: ['stats', 'faollik-reytingi'],
     queryFn: statsApi.faollikReytingi,
@@ -197,12 +201,12 @@ export function Overview() {
             {data.oqituvchi_soni !== undefined && (
               <StatCard label="O'qituvchilar" value={data.oqituvchi_soni} />
             )}
-            <StatCard
+            {!library && <StatCard
               label="Faol sinflar"
               value={faollik.data?.sinflar.length ?? 0}
               tone="amber"
               sub={engFaolSinf ? `Eng faoli: ${engFaolSinf.sinf}-sinf` : undefined}
-            />
+            />}
             <StatCard
               label="Faol o'qituvchilar"
               value={faollik.data?.faol_oqituvchilar.length ?? 0}

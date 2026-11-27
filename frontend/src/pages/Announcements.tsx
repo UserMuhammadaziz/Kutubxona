@@ -18,6 +18,8 @@ import {
 } from '../components/ui'
 import { ANNOUNCEMENT_AUDIENCE_LABELS, type AnnouncementAudience } from '../types'
 import { formatDateTime } from '../lib/format'
+import { useOrganization } from '../hooks/useOrganization'
+import { isSchool } from '../lib/organization'
 
 const MAX_LEN = 1000
 
@@ -26,17 +28,24 @@ export function Announcements() {
   const toast = useToast()
   const [audience, setAudience] = useState<AnnouncementAudience>('all')
   const [grade, setGrade] = useState('')
+  const { data: org } = useOrganization()
+  // Libraries have no classes or teacher role: only reader-wide audiences apply.
+  const library = !!org && !isSchool(org)
+  const audiences = (Object.entries(ANNOUNCEMENT_AUDIENCE_LABELS) as [AnnouncementAudience, string][]).filter(
+    ([v]) => !library || (v !== 'students' && v !== 'teachers'),
+  )
+  const audienceLabel = (v: AnnouncementAudience) => (library && v === 'all' ? 'Barcha kitobxonlar' : ANNOUNCEMENT_AUDIENCE_LABELS[v])
   const [text, setText] = useState('')
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   const preview = useQuery({
     queryKey: ['announcements', 'preview', audience, grade],
-    queryFn: () => announcementsApi.preview(audience, grade.trim()),
+    queryFn: () => announcementsApi.preview(audience, library ? '' : grade.trim()),
   })
   const log = useQuery({ queryKey: ['announcements', 'log'], queryFn: () => announcementsApi.list() })
 
   const sendMut = useMutation({
-    mutationFn: () => announcementsApi.send({ text: text.trim(), audience, grade: grade.trim() }),
+    mutationFn: () => announcementsApi.send({ text: text.trim(), audience, grade: library ? '' : grade.trim() }),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['announcements'] })
       setConfirmOpen(false)
@@ -57,7 +66,7 @@ export function Announcements() {
     <div>
       <PageHeader
         title="E‘lonlar"
-        subtitle="Telegramga ulangan o‘quvchilarga ommaviy xabar: chegirma, yangi kitoblar, ish vaqti"
+        subtitle={`Telegramga ulangan ${library ? 'kitobxonlarga' : 'o‘quvchilarga'} ommaviy xabar: chegirma, yangi kitoblar, ish vaqti`}
       />
 
       <div className="grid gap-6 lg:grid-cols-5">
@@ -66,19 +75,19 @@ export function Announcements() {
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-200">Kimga</label>
               <Select value={audience} onChange={(e) => setAudience(e.target.value as AnnouncementAudience)}>
-                {Object.entries(ANNOUNCEMENT_AUDIENCE_LABELS).map(([v, l]) => (
+                {audiences.map(([v]) => (
                   <option key={v} value={v}>
-                    {l}
+                    {audienceLabel(v)}
                   </option>
                 ))}
               </Select>
             </div>
-            <div>
+{!library && (<div>
               <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-200">
                 Sinf (ixtiyoriy)
               </label>
               <Input value={grade} onChange={(e) => setGrade(e.target.value)} placeholder="Masalan: 6-B" />
-            </div>
+            </div>)}
           </div>
 
           <div className="mt-4">
@@ -117,7 +126,7 @@ export function Announcements() {
           )}
           {!preview.isLoading && recipients === 0 && (
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              Bu guruhda Telegramga ulangan o‘quvchi yo‘q. Faqat botga ulangan o‘quvchilar xabar oladi.
+              Bu guruhda Telegramga ulangan kitobxon yo‘q. Faqat botga ulangan kitobxonlar xabar oladi.
             </p>
           )}
         </Card>
@@ -139,7 +148,7 @@ export function Announcements() {
                   <div className="line-clamp-2 font-medium text-slate-900 dark:text-slate-100">{a.text}</div>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                     <span>{formatDateTime(a.created_at)}</span>
-                    <span>· {ANNOUNCEMENT_AUDIENCE_LABELS[a.audience]}</span>
+                    <span>· {audienceLabel(a.audience)}</span>
                     <Badge tone="green">{a.sent_count} yuborildi</Badge>
                     {a.failed_count > 0 && <Badge tone="red">{a.failed_count} xato</Badge>}
                   </div>
@@ -157,8 +166,8 @@ export function Announcements() {
         loading={sendMut.isPending}
         message={
           <>
-            <b>{recipients}</b> ta o‘quvchiga ({ANNOUNCEMENT_AUDIENCE_LABELS[audience]}
-            {grade.trim() ? `, ${grade.trim()}` : ''}) quyidagi xabar yuboriladi. Yuborilgach qaytarib bo‘lmaydi.
+            <b>{recipients}</b> ta {library ? 'kitobxonga' : 'o‘quvchiga'} ({audienceLabel(audience)}
+            {!library && grade.trim() ? `, ${grade.trim()}` : ''}) quyidagi xabar yuboriladi. Yuborilgach qaytarib bo‘lmaydi.
             <br />
             <br />
             <span className="whitespace-pre-wrap">{text.trim()}</span>

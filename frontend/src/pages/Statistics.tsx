@@ -10,6 +10,8 @@ import { Icons } from '../components/icons'
 import { useToast } from '../components/Toast'
 import { Badge, Button, Card, EmptyState, ErrorState, PageHeader, PageSkeleton, ResponsiveList, Table } from '../components/ui'
 import { formatDate, formatDateTime, formatMoney } from '../lib/format'
+import { useOrganization } from '../hooks/useOrganization'
+import { isSchool } from '../lib/organization'
 
 const PRESETS: { key: PeriodPreset; label: string }[] = [
   { key: 'yesterday', label: 'Kecha' },
@@ -262,6 +264,9 @@ export function Statistics() {
   }
 
   const report = query.data
+  const { data: org } = useOrganization()
+  // Libraries have no classes: the debtors-by-class card is school-only.
+  const library = !!org && !isSchool(org)
   const s = report?.summary
   const returned = s ? s.returned_on_time + s.returned_late : 0
   const share = s && s.due ? Math.round((returned / s.due) * 100) : 0
@@ -399,7 +404,7 @@ export function Statistics() {
             </div>
 
             <div className="space-y-4">
-              <Card className="p-4">
+{!library && (<Card className="p-4">
                 <h3 className="mb-2 text-sm font-semibold text-slate-900 dark:text-slate-100">Sinflar bo‘yicha qarzdorlar</h3>
                 {report.by_class.length ? (
                   <ul className="space-y-1.5 text-sm">
@@ -413,7 +418,7 @@ export function Statistics() {
                 ) : (
                   <p className="text-sm text-slate-500 dark:text-slate-400">Muddati o‘tgan kitob yo‘q.</p>
                 )}
-              </Card>
+              </Card>)}
               <Card className="p-4">
                 <h3 className="mb-2 text-sm font-semibold text-slate-900 dark:text-slate-100">Xodimlar</h3>
                 {report.by_staff.length ? (
