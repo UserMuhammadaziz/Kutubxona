@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { isAxiosError } from 'axios'
 import { telegramLinkApi, type TelegramLinkCode } from '../api/resources'
 import { errorMessage } from '../api/client'
 import { useToast } from './Toast'
@@ -24,6 +25,7 @@ export function TelegramLinkCard() {
     // Poll only while a link code is waiting to be used in Telegram.
     refetchInterval: pending ? POLL_MS : false,
     refetchIntervalInBackground: true,
+    retry: (count, err) => !(isAxiosError(err) && err.response?.status === 403) && count < 2,
   })
   const linked = status.data?.linked ?? false
 
@@ -79,6 +81,9 @@ export function TelegramLinkCard() {
   })
 
   const botUsername = status.data?.bot_username
+
+  // Platform accounts without a library membership have nothing to link.
+  if (isAxiosError(status.error) && status.error.response?.status === 403) return null
 
   return (
     <Card className="mb-5 p-5">

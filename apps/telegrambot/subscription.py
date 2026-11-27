@@ -32,7 +32,7 @@ def normalize_channel(raw):
     """Turn "@name", "name", "t.me/name" or "-100123" into a chat_id for the Bot API."""
     value = (raw or "").strip()
     if not value:
-        raise ValidationError({"channel": "Kanalni kiriting."})
+        raise ValidationError("Kanalni kiriting.")
     if re.fullmatch(r"-100\d{5,}", value):
         return value
     match = _LINK_RE.match(value)
@@ -41,10 +41,10 @@ def normalize_channel(raw):
     value = value.lstrip("@")
     if value.startswith("+") or value.lower() == "joinchat":
         raise ValidationError(
-            {"channel": "Yopiq kanal havolasi emas, kanal ID sini kiriting (masalan: -1001234567890)."}
+            "Yopiq kanal havolasi emas, kanal ID sini kiriting (masalan: -1001234567890)."
         )
     if not _USERNAME_RE.match(value):
-        raise ValidationError({"channel": "Kanal nomi noto'g'ri. Masalan: @kutubxona_kanali"})
+        raise ValidationError("Kanal nomi noto'g'ri. Masalan: @kutubxona_kanali")
     return f"@{value}"
 
 
@@ -57,23 +57,23 @@ def resolve_channel(organization, raw):
     chat_ref = normalize_channel(raw)
     token = _token_ol(organization)
     if not token:
-        raise ValidationError({"channel": "Avval kutubxonaning Telegram botini ulang."})
+        raise ValidationError("Avval kutubxonaning Telegram botini ulang.")
     try:
         chat = get_chat(token, chat_ref)
     except TelegramAPIError:
         raise ValidationError(
-            {"channel": "Kanal topilmadi. Nomini tekshiring va botni kanalga administrator qilib qo'shing."}
+            "Kanal topilmadi. Nomini tekshiring va botni kanalga administrator qilib qo'shing."
         )
     if chat.get("type") not in ("channel", "supergroup"):
-        raise ValidationError({"channel": "Bu kanal yoki guruh emas."})
+        raise ValidationError("Bu kanal yoki guruh emas.")
     try:
         me = get_me(token)
         member = get_chat_member(token, chat["id"], me["id"])
     except TelegramAPIError:
-        raise ValidationError({"channel": "Bot kanal a'zolarini ko'ra olmayapti. Botni administrator qiling."})
+        raise ValidationError("Bot kanal a'zolarini ko'ra olmayapti. Botni administrator qiling.")
     if member.get("status") not in ("administrator", "creator"):
         raise ValidationError(
-            {"channel": f"@{me.get('username', 'bot')} kanalda administrator emas. Uni administrator qilib qo'shing."}
+            f"@{me.get('username', 'bot')} kanalda administrator emas. Uni administrator qilib qo'shing."
         )
     username = chat.get("username") or ""
     url = f"https://t.me/{username}" if username else chat.get("invite_link") or ""
@@ -82,7 +82,7 @@ def resolve_channel(organization, raw):
             url = export_chat_invite_link(token, chat["id"])
         except TelegramAPIError:
             raise ValidationError(
-                {"channel": "Yopiq kanal uchun botga «Havola orqali taklif qilish» huquqini bering."}
+                "Yopiq kanal uchun botga «Havola orqali taklif qilish» huquqini bering."
             )
     return {
         "subscription_channel": f"@{username}" if username else str(chat["id"]),
@@ -108,6 +108,7 @@ def is_subscribed(organization, telegram_id, fresh=False):
     except TelegramAPIError as error:
         description = (error.description or "").lower()
         if "user not found" in description or "participant_id_invalid" in description:
+            cache.delete(key)
             return False
         logger.warning("Subscription check failed for org %s: %s", organization.pk, error.description)
         return True  # fail open
@@ -115,6 +116,8 @@ def is_subscribed(organization, telegram_id, fresh=False):
     ok = status in SUBSCRIBED_STATUSES or (status == "restricted" and member.get("is_member"))
     if ok:
         cache.set(key, True, POSITIVE_CACHE_SECONDS)
+    else:
+        cache.delete(key)  # a fresh "left" must not be hidden by an older positive answer
     return ok
 
 

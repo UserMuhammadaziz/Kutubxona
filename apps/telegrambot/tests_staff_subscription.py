@@ -236,3 +236,13 @@ class SubscriptionGateTest(Base):
             handle_update(self.bot, self.message(f"/start staff_{code}", telegram_id=999))
         self.membership.refresh_from_db()
         self.assertEqual(self.membership.telegram_id, 999)
+
+    def test_fresh_left_clears_cached_positive(self):
+        from .subscription import is_subscribed
+
+        self.org.refresh_from_db()
+        with mock.patch("telegrambot.subscription.get_chat_member", return_value=member("member")):
+            self.assertTrue(is_subscribed(self.org, 777))
+        with mock.patch("telegrambot.subscription.get_chat_member", return_value=member("left")):
+            self.assertFalse(is_subscribed(self.org, 777, fresh=True))
+            self.assertFalse(is_subscribed(self.org, 777))
