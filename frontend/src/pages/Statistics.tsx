@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
 import { statsApi, type PeriodLoan, type PeriodParams, type PeriodPreset, type PeriodReport } from '../api/resources'
 import { errorMessage } from '../api/client'
+import { BookUsagePanel } from '../components/BookUsagePanel'
 import { DatePicker } from '../components/DatePicker'
 import { Icons } from '../components/icons'
 import { useToast } from '../components/Toast'
@@ -447,6 +448,7 @@ export function Statistics() {
               </Card>
             </div>
           </div>
+          {report.books && <BookUsagePanel usage={report.books} />}
         </>
       )}
     </div>
